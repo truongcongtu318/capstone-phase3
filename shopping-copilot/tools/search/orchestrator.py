@@ -123,8 +123,25 @@ from langchain_core.tools import tool
 _orchestrator = SearchOrchestrator()
 
 
+def run_async_sync(coro):
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    if loop.is_running():
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(lambda: asyncio.new_event_loop().run_until_complete(coro))
+            return future.result()
+    else:
+        return loop.run_until_complete(coro)
+
+
 @tool
-async def search_products_v2(query: str) -> str:
+def search_products_v2(query: str) -> str:
     """
     Tìm kiếm sản phẩm thông minh bằng tiếng Việt hoặc tiếng Anh.
     
@@ -140,7 +157,7 @@ async def search_products_v2(query: str) -> str:
     - Xếp hạng kết quả theo relevance
     - Gợi ý sản phẩm phù hợp nhất
     """
-    result = await _orchestrator.search(query)
+    result = run_async_sync(_orchestrator.search(query))
     
     # Format output cho LLM
     if result.error:
