@@ -161,7 +161,6 @@ def _build_mock_shipping_response():
 
 def _setup_grpc_mocks():
     """Mock tất cả gRPC calls với dữ liệu giả."""
-    import tools.catalog_tool
     import tools.review_tool
     import tools.cart_tool
     import tools.recommendation_tool
@@ -170,7 +169,7 @@ def _setup_grpc_mocks():
 
     # Mock grpc.insecure_channel cho tất cả modules
     all_modules = [
-        tools.catalog_tool, tools.review_tool, tools.cart_tool,
+        tools.review_tool, tools.cart_tool,
         tools.recommendation_tool, tools.currency_tool, tools.shipping_tool,
     ]
 
@@ -194,15 +193,8 @@ def _setup_grpc_mocks():
         p = patch(f"agent.copilot_agent.grpc.insecure_channel", return_value=mock_channel)
         p.start()
         _patches.append(p)
-    except ImportError:
+    except Exception:
         pass
-
-    # ── Mock Catalog Stub ──
-    mock_catalog_stub = MagicMock()
-    mock_catalog_stub.return_value.SearchProducts.return_value = _build_mock_search_response()
-    p = patch("tools.catalog_tool.demo_pb2_grpc.ProductCatalogServiceStub", mock_catalog_stub)
-    p.start()
-    _patches.append(p)
 
     # ── Mock Async Catalog Stub (for new search strategies) ──
     from unittest.mock import AsyncMock
