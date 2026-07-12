@@ -273,6 +273,18 @@ class CopilotAgent:
             # Nếu LLM không gọi tool → đây là câu trả lời cuối
             if not response.tool_calls:
                 final_answer = response.content or "Tôi không có thông tin để trả lời câu hỏi này."
+                if isinstance(final_answer, list):
+                    text_parts = []
+                    for part in final_answer:
+                        if isinstance(part, dict) and "text" in part:
+                            text_parts.append(part["text"])
+                        elif isinstance(part, str):
+                            text_parts.append(part)
+                        elif hasattr(part, "text"):
+                            text_parts.append(part.text)
+                        else:
+                            text_parts.append(str(part))
+                    final_answer = "".join(text_parts)
                 return {"status": "ok", "reply": final_answer, "token": None}
 
             # Kiểm tra giới hạn vòng lặp
