@@ -2,9 +2,12 @@
 
 Date: 2026-07-23 (updated 2026-07-25)  
 Scope: immutable CI dependencies, image provenance, and live traceability  
-Status: **CI/release evidence PASS; live trace ran read-only end-to-end on 2026-07-25
-and FAILED at the `image-manifest` step (script assumption gap, not a supply-chain
-failure) — see §4**
+Status: **CI/release evidence PASS; two real script defects found + fixed (PR #445);
+live trace now progresses through `image-manifest` but still FAILS at `trivy` because
+the currently-deployed checkout digest predates the #442 fix and its build evidence
+genuinely lacks an arm64 report; one attempt to re-promote checkout to backfill that
+evidence was blocked by unrelated Karpenter capacity exhaustion and cleanly reverted
+with zero production impact — see §4**
 
 ## 1. Before PM-129
 
@@ -65,10 +68,38 @@ from that promotion. Full evidence and root cause:
 `docs/evidence/mandate-10/pm-129/trace-attempt-2026-07-25.md`.
 
 This is a script-assumption gap (containerd behavior differs from what the script was
-written against), not a supply-chain or signing failure — but per the fail-closed
-policy it still must not be marked PASS until fixed and rerun. A fix is proposed
-(accept `child_digest == release_digest` as well as membership in `.manifests[]`) but
-not yet implemented; it needs its own reviewed PR like #441/#442.
+written against), not a supply-chain or signing failure. **Fixed in PR #445** (merged):
+also found and fixed a second, independent defect in the same check — `jq -e` on a
+boolean stream only evaluates the last emitted value, and the release index always
+lists attestation manifests last, so the membership check had been fail-closed on
+every possible run regardless of correctness. Both fixes verified against the real
+release index before merge.
+
+**Rerunning the trace after PR #445** progressed further than ever: it now passes
+`image-manifest` and reaches the `trivy` step, failing with
+`expected exactly one arm64 Trivy report`. Root cause: the currently-deployed checkout
+digest (`sha256:ebea1f1d...`) was built by workflow run `29978396050` on 2026-07-23,
+*before* PR #442 (the last-platform Trivy fix) merged — that run's own artifact
+genuinely only contains an amd64 report, and this cannot be fixed retroactively
+(GitHub re-runs a job against the workflow file pinned to that commit, not `main`).
+
+**Attempted fix:** rebuilt + re-promoted checkout (PR #448, no source change) to get a
+build with complete 2-platform evidence. The rebuild succeeded, but the resulting Argo
+Rollouts canary could not schedule its surge pod — Karpenter's `elastic-ondemand-fallback`
+NodePool is capped at `nodes: 0` and the two spot NodePools were already at their own
+node cap. **Zero production impact**: the two existing checkout pods stayed
+Running/Ready throughout (`maxUnavailable: 0` held as designed); only the Rollout
+object's own progress status showed `Degraded`. Per repo convention (don't touch
+NodePool/nodegroup config while another team's Karpenter work is in flight — this
+turned out to be a leftover temporary cap from a Mandate 19 / PM-152 breakpoint test
+that hadn't been restored yet), the promotion was reverted instead of touching NodePool
+limits (PR #450, merged) — confirmed back to the clean pre-attempt state. Full account:
+`docs/evidence/mandate-10/pm-129/checkout-promotion-attempt-2026-07-25.md`.
+
+**Current state: DoD still not met.** A future retry (Karpenter capacity has since
+improved via an unrelated PR #451) or a different rebuild window is needed to get a
+`overallResult: PASS` trace. Not re-attempted this session by explicit decision to stop
+and finalize reporting with current evidence.
 
 Historical blocker (resolved 2026-07-25, kept for record):
 
