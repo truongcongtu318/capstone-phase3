@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "overallResult": "PASS",
+  "generatedAt": "2026-07-26T05:37:28Z",
+  "pod": "checkout-rollout-6c986b459-cc5hw",
+  "namespace": "techx-tf3",
+  "container": "checkout",
+  "service": "checkout",
+  "runtime": {
+    "releaseImage": "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:8e22139cae1a6db0aa3dbabc83cba56a2608d78ee21c09541d7024959dac934e",
+    "indexDigest": "sha256:8e22139cae1a6db0aa3dbabc83cba56a2608d78ee21c09541d7024959dac934e",
+    "childDigest": "sha256:8e22139cae1a6db0aa3dbabc83cba56a2608d78ee21c09541d7024959dac934e"
+  },
+  "build": {
+    "workflowRunId": "30187331856",
+    "workflowRunAttempt": "1",
+    "sourceSha": "b1ae5c11b20d3deb80f4f90b3fcddcdace948c9a"
+  },
+  "review": {
+    "sourcePr": "459",
+    "promotionPr": "461",
+    "promotionMergeSha": "e6e40e952ed5b5ddc2365d4211fdb743b943f075"
+  },
+  "scans": {
+    "trivy": "PASS",
+    "cosign": "PASS",
+    "sbom": "PASS"
+  },
+  "signature": {
+    "issuer": "https://token.actions.githubusercontent.com",
+    "identity": "https://github.com/tuu-ngo/Phase3-TF3-Infra-Sentinel/.github/workflows/build-push-ecr.yml@refs/heads/main"
+  },
+  "gitops": {
+    "promotionRevision": "e6e40e952ed5b5ddc2365d4211fdb743b943f075",
+    "argoRevision": "e6e40e952ed5b5ddc2365d4211fdb743b943f075",
+    "promotionIsAncestor": true,
+    "status": "Healthy/Synced"
+  }
+}

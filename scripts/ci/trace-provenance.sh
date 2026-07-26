@@ -270,31 +270,85 @@ main() {
   done < <(find "$WORK/trivy" -type f -name "${service}-linux-*.json" | sort)
 
   local release_ref="$REGISTRY/$IMAGE_REPOSITORY@$release_digest"
+  # cosign verify itself enforces the --certificate-oidc-issuer/--certificate-identity
+  # match (fails closed with a non-zero exit and no entries if the cert doesn't match) -
+  # that flag pair is the actual identity/issuer gate. The re-check below only confirms
+  # the returned entries are bound to this exact release digest, not a substituted one.
+  # It does not re-derive Issuer/Subject from `optional`: newer cosign (v3, new bundle
+  # format) only "partially populates" that field and leaves it empty on real successes
+  # (sigstore/cosign#4416), which made the old field-presence check fail closed on every
+  # run regardless of correctness.
   cosign verify --output json --certificate-oidc-issuer "$OIDC_ISSUER" --certificate-identity "$OIDC_IDENTITY" "$release_ref" > "$WORK/cosign.json" 2>"$WORK/cosign.err" \
     || { fail_step cosign "cosign verify failed: $(tail -1 "$WORK/cosign.err")"; write_failure "$result_tmp"; return 1; }
   cosign_json="$(cat "$WORK/cosign.json")"
-  jq -e --arg issuer "$OIDC_ISSUER" --arg identity "$OIDC_IDENTITY" '((if type=="array" then . else [.] end)[] | .optional // {}) | select(.Issuer==$issuer and .Subject==$identity)' <<<"$cosign_json" >/dev/null \
-    || { fail_step cosign "signature identity/issuer does not match policy"; write_failure "$result_tmp"; return 1; }
+  jq -e --arg ref "$release_ref" '(if type=="array" then . else [.] end) | any(.critical.identity."docker-reference"==$ref)' <<<"$cosign_json" >/dev/null \
+    || { fail_step cosign "verified signature does not reference the expected release digest"; write_failure "$result_tmp"; return 1; }
 
-  local node_name node_arch platform child_ref
+  local node_name node_arch platform child_ref sbom_expected_child
   node_name="$(jq -r '.spec.nodeName // empty' <<<"$pod_json")"
   [[ -n "$node_name" ]] || { fail_step pod "pod is not scheduled on a node"; write_failure "$result_tmp"; return 1; }
   if ! run_json node "$WORK/node.json" kubectl get node "$node_name" -o json; then write_failure "$result_tmp"; return 1; fi
   node_arch="$(jq -r '.status.nodeInfo.architecture // empty' "$WORK/node.json")"
   [[ "$node_arch" == amd64 || "$node_arch" == arm64 ]] || { fail_step pod "unsupported node architecture: ${node_arch:-unknown}"; write_failure "$result_tmp"; return 1; }
   platform="linux/$node_arch"
+  # When containerd reports imageID == the release index digest (see the image-manifest
+  # comment above), child_digest IS the index digest, not the platform child manifest -
+  # get-sbom.py still resolves the correct per-platform attestation from an index ref,
+  # but its returned techx.subjectDigest is genuinely the platform child digest, so
+  # comparing it against child_digest would always mismatch. Resolve the real per-platform
+  # child digest from the already-fetched index for that comparison instead.
+  sbom_expected_child="$child_digest"
+  if [[ "$child_digest" == "$release_digest" ]]; then
+    sbom_expected_child="$(jq -r --arg platform "$platform" '.manifests[] | select((.platform.os+"/"+.platform.architecture)==$platform) | .digest' <<<"$manifest_json" | head -1)"
+    validate_hex_digest "$sbom_expected_child" || { fail_step sbom "could not resolve ${platform} child digest from the release index"; write_failure "$result_tmp"; return 1; }
+  fi
   child_ref="$REGISTRY/$IMAGE_REPOSITORY@$child_digest"
   python3 "$SCRIPT_DIR/get-sbom.py" --no-login --metadata --platform "$platform" "$child_ref" > "$WORK/sbom.json" 2>"$WORK/sbom.err" \
     || { fail_step sbom "trusted SBOM lookup failed: $(tail -1 "$WORK/sbom.err")"; write_failure "$result_tmp"; return 1; }
   sbom_json="$(cat "$WORK/sbom.json")"
-  jq -e --arg sha "$source_sha" --arg child "$child_digest" '.predicateType=="https://cyclonedx.org/bom" and (.predicate.metadata.properties | from_entries) as $p | ($p["techx.sourceSha"]==$sha and $p["techx.subjectDigest"]==$child)' <<<"$sbom_json" >/dev/null \
+  # `and` binds tighter than `EXPR as $x | BODY` in jq, so the original
+  # ".predicateType==... and (...) as $p | (...)" bound $p to the *boolean* result of
+  # (predicateType check) and (properties object) - a truthy-coerced boolean, not the
+  # properties object - so $p["techx.sourceSha"] always errored ("Cannot index boolean
+  # with string"). Parenthesize the `as` binding so $p is actually the properties map.
+  jq -e --arg sha "$source_sha" --arg child "$sbom_expected_child" '(.predicateType=="https://cyclonedx.org/bom") and ((.predicate.metadata.properties | from_entries) as $p | ($p["techx.sourceSha"]==$sha and $p["techx.subjectDigest"]==$child))' <<<"$sbom_json" >/dev/null \
     || { fail_step sbom "SBOM is not bound to source SHA and runtime child digest"; write_failure "$result_tmp"; return 1; }
+
+  # Resolve the pod's actual owning top-level workload (walk ReplicaSet -> its owner,
+  # e.g. Rollout/Deployment) so the app lookup below can match the concrete resource
+  # ArgoCD tracks. Multiple Applications from this repo now deploy into techx-tf3
+  # (techx-corp, techx-edge, techx-infrastructure-app, flagd-secret-sync,
+  # native-admission-policies), so repo+namespace alone no longer disambiguates to
+  # exactly one app the way it did when this script was first written.
+  local owner_kind owner_name rs_json
+  owner_kind="$(jq -r '.metadata.ownerReferences[0].kind // empty' <<<"$pod_json")"
+  owner_name="$(jq -r '.metadata.ownerReferences[0].name // empty' <<<"$pod_json")"
+  if [[ "$owner_kind" == "ReplicaSet" && -n "$owner_name" ]]; then
+    if rs_json="$(kubectl get replicaset "$owner_name" -n "$NAMESPACE" -o json 2>/dev/null)"; then
+      local rs_owner_kind rs_owner_name
+      rs_owner_kind="$(jq -r '.metadata.ownerReferences[0].kind // empty' <<<"$rs_json")"
+      rs_owner_name="$(jq -r '.metadata.ownerReferences[0].name // empty' <<<"$rs_json")"
+      if [[ -n "$rs_owner_kind" && -n "$rs_owner_name" ]]; then
+        owner_kind="$rs_owner_kind"
+        owner_name="$rs_owner_name"
+      fi
+    fi
+  fi
 
   if ! run_json argo "$WORK/apps.json" kubectl get applications.argoproj.io -A -o json; then write_failure "$result_tmp"; return 1; fi
   apps_json="$(cat "$WORK/apps.json")"
   local matching_apps app_count argo_revision
-  matching_apps="$(jq -c --arg repo "$REPOSITORY" --arg ns "$NAMESPACE" '[.items[] | ((.spec.source.repoURL // "") as $url | (.spec.sources[]?.repoURL // $url)) as $source | select(($source==("https://github.com/"+$repo) or $source==("https://github.com/"+$repo+".git") or $source==("git@github.com:"+$repo+".git")) and (.spec.destination.namespace==$ns or .spec.destination.namespace=="techx-tf3"))]' <<<"$apps_json")"
+  matching_apps="[]"
+  if [[ -n "$owner_kind" && -n "$owner_name" ]]; then
+    matching_apps="$(jq -c --arg kind "$owner_kind" --arg name "$owner_name" --arg ns "$NAMESPACE" '[.items[] | select(.status.resources[]? | .kind==$kind and .name==$name and .namespace==$ns)]' <<<"$apps_json")"
+  fi
   app_count="$(jq 'length' <<<"$matching_apps")"
+  if [[ "$app_count" -ne 1 ]]; then
+    # Fall back to the repo+namespace heuristic for topologies where the owning
+    # workload above wasn't found or isn't tracked directly in any app's resource tree.
+    matching_apps="$(jq -c --arg repo "$REPOSITORY" --arg ns "$NAMESPACE" '[.items[] | ((.spec.source.repoURL // "") as $url | (.spec.sources[]?.repoURL // $url)) as $source | select(($source==("https://github.com/"+$repo) or $source==("https://github.com/"+$repo+".git") or $source==("git@github.com:"+$repo+".git")) and (.spec.destination.namespace==$ns or .spec.destination.namespace=="techx-tf3"))]' <<<"$apps_json")"
+    app_count="$(jq 'length' <<<"$matching_apps")"
+  fi
   [[ "$app_count" -eq 1 ]] || { fail_step argo "expected exactly one matching Argo application"; write_failure "$result_tmp"; return 1; }
   jq -e '.[0] | .status.sync.status=="Synced" and .status.health.status=="Healthy"' <<<"$matching_apps" >/dev/null \
     || { fail_step argo "Argo application is not Healthy/Synced"; write_failure "$result_tmp"; return 1; }

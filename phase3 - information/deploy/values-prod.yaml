@@ -473,8 +473,8 @@ components:
           seconds: 5
     replicas: 2
     imageOverride: # CDO02 fix kafka/producer.go + main.go - xem comment imageOverride đầu components:
-      digest: sha256:ebea1f1d2ab51dac3a1de5493d4a8e97e6607601f966315eb1608a4d6f9aeeb8
-      tag: 5511bed-29978396050-checkout
+      digest: sha256:8e22139cae1a6db0aa3dbabc83cba56a2608d78ee21c09541d7024959dac934e
+      tag: b1ae5c1-30187331856-checkout
     # Mandate #8 buoc 3/3 (cutover Kafka -> MSK, runbook §6 buoc 2): PRODUCER TRUOC.
     # checkout doi KAFKA_ADDR -> MSK bootstrap (nhieu broker, phan tach dau phay - da fix
     # split o main.go PR #271) + SASL_SSL + SCRAM tu secret techx-tf3-kafka-scram.
