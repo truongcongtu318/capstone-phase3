@@ -14,6 +14,7 @@
     {"path": "phase3 - information/techx-corp-platform/src/fraud-detection/Dockerfile", "classification": "production", "owner": "fraud-detection", "inScope": true, "expectedPlatforms": ["linux/amd64", "linux/arm64"]},
     {"path": "phase3 - information/techx-corp-platform/src/frontend-proxy/Dockerfile", "classification": "production", "owner": "frontend-proxy", "inScope": true, "expectedPlatforms": ["linux/amd64", "linux/arm64"]},
     {"path": "phase3 - information/techx-corp-platform/src/frontend/Dockerfile", "classification": "production", "owner": "frontend", "inScope": true, "expectedPlatforms": ["linux/amd64", "linux/arm64"]},
+    {"path": "phase3 - information/techx-corp-platform/src/grafana/Dockerfile", "classification": "production", "owner": "grafana", "inScope": true, "expectedPlatforms": ["linux/amd64", "linux/arm64"]},
     {"path": "phase3 - information/techx-corp-platform/src/frontend/Dockerfile.cypress", "classification": "test", "owner": "frontend-qa", "inScope": true, "expectedPlatforms": ["linux/amd64"]},
     {"path": "phase3 - information/techx-corp-platform/src/frontend/genproto/Dockerfile", "classification": "tooling", "owner": "frontend", "inScope": true, "expectedPlatforms": ["linux/amd64"]},
     {"path": "phase3 - information/techx-corp-platform/src/image-provider/Dockerfile", "classification": "production", "owner": "image-provider", "inScope": true, "expectedPlatforms": ["linux/amd64", "linux/arm64"]},

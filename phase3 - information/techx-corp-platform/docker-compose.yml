@@ -839,15 +839,18 @@ services:
 
   # Grafana
   grafana:
-    image: ${GRAFANA_IMAGE}
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-grafana
     container_name: grafana
+    build:
+      context: ./
+      dockerfile: ${GRAFANA_DOCKERFILE}
+      cache_from:
+        - ${IMAGE_NAME}:${IMAGE_VERSION}-grafana
     deploy:
       resources:
         limits:
           memory: 175M
     restart: unless-stopped
-    environment:
-      - "GF_INSTALL_PLUGINS=grafana-opensearch-datasource"
     volumes:
       - ./src/grafana/grafana.ini:/etc/grafana/grafana.ini
       - ./src/grafana/provisioning/:/etc/grafana/provisioning/

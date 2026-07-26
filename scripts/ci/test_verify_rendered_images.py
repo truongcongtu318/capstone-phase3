@@ -345,3 +345,57 @@ spec:
     # Excluded service flagd-ui missing from rendered is OK.
     r, m = setup_env(tmp_path, man, rendered)
     assert run_verifier(r, m, ["--excluded-service", "flagd-ui"]).returncode == 0
+
+def test_t55_grafana_tagged_digest_exact_match(tmp_path):
+    digest = "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    manifest = {
+        "services": [{
+            "name": "grafana",
+            "tag": "123-grafana",
+            "digest": digest,
+        }]
+    }
+    rendered = f"""
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:123-grafana@{digest}
+"""
+    r, m = setup_env(tmp_path, manifest, rendered)
+    assert run_verifier(r, m).returncode == 0
+
+def test_t56_grafana_wrong_tag_is_rejected(tmp_path):
+    digest = "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    manifest = {
+        "services": [{
+            "name": "grafana",
+            "tag": "123-grafana",
+            "digest": digest,
+        }]
+    }
+    rendered = f"""
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:wrong@{digest}
+"""
+    r, m = setup_env(tmp_path, manifest, rendered)
+    assert run_verifier(r, m).returncode != 0

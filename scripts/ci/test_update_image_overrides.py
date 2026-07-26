@@ -575,3 +575,36 @@ def test_t58_kafka_real_values_prod_regression(tmp_path):
     original_kafka = yaml.load(prod_path.read_text())["components"]["kafka"]
     assert doc["components"]["kafka"]["strategy"] == original_kafka["strategy"]
     assert doc["components"]["kafka"]["envOverrides"] == original_kafka["envOverrides"]
+
+def test_t59_grafana_top_level_image_promotion(tmp_path):
+    data = valid_manifest_base()
+    data["services"] = [{
+        "name": "grafana",
+        "tag": "1234567-grafana",
+        "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "manifestMediaType": "application/vnd.oci.image.index.v1+json",
+    }]
+    values = (
+        "components:\n"
+        "  ad:\n"
+        "    imageOverride:\n"
+        "      digest: sha256:old\n"
+        "grafana:\n"
+        "  grafana.ini:\n"
+        "    server:\n"
+        "      root_url: http://example/\n"
+    )
+    v, m = setup_env(tmp_path, manifest_data=data, values_data=values)
+    res = run_updater(v, m, extra_args=["--expected-services", "grafana"])
+    assert res.returncode == 0, res.stderr
+
+    from ruamel.yaml import YAML
+    yaml = YAML(typ="safe")
+    doc = yaml.load(Path(v).read_text())
+    assert doc["grafana"]["image"] == {
+        "registry": "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com",
+        "repository": "techx-corp",
+        "tag": "1234567-grafana",
+        "sha": "4444444444444444444444444444444444444444444444444444444444444444",
+    }
+    assert doc["components"]["ad"]["imageOverride"]["digest"] == "sha256:old"

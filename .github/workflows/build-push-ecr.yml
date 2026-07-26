@@ -32,7 +32,7 @@ env:
   TRIVY_SEVERITIES: HIGH,CRITICAL
   ALL_SERVICES: >-
     accounting ad cart checkout currency email fraud-detection frontend
-    frontend-proxy image-provider kafka llm load-generator payment
+    frontend-proxy grafana image-provider kafka llm load-generator payment
     product-catalog product-reviews quote recommendation shipping flagd-ui
 
 jobs:
@@ -137,6 +137,7 @@ jobs:
             CHANGED="$(git diff --name-only "$EVENT_BEFORE" "$SOURCE_SHA" -- \
               "phase3 - information/techx-corp-platform")"
             PREFIX="phase3 - information/techx-corp-platform/src/"
+            PLATFORM_ROOT="phase3 - information/techx-corp-platform"
             SERVICES=""
             FULL=false
             while IFS= read -r file; do
@@ -149,6 +150,23 @@ jobs:
                     SERVICES="$SERVICES $service"
                   else
                     FULL=true
+                  fi ;;
+                "$PLATFORM_ROOT/docker-compose.yml")
+                  COMPOSE_DIFF="$(git diff --unified=3 "$EVENT_BEFORE" "$SOURCE_SHA" -- "$file")"
+                  HUNK_COUNT="$(grep -c '^@@' <<< "$COMPOSE_DIFF" || true)"
+                  if [ "$HUNK_COUNT" -ne 1 ] || ! grep -Fq "# Grafana" <<< "$COMPOSE_DIFF"; then
+                    FULL=true
+                  else
+                    SERVICES="$SERVICES grafana"
+                  fi ;;
+                "$PLATFORM_ROOT/.env")
+                  ENV_LINES="$(git diff --unified=0 "$EVENT_BEFORE" "$SOURCE_SHA" -- "$file" |
+                    grep -E '^[-+][^-+]' || true)"
+                  if [ -z "$ENV_LINES" ] ||
+                     grep -Ev '^[-+](GRAFANA_[A-Za-z0-9_]+=|[[:space:]]*$)' <<< "$ENV_LINES"; then
+                    FULL=true
+                  else
+                    SERVICES="$SERVICES grafana"
                   fi ;;
                 *) FULL=true ;;
               esac
@@ -338,6 +356,7 @@ jobs:
           )"
 
           PREFIX="phase3 - information/techx-corp-platform/src/"
+          PLATFORM_ROOT="phase3 - information/techx-corp-platform"
           SERVICES=""
           FULL=false
 
@@ -350,7 +369,26 @@ jobs:
                 if grep -Fqw -- "$service" <<< "$ALL_SERVICES"; then
                   SERVICES="$SERVICES $service"
                 else
+                    FULL=true
+                fi
+                ;;
+              "$PLATFORM_ROOT/docker-compose.yml")
+                COMPOSE_DIFF="$(git -C "$GITHUB_WORKSPACE" diff --unified=3 "$EVENT_BEFORE" "$SOURCE_SHA" -- "$file")"
+                HUNK_COUNT="$(grep -c '^@@' <<< "$COMPOSE_DIFF" || true)"
+                if [ "$HUNK_COUNT" -ne 1 ] || ! grep -Fq "# Grafana" <<< "$COMPOSE_DIFF"; then
                   FULL=true
+                else
+                  SERVICES="$SERVICES grafana"
+                fi
+                ;;
+              "$PLATFORM_ROOT/.env")
+                ENV_LINES="$(git -C "$GITHUB_WORKSPACE" diff --unified=0 "$EVENT_BEFORE" "$SOURCE_SHA" -- "$file" |
+                  grep -E '^[-+][^-+]' || true)"
+                if [ -z "$ENV_LINES" ] ||
+                   grep -Ev '^[-+](GRAFANA_[A-Za-z0-9_]+=|[[:space:]]*$)' <<< "$ENV_LINES"; then
+                  FULL=true
+                else
+                  SERVICES="$SERVICES grafana"
                 fi
                 ;;
               *)

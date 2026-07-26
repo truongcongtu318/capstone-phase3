@@ -17,7 +17,7 @@ def test_repository_workflows_and_dockerfiles_are_immutable():
     assert MODULE.verify_workflows() == []
     refs, errors = MODULE.parse_dockerfiles()
     assert errors == []
-    assert len(MODULE.dockerfile_paths()) == 28
+    assert len(MODULE.dockerfile_paths()) == 29
     assert refs
     assert all("@sha256:" in ref.resolved_image for ref in refs)
 
@@ -37,7 +37,7 @@ def test_workflow_tag_and_missing_comment_fail(tmp_path, monkeypatch):
 def test_scope_file_covers_every_discovered_dockerfile():
     document = json.loads(MODULE.SCOPE_FILE.read_text())
     paths = {entry["path"] for entry in document["dockerfiles"]}
-    assert len(paths) == 28
+    assert len(paths) == 29
     assert all(entry["inScope"] is True for entry in document["dockerfiles"])
 
 

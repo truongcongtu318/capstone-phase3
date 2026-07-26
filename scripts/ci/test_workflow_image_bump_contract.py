@@ -1,4 +1,5 @@
 import os
+import json
 import pytest
 from pathlib import Path
 
@@ -152,3 +153,24 @@ def test_t63_scoped_canary_and_promotion_evidence_contract():
     assert "unknown production service" in build_raw
     assert "promotion-evidence-${{ github.run_id }}-${{ github.run_attempt }}" in build_raw
     assert "retention-days: 90" in build_raw
+
+def test_t64_grafana_is_registered_as_scoped_production_service():
+    build_raw = Path(".github/workflows/build-push-ecr.yml").read_text()
+    assert "frontend-proxy grafana image-provider" in build_raw
+    assert 'PLATFORM_ROOT="phase3 - information/techx-corp-platform"' in build_raw
+    assert 'grep -Fq "# Grafana" <<< "$COMPOSE_DIFF"' in build_raw
+    assert "GRAFANA_[A-Za-z0-9_]+=" in build_raw
+
+def test_t65_grafana_dockerfile_is_in_immutable_scope_registry():
+    registry = json.loads(Path("scripts/ci/dockerfile-scope.json").read_text())
+    entries = [
+        item for item in registry["dockerfiles"]
+        if item["owner"] == "grafana"
+    ]
+    assert entries == [{
+        "path": "phase3 - information/techx-corp-platform/src/grafana/Dockerfile",
+        "classification": "production",
+        "owner": "grafana",
+        "inScope": True,
+        "expectedPlatforms": ["linux/amd64", "linux/arm64"],
+    }]

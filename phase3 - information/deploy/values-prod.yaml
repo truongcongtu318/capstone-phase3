@@ -267,7 +267,11 @@ components:
             matchLabels:
               opentelemetry.io/name: frontend
     imageOverride:
-      digest: sha256:e6874914182473a905354d9e17c55fc1aec7d690c5f1428758c0b6c78e114e9e
+      # REL-17-02: bump lên image chứa deadline+fallback (tag ba46a27-30060412880-frontend,
+      # build từ code fallback + postcss fix). Re-apply PR #448 - từng merge rồi bị revert (#450)
+      # như biện pháp phòng ngừa trong lúc ổn định PM-129 (bug tooling trace-provenance đa-arch,
+      # KHÔNG phải lỗi supply-chain); image đã qua Trivy + Cosign. Đừng revert lại.
+      digest: sha256:6e91e6c017ebea643845b1e493fe1a85e455e23d59d3970022a342fcc8ffded6
     # REL-03: tcpSocket probe (an toan - chi check port mo, khong false-fail vi thieu
     # grpc-health/sai HTTP path). liveness long hon readiness.
     readinessProbe:

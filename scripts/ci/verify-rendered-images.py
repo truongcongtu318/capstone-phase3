@@ -18,6 +18,12 @@ NESTED_SIDECAR_SERVICES = {
     "flagd-ui": "flagd",
 }
 
+# Grafana is rendered by the vendored Grafana Helm dependency and includes the
+# mutable tag before its immutable digest: registry/repository:tag@sha256:...
+TAGGED_DIGEST_SERVICES = {
+    "grafana",
+}
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--rendered', required=True)
@@ -125,7 +131,16 @@ def main():
             fail(f"Expected service workload missing or no relevant images found for {svc}")
             
         expected_digest = expected_digests[svc]
-        expected_full_image = f"{args.registry}/{args.repository}@{expected_digest}"
+        if svc in TAGGED_DIGEST_SERVICES:
+            manifest_service = next(
+                item for item in manifest["services"] if item["name"] == svc
+            )
+            expected_full_image = (
+                f"{args.registry}/{args.repository}:"
+                f"{manifest_service['tag']}@{expected_digest}"
+            )
+        else:
+            expected_full_image = f"{args.registry}/{args.repository}@{expected_digest}"
         
         for image in images:
             if "@sha256:" not in image:

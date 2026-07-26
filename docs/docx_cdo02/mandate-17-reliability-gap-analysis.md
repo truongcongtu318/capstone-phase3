@@ -39,10 +39,10 @@ CDO02 (Platform — trụ Reliability + Cost Optimization)
 | --------- | ------- | ----------------------------------------------------------------------------------------- | ------- | ---------------- |
 | REL-17-01 | **CAO** | Dual-write của `cart` chặn đồng bộ 2s trong `lock` → mất AZ 1a làm cart nghẽn ~40–60s **đúng lúc mentor bấm giờ RTO** | #2      | ✅ **ĐÃ XỬ** — `b881bf1` gỡ dual-write |
 | REL-17-06 | **CAO** | initContainer `wait-for-kafka` khoá khởi động checkout vào Kafka CŨ (PV gp2 ghim AZ 1b) → mọi restart cần kho sắp xoá còn sống | #2 | ✅ **ĐÃ XỬ** — `b881bf1` gỡ init |
-| REL-17-02 | **CAO** | Frontend gọi `ad`/`recommendation` **không deadline, không fallback** → dependency treo kéo theo frontend | #1      | 🛠️ **ĐANG XỬ** — PR này (deadline 5 gateway + fallback + span attr; đã sửa theo review leader) |
+| REL-17-02 | **CAO** | Frontend gọi `ad`/`recommendation` **không deadline, không fallback** → dependency treo kéo theo frontend | #1      | 🛠️ **Code đã merge (#375)**; deploy qua **re-bump digest `6e91e6c0`** (bump #448 từng merge rồi bị revert #450 vì tooling PM-129 đa-arch, không phải supply-chain — re-apply trong PR này). Live khi digest frontend sync xong |
 | REL-17-02b | TRUNG BÌNH | `Cart`/`Checkout` gateway frontend **cũng thiếu deadline** (cùng failure mode, nhưng là lõi luồng) | #1 | 🟡 **Theo dõi — cố ý ngoài scope PR** |
 | REL-17-05 | **CAO** (23/07) | 9/9 service ra tiền vẫn trải 2 AZ, nhưng **dồn hết lên 2 spot node** sau batch Karpenter mandate-13 → mất AZ = dồn lên 1 spot node duy nhất | #2 | 🔴 **CÒN — sync mandate-13** |
-| REL-17-04 | TRUNG BÌNH (nâng 23/07) | `grafana`+`prometheus` cùng 1 node ở **AZ 1a**, prometheus `emptyDir` → mất AZ 1a = mất dashboard **+ lịch sử metric** đúng lúc demo | #2      | 🟡 CÒN |
+| REL-17-04 | TRUNG BÌNH (nâng 23/07) | `grafana`+`prometheus` cùng 1 node ở **AZ 1a**, prometheus `emptyDir` → mất AZ 1a = mất dashboard **+ lịch sử metric** đúng lúc demo | #2      | ✅ **ĐÃ XỬ (tách AZ)** — anti-affinity `preferred` (PR #388); **verify live 26/07: grafana AZ 1c ≠ prometheus AZ 1b** ([evidence](../evidence/mandate-17/rel-17-04-and-req2-az-resilience-2026-07-26.md)). Phần lịch sử metric (emptyDir/PVC = tier 2) **cố ý KHÔNG làm** — PVC zone-lock hại req#2 |
 | REL-17-03 | TRUNG BÌNH | `flagd` 1 replica — mất AZ chứa flagd = mất cơ chế đọc flag toàn hệ (vị trí AZ đổi theo lập lịch) | #1, #2  | 🟡 CÒN — cần xin phép |
 
 **Kết luận (cập nhật 22/07):** Hai SPOF ẩn đường khởi động (REL-17-01 dual-write, REL-17-06 wait-for-kafka)

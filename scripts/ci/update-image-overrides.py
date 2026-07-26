@@ -12,7 +12,8 @@ ALLOWED_SERVICES = {
     "accounting", "ad", "cart", "checkout", "currency", "email",
     "fraud-detection", "frontend", "frontend-proxy", "image-provider",
     "kafka", "llm", "load-generator", "payment", "product-catalog",
-    "product-reviews", "quote", "recommendation", "shipping", "flagd-ui"
+    "product-reviews", "quote", "recommendation", "shipping", "flagd-ui",
+    "grafana"
 }
 
 # Services that are not their own top-level `components.<name>` entry, but a
@@ -21,6 +22,12 @@ ALLOWED_SERVICES = {
 # same Pod - it has no component of its own to key off of.
 NESTED_SIDECAR_SERVICES = {
     "flagd-ui": {"component": "flagd", "sidecar_name": "flagd-ui"},
+}
+
+# Grafana is a Helm dependency whose image lives under the top-level
+# `grafana.image` map instead of `components.<name>.imageOverride`.
+TOP_LEVEL_IMAGE_SERVICES = {
+    "grafana": "grafana",
 }
 
 ALLOWED_MEDIA_TYPES = {
@@ -185,6 +192,15 @@ def resolve_target_node(components, name):
             return item
     fail(f"UNKNOWN_PRODUCTION_SIDECAR: {name} (no entry named {sidecar_name} under {parent_name}.sidecarContainers)")
 
+def resolve_top_level_image_node(doc, name):
+    key = TOP_LEVEL_IMAGE_SERVICES.get(name)
+    if key is None:
+        fail(f"UNKNOWN_TOP_LEVEL_IMAGE_SERVICE: {name}")
+    target = doc.get(key)
+    if not isinstance(target, dict):
+        fail(f"top-level image service {name} value is non-mapping")
+    return target
+
 def case_d_anchor(components, name, lines):
     """Return (anchor_line_idx, child_indent) for inserting a brand-new
     imageOverride block for `name` that currently has none at all."""
@@ -199,6 +215,72 @@ def case_d_anchor(components, name, lines):
     line_idx = components.lc.data[name][0]
     indent = find_indent(lines[line_idx]) + 2
     return line_idx, indent
+
+def replace_yaml_scalar_line(line, key, value, force_quote=False):
+    pattern = rf'(\b{re.escape(key)}:\s*)("[^"]*"|\'[^\']*\'|\S+)'
+    match = re.search(pattern, line)
+    if not match:
+        fail(f"Unable to replace YAML scalar key: {key}")
+    value_text = str(value)
+    current = match.group(2)
+    if force_quote:
+        value_text = f'"{value_text}"'
+    elif current.startswith('"') and current.endswith('"'):
+        value_text = f'"{value_text}"'
+    elif current.startswith("'") and current.endswith("'"):
+        value_text = f"'{value_text}'"
+    return line[:match.start(2)] + value_text + line[match.end(2):]
+
+def update_top_level_image_service(doc, lines, edits, svc_info, summary):
+    name = svc_info["name"]
+    target = resolve_top_level_image_node(doc, name)
+    new_values = {
+        "registry": svc_info["registry"],
+        "repository": svc_info["repository"],
+        "tag": svc_info["tag"],
+        # The Grafana chart expects the digest without the `sha256:` prefix.
+        "sha": svc_info["digest"].removeprefix("sha256:"),
+    }
+
+    image_node = target.get("image")
+    if image_node is None or not isinstance(image_node, dict):
+        grafana_line_idx = doc.lc.data[name][0]
+        image_block = (
+            "  image:\n"
+            f"    registry: {new_values['registry']}\n"
+            f"    repository: {new_values['repository']}\n"
+            f"    tag: {new_values['tag']}\n"
+            f"    sha: \"{new_values['sha']}\"\n"
+        )
+        edits[grafana_line_idx + 0.5] = image_block
+        old_values = None
+    else:
+        old_values = {key: image_node.get(key) for key in new_values}
+        image_line_idx = target.lc.data["image"][0]
+        for key, value in new_values.items():
+            if key in image_node:
+                line_idx = image_node.lc.data[key][0]
+                edits[line_idx] = replace_yaml_scalar_line(
+                    lines[line_idx], key, value, force_quote=(key == "sha")
+                )
+            else:
+                insert_key = image_line_idx + 0.5
+                rendered_value = f'"{value}"' if key == "sha" else value
+                edits[insert_key] = (
+                    edits.get(insert_key, "")
+                    + f"    {key}: {rendered_value}\n"
+                )
+
+    summary["updated"].append({
+        "service": name,
+        "oldDigest": (
+            f"sha256:{old_values['sha']}" if old_values and old_values.get("sha") else None
+        ),
+        "newDigest": svc_info["digest"],
+        "tagKeyExisted": bool(old_values and "tag" in old_values),
+        "oldTag": old_values.get("tag") if old_values else None,
+        "newTag": new_values["tag"],
+    })
 
 def main():
     parser = argparse.ArgumentParser()
@@ -242,7 +324,16 @@ def main():
         name = svc_info["name"]
         if name in args.excluded_service:
             continue
-        target = resolve_target_node(components, name)
+        target = (
+            resolve_top_level_image_node(doc, name)
+            if name in TOP_LEVEL_IMAGE_SERVICES
+            else resolve_target_node(components, name)
+        )
+        if name in TOP_LEVEL_IMAGE_SERVICES:
+            io = target.get("image")
+            if io is not None and not isinstance(io, dict):
+                fail(f"image for {name} is non-mapping")
+            continue
         io = target.get('imageOverride')
         # io could be {} or None, but if it exists and is scalar, fail
         if "imageOverride" in target and io is not None and not isinstance(io, dict):
@@ -274,6 +365,15 @@ def main():
             
         new_digest = svc_info["digest"]
         new_tag = svc_info["tag"]
+
+        if name in TOP_LEVEL_IMAGE_SERVICES:
+            svc_info_with_metadata = dict(svc_info)
+            svc_info_with_metadata["registry"] = manifest["registry"]
+            svc_info_with_metadata["repository"] = manifest["repository"]
+            update_top_level_image_service(
+                doc, lines, edits, svc_info_with_metadata, summary
+            )
+            continue
 
         comp_node = resolve_target_node(components, name)
 
@@ -419,15 +519,19 @@ def main():
         for svc_info in summary["updated"]:
             svc = svc_info["service"]
             try:
-                nested = NESTED_SIDECAR_SERVICES.get(svc)
-                if nested is None:
-                    found_digest = verified_doc["components"][svc]["imageOverride"]["digest"]
+                if svc in TOP_LEVEL_IMAGE_SERVICES:
+                    image_values = verified_doc[TOP_LEVEL_IMAGE_SERVICES[svc]]["image"]
+                    found_digest = f"sha256:{image_values['sha']}"
                 else:
-                    parent_sidecars = verified_doc["components"][nested["component"]]["sidecarContainers"]
-                    matches = [s for s in parent_sidecars if isinstance(s, dict) and s.get("name") == nested["sidecar_name"]]
-                    if not matches:
-                        raise KeyError(nested["sidecar_name"])
-                    found_digest = matches[0]["imageOverride"]["digest"]
+                    nested = NESTED_SIDECAR_SERVICES.get(svc)
+                    if nested is None:
+                        found_digest = verified_doc["components"][svc]["imageOverride"]["digest"]
+                    else:
+                        parent_sidecars = verified_doc["components"][nested["component"]]["sidecarContainers"]
+                        matches = [s for s in parent_sidecars if isinstance(s, dict) and s.get("name") == nested["sidecar_name"]]
+                        if not matches:
+                            raise KeyError(nested["sidecar_name"])
+                        found_digest = matches[0]["imageOverride"]["digest"]
                 if found_digest != svc_info["newDigest"]:
                     fail(f"Semantic verification failed for {svc} digest")
             except KeyError:
