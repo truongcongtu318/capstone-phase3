@@ -1,7 +1,7 @@
 ﻿# Báo cáo Load Test: Xác định Old-Ceiling (Theo PM-152)
 
 ## 1. Mục tiêu và Kết quả (Verdict)
-Báo cáo này đã được bổ sung đủ các artifact còn thiếu theo contract PM-152 để hỗ trợ kết luận `DONE` cho mục đích bàn giao PM-153/155.
+Báo cáo này đã được bổ sung đủ các artifact còn thiếu theo contract PM-152, tạo thành một evidence bundle hoàn chỉnh để hỗ trợ kết luận `DONE` cho mục đích bàn giao PM-153/155.
 
 - **Current verdict**: `DONE` (đủ evidence core theo PM-152 DoD)
 - **Old Ceiling (Highest Passing Stage)**: 328 Locust users, kéo dài đủ 5 phút. Served RPS sustained ở mức 174.75 RPS.
