@@ -23,6 +23,18 @@ Directive #18 đòi cắt **chi phí ẩn ngoài node compute**: data-transfer/N
 
 > **Top cost-driver ngoài compute đã chỉ ra và cắt: VPC interface endpoint** — trả $142/mo để né NAT chỉ tốn $7/mo. Đã cắt xuống 3 ENI.
 
+### Đối chiếu mục "Phải nộp" của directive
+
+| Directive đòi nộp | Ở đâu | Trạng thái |
+|---|---|---|
+| Danh sách tài nguyên mồ côi đã dọn | §5 | 🟡 EIP/snapshot/LB sạch; **3 EBS chờ M8** (note rõ) |
+| EBS gp3 + volume right-size | §4 | ✅ gp3 + right-size (RDS 1,9/20GB) |
+| NAT → VPC endpoint (hoặc lý do) | §2 | ✅ 15→3 ENI + lý do |
+| Telemetry volume/retention trước-sau | §3 | ✅ log + metric trước/sau |
+| Top cost-driver ngoài compute đã cắt | §1 | ✅ VPC endpoint |
+| **Bằng chứng SLO vẫn giữ** | **§5.5.1** | ✅ checkout/cart/browse 100%, p95 <1s |
+| **Khả năng điều tra vẫn giữ** | **§5.5.2** | ✅ Prometheus/OpenSearch/Jaeger/SSM còn truy được |
+
 ---
 
 ## 1. TOP COST-DRIVER NGOÀI COMPUTE (Yêu cầu #5)
@@ -96,7 +108,7 @@ Phân rã chi phí ngoài EC2-node (nguồn: `docs/cost-breakdown-2026-07-22.md`
 
 | Hạng mục | Trạng thái |
 |---|---|
-| RDS `techx-tf3-postgres` | **gp3**, 20 GB, Multi-AZ, backup 7 ngày ✅ |
+| RDS `techx-tf3-postgres` | **gp3**, 20 GB (= sàn gp3), **dùng ~1,9 GB / free 18,1 GB** → right-size tối đa (không xuống dưới 20GB được), autoscale trần 40GB ✅ |
 | MSK | 3× m7g.large, 30 GiB, retention 168h ✅ |
 | ECR lifecycle | `techx-corp`, `tf-2-ai-engine` có ✅ (`shopping-copilot` chưa — rác nhỏ, để sau) |
 | CloudTrail S3 lifecycle | 30 ngày ✅ |
@@ -121,6 +133,40 @@ Phân rã chi phí ngoài EC2-node (nguồn: `docs/cost-breakdown-2026-07-22.md`
 > **Cách xoá đúng (sau nghiệm thu M8):** `kubectl delete pvc kafka-data postgresql-data valkey-cart -n techx-tf3` → reclaim Delete tự huỷ PV + EBS. **KHÔNG** dùng `aws ec2 delete-volume` (để lại PV/PVC dangling).
 >
 > Đây là **mục duy nhất** khiến Yêu cầu #1 chưa đạt đủ.
+
+---
+
+## 5.5 BẰNG CHỨNG SLO + KHẢ NĂNG ĐIỀU TRA VẪN GIỮ (ràng buộc directive)
+
+Directive #18 ràng buộc: **giữ SLO** và **giữ khả năng quan sát/điều tra** — cắt telemetry mù là fail. Đo live (26/07, cửa sổ ~16h sau khi A1/A2/A4 đã áp).
+
+### 5.5.1 SLO vẫn trong ngưỡng — sản phẩm không bị ảnh hưởng
+
+| Luồng | Ngưỡng SLO | Đo live | Đạt |
+|---|---|---|---|
+| checkout success | ≥ 99% | **100,000%** (2,4 req/s) | ✅ |
+| cart success | ≥ 99,5% | **100,000%** (3,6 req/s) | ✅ |
+| browse (frontend) success | ≥ 99,5% | **100,000%** (10,9 req/s) | ✅ |
+| p95 latency | < 1s | checkout **18ms** · frontend **42ms** · cart **3,6ms** | ✅ |
+
+> **Lập luận SLO-neutral:** cả 3 thay đổi **không chạm đường request sản phẩm** — A1 sửa endpoint mạng nội bộ AWS (image pull/SSM, không phải luồng khách), A2 xoá log cũ (không phải luồng khách), A4 drop metric **control-plane** (apiserver/etcd/kubelet — không phải metric sản phẩm). Về nguyên tắc không thể hạ SLO; số đo live xác nhận.
+>
+> *Lưu ý trung thực:* lần restart Prometheus (bước áp A4) đã reset lịch sử metric, nên đây là **SLO hiện tại** (cửa sổ ~16h sau thay đổi) + lập luận, không phải chuỗi thời gian xuyên suốt trước-sau.
+
+### 5.5.2 Khả năng điều tra còn nguyên — không bị "mù"
+
+| Kênh điều tra | Bằng chứng live |
+|---|---|
+| **Metric** (Prometheus) | Query được; **7 targets up**; SLO ở trên tính trực tiếp từ nó. Đã giữ `apiserver_*_count`/`_sum` → vẫn có rate/error control-plane |
+| **Log** (OpenSearch) | 3 index `otel-logs` (24/25/26) **tìm được**, ~5,2 triệu docs; retention 7 ngày (không mất log gần) |
+| **Trace** (Jaeger) | UI cổng 16686 (qua Cloudflare ZT); trace đang chảy **~37 span/s** vào Jaeger + spanmetrics |
+| **Ops access** (SSM) | 5/5 instance **Online** sau khi thu endpoint về 1 AZ |
+
+**Verify (mentor đọc console/kubectl):**
+- SLO: Grafana dashboard checkout/browse/cart, hoặc query Prometheus `traces_span_metrics_calls_total`.
+- Log: `kubectl exec opensearch-0 -- curl -s localhost:9200/_cat/indices/otel-logs*`.
+- Trace: mở `jaeger.arthur-ngo.org` (Cloudflare ZT).
+- SSM: `aws ssm describe-instance-information` → PingStatus Online.
 
 ---
 
