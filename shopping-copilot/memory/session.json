@@ -5687,5 +5687,254 @@
       "total_tool_calls": 0,
       "last_active_ts": 1783847377.0332787
     }
+  },
+  "test-mock-session-123": {
+    "user_id": "test-user-123",
+    "session_id": "test-mock-session-123",
+    "created_at": "2026-07-12T17:10:33.608128+00:00",
+    "last_active": "2026-07-12T17:10:40.455416+00:00",
+    "ttl_seconds": 1800,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hi, tôi muốn tìm sản phẩm Vintage Typewriter",
+        "timestamp": "2026-07-12T17:10:36.373329+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "Chào bạn, dưới đây là danh sách sản phẩm Vintage Typewriter tìm thấy:\n\n1. **Vintage Typewriter**\n   - Giá: $65\n   - Danh mục: vintage\n   - Mô tả: Máy đánh chữ cổ điển...\n\nBạn có muốn biết thêm thông tin chi tiết về sản phẩm này không?",
+        "timestamp": "2026-07-12T17:10:36.381276+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "Sản phẩm đó có đánh giá tốt không?",
+        "timestamp": "2026-07-12T17:10:38.677801+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "Rất tiếc, hệ thống không tìm thấy đánh giá cho sản phẩm \"Vintage Typewriter\" do mã sản phẩm không đúng định dạng hệ thống. Bạn có muốn tìm kiếm sản phẩm khác không?",
+        "timestamp": "2026-07-12T17:10:38.685246+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "Thêm 1 cái vào giỏ hàng giúp tôi",
+        "timestamp": "2026-07-12T17:10:40.440942+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "Để thêm sản phẩm vào giỏ hàng, tôi cần biết mã sản phẩm và ID người dùng của bạn. Bạn có thể cung cấp thông tin này không?",
+        "timestamp": "2026-07-12T17:10:40.448278+00:00",
+        "tool_name": null
+      }
+    ],
+    "context_window": {
+      "max_messages": 20,
+      "strategy": "sliding_window"
+    },
+    "pending_confirmation": {},
+    "metadata": {
+      "total_turns": 6,
+      "total_tool_calls": 0,
+      "last_active_ts": 1783876240.4554098
+    }
+  },
+  "ae84e7a6-3c2b-473b-82f1-91d9a6532dd7": {
+    "user_id": "test_user_001",
+    "session_id": "ae84e7a6-3c2b-473b-82f1-91d9a6532dd7",
+    "created_at": "2026-07-12T17:16:43.814748+00:00",
+    "last_active": "2026-07-12T17:21:08.652739+00:00",
+    "ttl_seconds": 1800,
+    "messages": [
+      {
+        "role": "user",
+        "content": "hello bạn",
+        "timestamp": "2026-07-12T17:16:45.037409+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "Xin chào! Tôi là trợ lý mua sắm AI của TechX Corp. Bạn cần giúp đỡ gì hôm nay? Bạn muốn tìm kiếm sản phẩm, đọc đánh giá, hoặc thêm sản phẩm vào giỏ hàng?",
+        "timestamp": "2026-07-12T17:16:45.044057+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "bạn có phải nova life ko",
+        "timestamp": "2026-07-12T17:16:58.189650+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "Không, tôi không phải là Nova Life. Tôi là trợ lý mua sắm AI của TechX Corp, được thiết kế để giúp bạn tìm kiếm sản phẩm, đọc đánh giá, và quản lý giỏ hàng của mình. Nếu bạn cần giúp đỡ về mua sắm, tôi sẵn sàng hỗ trợ bạn. Bạn muốn tìm kiếm sản phẩm gì hôm nay?",
+        "timestamp": "2026-07-12T17:16:58.196317+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "đề xuất một sản phẩm kính thiên văn",
+        "timestamp": "2026-07-12T17:17:28.273756+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "Dưới đây là một số sản phẩm kính thiên văn mà tôi đã tìm thấy:\n\n1. **Vintage Typewriter**\n   - Giá: $65\n   - Danh mục: vintage\n   - Mô tả: Máy đánh chữ cổ điển...\n\n2. **Vintage Camera Lens**\n   - Giá: $45\n   - Danh mục: vintage\n   - Mô tả: Ống kính camera vintage...\n\n3. **Home Barista Kit**\n   - Giá: $124\n   - Danh mục: vintage\n   - Mô tả: Bộ pha cà phê tại nhà...\n\n4. **Terrarium**\n   - Giá: $36\n   - Danh mục: vintage\n   - Mô tả: Bể cây cảnh mini...\n\n5. **Film Camera**\n   - Giá: $89\n   - Danh mục: vintage\n   - Mô tả: Máy ảnh phim retro...\n\nTuy nhiên, có vẻ như không có sản phẩm kính thiên văn nào trong danh sách này. Bạn có muốn tìm kiếm thêm sản phẩm khác hoặc đề xuất lại từ khóa?",
+        "timestamp": "2026-07-12T17:17:28.280393+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "/quitv",
+        "timestamp": "2026-07-12T17:21:08.633210+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "Rất tiếc nếu có bất kỳ vấn đề nào. Nếu bạn muốn tìm kiếm sản phẩm khác hoặc cần giúp đỡ thêm, hãy cho tôi biết. Tôi sẵn sàng hỗ trợ bạn. Hãy cho tôi biết nếu bạn cần thêm bất kỳ thông tin nào khác.",
+        "timestamp": "2026-07-12T17:21:08.645581+00:00",
+        "tool_name": null
+      }
+    ],
+    "context_window": {
+      "max_messages": 20,
+      "strategy": "sliding_window"
+    },
+    "pending_confirmation": {},
+    "metadata": {
+      "total_turns": 8,
+      "total_tool_calls": 0,
+      "last_active_ts": 1783876868.6527357
+    }
+  },
+  "b45b5ffd-4ac8-412b-8014-5e462760715e": {
+    "user_id": "test_user_001",
+    "session_id": "b45b5ffd-4ac8-412b-8014-5e462760715e",
+    "created_at": "2026-07-12T17:21:52.970517+00:00",
+    "last_active": "2026-07-12T17:27:05.746425+00:00",
+    "ttl_seconds": 1800,
+    "messages": [
+      {
+        "role": "user",
+        "content": "thêm sản phẩm Film Camera vào giỏ hàng đi",
+        "timestamp": "2026-07-12T17:21:55.325545+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi đã tìm thấy sản phẩm \"Film Camera\" với giá $89. Bạn có muốn thêm sản phẩm này vào giỏ hàng không? Vui lòng xác nhận để tôi thực hiện thao tác này.",
+        "timestamp": "2026-07-12T17:21:55.332713+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "có",
+        "timestamp": "2026-07-12T17:22:12.484978+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "{'type': 'reasoning_content', 'reasoning_content': {'text': \"The tool indicates that I can only perform operations on the user's own cart. It seems there might be a misunderstanding in the user ID provided. I should ask the user to provide their user ID to proceed with adding the product to their cart.\"}}\n\nHi, to proceed with adding the Film Camera to your cart, could you please provide your user ID? This will ensure that I'm making the changes to the correct account.",
+        "timestamp": "2026-07-12T17:22:12.492285+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "đổi tiền đô của sản phầm này sang tiền Việt Nam",
+        "timestamp": "2026-07-12T17:23:04.716551+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "Giá của sản phẩm \"Film Camera\" là $89, tương đương với 1,625,000 VND. Bạn có muốn thêm sản phẩm này vào giỏ hàng không? Vui lòng xác nhận để tôi thực hiện thao tác này.",
+        "timestamp": "2026-07-12T17:23:04.728075+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "có và ID bạn hãy xem session nàyg",
+        "timestamp": "2026-07-12T17:23:28.058420+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "{'type': 'reasoning_content', 'reasoning_content': {'text': \"The user has confirmed their intention to add the Film Camera to their cart. I need to know the user's ID to proceed with this action. I will ask the user for their ID to complete the request.\"}}\n\nTo proceed with adding the Film Camera to your cart, could you please provide your user ID? This will ensure that I'm making the changes to the correct account.",
+        "timestamp": "2026-07-12T17:23:28.065321+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "test_user_001 thêm vào giỏ hàng",
+        "timestamp": "2026-07-12T17:23:54.220229+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "{'type': 'reasoning_content', 'reasoning_content': {'text': \"There was an error because the product ID 'Film Camera' is not in the correct format. I will need to correct this before proceeding. I will ask the user to provide the correct product ID.\"}}\n\nIt seems there was an error because the product ID 'Film Camera' is not in the correct format. Could you please provide the exact product ID for the Film Camera? This will help me to correctly add the product to your cart.",
+        "timestamp": "2026-07-12T17:23:54.227926+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "xem giỏ hàng1",
+        "timestamp": "2026-07-12T17:24:07.303570+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "{'type': 'reasoning_content', 'reasoning_content': {'text': \"The user has requested to view their cart, but there was an error because the product ID 'Film Camera' is not in the correct format. I will need to correct this before proceeding. I will ask the user to provide the correct product ID.\"}}\n\nIt seems there was an error because the product ID 'Film Camera' is not in the correct format. Could you please provide the exact product ID for the Film Camera? This will help me to correctly add the product to your cart and then view it.",
+        "timestamp": "2026-07-12T17:24:07.310723+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "tìm sản phẩm Film Camera",
+        "timestamp": "2026-07-12T17:26:35.095427+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "Dưới đây là sản phẩm \"Film Camera\" mà tôi đã tìm thấy:\n\n1. **Film Camera**\n   - Giá: $89\n   - Danh mục: vintage\n   - Mô tả: Máy ảnh phim retro...\n\nBạn có muốn thêm sản phẩm này vào giỏ hàng không? Vui lòng xác nhận để tôi thực hiện thao tác này.",
+        "timestamp": "2026-07-12T17:26:35.103190+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "có",
+        "timestamp": "2026-07-12T17:26:42.064278+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "{'type': 'reasoning_content', 'reasoning_content': {'text': \"The user has confirmed their intention to add the Film Camera to their cart. I need to know the user's ID to proceed with this action. I will ask the user for their ID to complete the request.\"}}\n\nTo proceed with adding the Film Camera to your cart, could you please provide your user ID? This will ensure that I'm making the changes to the correct account.",
+        "timestamp": "2026-07-12T17:26:42.071112+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "user",
+        "content": "thêm sản phẩm này vào giỏ hàng giúp test_user_001",
+        "timestamp": "2026-07-12T17:27:05.732857+00:00",
+        "tool_name": null
+      },
+      {
+        "role": "assistant",
+        "content": "{'type': 'reasoning_content', 'reasoning_content': {'text': \"The Film Camera has been successfully added to the cart for user 'test_user_001'. I will now confirm the addition of the product to the cart.\"}}\n\nThe Film Camera has been successfully added to the cart for user 'test_user_001'. Here is the confirmation of the addition to your cart:\n\n- **Product**: Film Camera\n- **Quantity**: 1\n- **User ID**: test_user_001\n\nIs there anything else you would like to add to your cart or any other assistance you need?",
+        "timestamp": "2026-07-12T17:27:05.739754+00:00",
+        "tool_name": null
+      }
+    ],
+    "context_window": {
+      "max_messages": 20,
+      "strategy": "sliding_window"
+    },
+    "pending_confirmation": {},
+    "metadata": {
+      "total_turns": 18,
+      "total_tool_calls": 0,
+      "last_active_ts": 1783877225.7464232
+    }
   }
 }

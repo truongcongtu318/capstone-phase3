@@ -343,19 +343,6 @@
       "hit_count": 0,
       "source": "grpc"
     },
-    "search_products_v2:a8d3548194f16b11": {
-      "tool_name": "search_products_v2",
-      "params": {
-        "query": "kính thiên văn"
-      },
-      "params_hash": "a8d3548194f16b1110249884800515d98ae7c1554dc637d4417da5a2d9837d68",
-      "result": "✅ Tìm thấy 7 sản phẩm:\n\n1. **Solar System Color Imager**\n   - Giá: $175\n   - Danh mục: accessories, telescopes\n   - Mô tả: You have your new telescope and have observed Saturn and Jupiter. Now you're ready to take the next ...\n\n2. **Eclipsmart Travel Refractor Telescope**\n   - Giá: $129\n   - Danh mục: telescopes, travel\n   - Mô tả: Dedicated white-light solar scope for the observer on the go. The 50mm refracting solar scope uses S...\n\n3. **Starsense Explorer Refractor Telescope**\n   - Giá: $349\n   - Danh mục: telescopes\n   - Mô tả: The first telescope that uses your smartphone to analyze the night sky and calculate its position in...\n\n4. **Solar Filter**\n   - Giá: $69\n   - Danh mục: accessories, telescopes\n   - Mô tả: Enhance your viewing experience with EclipSmart Solar Filter for 8\" telescopes. With two Velcro stra...\n\n5. **Optical Tube Assembly**\n   - Giá: $3599\n   - Danh mục: accessories, telescopes, assembly\n   - Mô tả: Capturing impressive deep-sky astroimages is easier than ever with Rowe-Ackermann Schmidt Astrograph...\n\n\n... và 2 sản phẩm khác",
-      "cached_at": "2026-07-12T06:04:45.308255+00:00",
-      "expires_at_ts": 1783836585.308255,
-      "expires_at": "2026-07-12T06:09:45.308255+00:00",
-      "hit_count": 2,
-      "source": "grpc"
-    },
     "search_products_v2:1ee39db669868995": {
       "tool_name": "search_products_v2",
       "params": {
@@ -381,10 +368,64 @@
       "expires_at": "2026-07-12T09:15:06.283616+00:00",
       "hit_count": 0,
       "source": "grpc"
+    },
+    "search_products_v2:26734431632db5e5": {
+      "tool_name": "search_products_v2",
+      "params": {
+        "query": "Vintage Typewriter"
+      },
+      "params_hash": "26734431632db5e5d69313938fef047e1aa9b86f23a16f9bbce7b95a70991c4d",
+      "result": "✅ Tìm thấy 5 sản phẩm:\n\n1. **Vintage Typewriter**\n   - Giá: $65\n   - Danh mục: vintage\n   - Mô tả: Máy đánh chữ cổ điển...\n\n2. **Vintage Camera Lens**\n   - Giá: $45\n   - Danh mục: vintage\n   - Mô tả: Ống kính camera vintage...\n\n3. **Home Barista Kit**\n   - Giá: $124\n   - Danh mục: vintage\n   - Mô tả: Bộ pha cà phê tại nhà...\n\n4. **Terrarium**\n   - Giá: $36\n   - Danh mục: vintage\n   - Mô tả: Bể cây cảnh mini...\n\n5. **Film Camera**\n   - Giá: $89\n   - Danh mục: vintage\n   - Mô tả: Máy ảnh phim retro...\n",
+      "cached_at": "2026-07-12T17:10:35.496148+00:00",
+      "expires_at_ts": 1783876535.496141,
+      "expires_at": "2026-07-12T17:15:35.496141+00:00",
+      "hit_count": 0,
+      "source": "grpc"
+    },
+    "search_products_v2:a8d3548194f16b11": {
+      "tool_name": "search_products_v2",
+      "params": {
+        "query": "kính thiên văn"
+      },
+      "params_hash": "a8d3548194f16b1110249884800515d98ae7c1554dc637d4417da5a2d9837d68",
+      "result": "✅ Tìm thấy 5 sản phẩm:\n\n1. **Vintage Typewriter**\n   - Giá: $65\n   - Danh mục: vintage\n   - Mô tả: Máy đánh chữ cổ điển...\n\n2. **Vintage Camera Lens**\n   - Giá: $45\n   - Danh mục: vintage\n   - Mô tả: Ống kính camera vintage...\n\n3. **Home Barista Kit**\n   - Giá: $124\n   - Danh mục: vintage\n   - Mô tả: Bộ pha cà phê tại nhà...\n\n4. **Terrarium**\n   - Giá: $36\n   - Danh mục: vintage\n   - Mô tả: Bể cây cảnh mini...\n\n5. **Film Camera**\n   - Giá: $89\n   - Danh mục: vintage\n   - Mô tả: Máy ảnh phim retro...\n",
+      "cached_at": "2026-07-12T17:17:26.271398+00:00",
+      "expires_at_ts": 1783876946.2713866,
+      "expires_at": "2026-07-12T17:22:26.271387+00:00",
+      "hit_count": 0,
+      "source": "grpc"
+    },
+    "search_products_v2:11f5c50c95e476ad": {
+      "tool_name": "search_products_v2",
+      "params": {
+        "query": "Film Camera"
+      },
+      "params_hash": "11f5c50c95e476ada2ad1d1755f7d633d34168c592a20b85fecf42fcf37bc63e",
+      "result": "✅ Tìm thấy 5 sản phẩm:\n\n1. **Film Camera**\n   - Giá: $89\n   - Danh mục: vintage\n   - Mô tả: Máy ảnh phim retro...\n\n2. **Vintage Camera Lens**\n   - Giá: $45\n   - Danh mục: vintage\n   - Mô tả: Ống kính camera vintage...\n\n3. **Vintage Typewriter**\n   - Giá: $65\n   - Danh mục: vintage\n   - Mô tả: Máy đánh chữ cổ điển...\n\n4. **Home Barista Kit**\n   - Giá: $124\n   - Danh mục: vintage\n   - Mô tả: Bộ pha cà phê tại nhà...\n\n5. **Terrarium**\n   - Giá: $36\n   - Danh mục: vintage\n   - Mô tả: Bể cây cảnh mini...\n",
+      "cached_at": "2026-07-12T17:21:54.618166+00:00",
+      "expires_at_ts": 1783877214.6181593,
+      "expires_at": "2026-07-12T17:26:54.618159+00:00",
+      "hit_count": 0,
+      "source": "grpc"
+    },
+    "convert_currency_tool:b8829bd297561f3e": {
+      "tool_name": "convert_currency_tool",
+      "params": {
+        "from_currency": "USD",
+        "amount_units": 89,
+        "to_currency": "VND"
+      },
+      "params_hash": "b8829bd297561f3e07f54cc1d622b187f3bfe39b0e9b8db688ee53f450b8b7d4",
+      "result": "Kết quả quy đổi lấy từ Cloud AWS: 89 USD tương đương với 1625000.00 VND.",
+      "cached_at": "2026-07-12T17:23:03.903733+00:00",
+      "expires_at_ts": 1783877043.903725,
+      "expires_at": "2026-07-12T17:24:03.903725+00:00",
+      "hit_count": 0,
+      "source": "grpc"
     }
   },
   "stats": {
     "hits": 17,
-    "misses": 24
+    "misses": 28
   }
 }

@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CDO02 - Services Explained</title>
+  <style>
+    :root {
+      --bg: #f7f4ee;
+      --panel: #fffdfa;
+      --ink: #1f2937;
+      --muted: #5b6472;
+      --line: #ddd3c1;
+      --accent: #9a3412;
+      --accent-2: #155e75;
+      --shadow: 0 14px 32px rgba(54, 42, 24, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      line-height: 1.7;
+      background:
+        radial-gradient(circle at top left, rgba(154, 52, 18, 0.08), transparent 28%),
+        radial-gradient(circle at top right, rgba(21, 94, 117, 0.10), transparent 24%),
+        linear-gradient(180deg, #faf7f1 0%, var(--bg) 100%);
+    }
+    .wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 18px 56px;
+    }
+    .hero, .summary, .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+    .hero {
+      background: linear-gradient(135deg, rgba(154, 52, 18, 0.94), rgba(21, 94, 117, 0.90));
+      color: #fffefb;
+      padding: 28px;
+      border-radius: 24px;
+    }
+    .hero h1, .section-title, .card h2 {
+      font-family: "Segoe UI Semibold", "Segoe UI", "Noto Sans", Arial, sans-serif;
+    }
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3rem);
+    }
+    .hero p { margin: 8px 0; max-width: 980px; }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      font-size: 0.92rem;
+    }
+    .section-title {
+      margin: 34px 0 10px;
+      font-size: 1.7rem;
+      color: var(--accent-2);
+    }
+    .section-subtitle {
+      margin: 0 0 18px;
+      color: var(--muted);
+      max-width: 960px;
+    }
+    .summary {
+      padding: 16px;
+      margin-top: 18px;
+    }
+    .summary strong, .block strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--accent-2);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+    .card {
+      padding: 18px;
+    }
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 1.12rem;
+      line-height: 1.3;
+    }
+    .block {
+      margin-top: 12px;
+    }
+    ul {
+      margin: 6px 0 0 20px;
+      padding: 0;
+    }
+    li {
+      margin: 4px 0;
+    }
+    .footer {
+      margin-top: 28px;
+      padding: 18px 20px;
+      border-left: 5px solid var(--accent);
+      background: rgba(255, 253, 248, 0.88);
+      border-radius: 14px;
+    }
+    @media (max-width: 720px) {
+      .wrap { padding: 18px 14px 40px; }
+      .hero { padding: 22px 18px; }
+      .summary, .card { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>CDO02 - Services Explained</h1>
+      <p>Đây là file riêng để giải thích chi tiết từng service và workload thuộc phạm vi CDO02. Mục tiêu là trả lời rõ: service nào thuộc Reliability, service nào thuộc Cost Optimization, vì sao nó quan trọng và nên dùng hướng xử lý nào.</p>
+      <div class="meta">
+        <span class="chip">Cập nhật: 10/07/2026</span>
+        <span class="chip">Owner: CDO02</span>
+        <span class="chip">File riêng, không phụ thuộc file backlog trước</span>
+      </div>
+    </section>
+
+    <section class="summary">
+      <strong>Tài liệu này dùng để làm gì?</strong>
+      <ul>
+        <li>Chỉ rõ service/workload nào thực sự nằm trong phần CDO02.</li>
+        <li>Giải thích service đó liên quan đến Reliability hay Cost.</li>
+        <li>Nêu luôn hướng xử lý hợp lý và lý do tại sao nên xử lý theo hướng đó.</li>
+      </ul>
+    </section>
+
+    <h2 class="section-title">1. Nhóm service trên luồng checkout</h2>
+    <p class="section-subtitle">Đây là nhóm quan trọng nhất vì nằm trực tiếp trên đường đi của khách hàng từ lúc xem sản phẩm đến lúc đặt hàng.</p>
+
+    <section class="grid">
+      <article class="card">
+        <h2>`checkout`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Đây là service trung tâm của flow đặt hàng. Nó nhận dữ liệu từ cart, payment, shipping và phát sinh đơn hàng.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Nếu checkout lỗi thì tác động business là trực tiếp nhất. Đây cũng là nơi tập trung nhiều rủi ro nhất: single-replica, health check giả, thiếu probe, Kafka ack yếu và flow charge-before-ship.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Tăng replica, thêm PDB, sửa health check thật, thêm readiness/liveness probe, sửa Kafka ack và bổ sung refund/rollback.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Vì nó đánh thẳng vào cả ba nhóm rủi ro: rollout risk, outage risk và financial risk.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`payment`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Xử lý bước thanh toán trong flow mua hàng.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Đây là service đứng trên luồng doanh thu thật. Runtime cũng đã có bằng chứng payment từng bị rollout restart thật khi vẫn còn single-replica.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Tăng replica, thêm PDB, sửa health check thật và thêm readiness/liveness probe.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Mục tiêu là làm cho deploy và restart của payment an toàn hơn, không để một thao tác vận hành trở thành sự cố customer-facing.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`cart`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Giữ giỏ hàng của khách trước khi vào checkout.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Cart nằm sớm trong funnel mua hàng. Mất cart không phải lúc nào cũng hiện thành lỗi checkout ngay, nhưng làm giảm conversion rất rõ.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Tăng replica cho service cart, sửa health check và thêm probe.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Giúp cart không chết chỉ vì một pod/node lỗi, đồng thời giữ flow mua hàng ổn định từ bước đầu.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`product-catalog`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Phục vụ thông tin sản phẩm cho storefront và flow mua hàng.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Khách không xem được sản phẩm thì không vào được checkout. Runtime cũng đã có bằng chứng service này từng restart, và backlog gốc xác nhận có risk DB pool chưa đúng.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Tăng replica, sửa health check, thêm probe, bổ sung connection pool và right-size memory.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Vì service này vừa nằm trên path mua hàng, vừa có rủi ro hạ tầng và DB khá rõ.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`currency`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Tính tỷ giá và chuyển đổi giá trị phục vụ hiển thị giá và tính tổng tiền.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Service này tuy nhỏ nhưng nằm trên flow tính giá. Nếu lỗi thì checkout có thể bị chặn hoặc trả kết quả sai.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Tăng replica, sửa health check, thêm probe và verify lại memory sizing.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Đây là kiểu service “nhìn nhỏ nhưng hỏng là làm sai cả bước tính tiền”.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`shipping`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Xử lý thông tin shipping trong flow đặt hàng.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Shipping liên quan trực tiếp tới issue charge-before-ship. Nếu shipping lỗi đúng thời điểm sau khi đã charge, flow nghiệp vụ bị đẩy vào trạng thái rất xấu.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Tăng replica, sửa health check và thêm readiness/liveness probe.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Mục tiêu là giảm xác suất checkout thất bại ở bước cuối sau khi đã xử lý thanh toán.</div></div>
+      </article>
+    </section>
+
+    <h2 class="section-title">2. Nhóm liên quan đến mất đơn và đối soát tài chính</h2>
+
+    <section class="grid">
+      <article class="card">
+        <h2>`accounting`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Consumer nhận event đơn hàng và ghi nhận dữ liệu vào hệ thống kế toán hoặc đối soát.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Đây là nơi giữ dấu vết tài chính của đơn hàng. Nếu xử lý sai ở đây, team có thể mất đơn âm thầm sau khi thanh toán.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Chuyển sang manual commit, thêm retry có giới hạn hoặc DLQ, đồng thời right-size memory.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Vì nó đánh trực tiếp vào tính toàn vẹn dữ liệu và khả năng đối soát sau thanh toán.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`kafka`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Message bus cho event đơn hàng.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Dù gốc lỗi lớn nằm ở producer và consumer, Kafka vẫn là dependency trung tâm của luồng đơn hàng.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Giữ Kafka trong danh sách workload cần theo dõi stability, quan sát restart, memory và readiness khi triển khai fix cho checkout/accounting.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Vì sửa app mà bỏ qua runtime dependency thì rất dễ đánh giá thiếu blast radius.</div></div>
+      </article>
+    </section>
+
+    <h2 class="section-title">3. Nhóm DB và data path</h2>
+
+    <section class="grid">
+      <article class="card">
+        <h2>`product-reviews`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Phục vụ review sản phẩm và liên quan đến trải nghiệm AI/review.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Service này đang connect-per-request đến Postgres, rất dễ lặp lại bài học INC-1.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Chuyển sang connection pool và nếu cần thì sửa health check thật để phản ánh đúng dependency DB.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Effort thấp, ROI cao, giảm rủi ro DB khá rõ.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`postgresql`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Datastore chung cho nhiều service quan trọng.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Nhiều item backlog quy về Postgres: connection pool, accounting, product-catalog, product-reviews. Nếu Postgres vỡ thì blast radius lớn hơn một service đơn lẻ.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Giữ trong danh sách dependency cần theo dõi và ghi nhận accepted risk ở mức single-instance.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>CDO02 không nhất thiết “sửa Postgres” theo kiểu product feature, mà phải nhìn Postgres như một dependency chung có blast radius lớn.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`valkey-cart`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Lưu giỏ hàng cho cart.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Hiện không có AOF, không có snapshot và không có PVC, nên restart là có thể mất giỏ hàng.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Bật append-only file hoặc snapshot định kỳ, kèm PVC.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Đây là cách ngắn nhất để cắt risk mất giỏ hàng, thay vì nhảy ngay vào bài toán datastore topology lớn hơn.</div></div>
+      </article>
+    </section>
+
+    <h2 class="section-title">4. Nhóm observability</h2>
+
+    <section class="grid">
+      <article class="card">
+        <h2>`grafana`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Dashboard và điểm vào chính để quan sát hệ thống.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Runtime đã có bằng chứng restart nhiều lần và OOM thật. Nếu Grafana chết, team không nhìn được dashboard lúc cần điều tra.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Right-size memory, theo dõi restart count, theo dõi readiness fail và rà soát query pattern nếu cần.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Mục tiêu là không để observability tự nó trở thành điểm yếu của reliability.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`jaeger`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Trace backend để theo dõi đường đi của request.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Runtime đã có bằng chứng OOM thật. Mất trace sẽ làm điều tra root cause chậm hơn rất nhiều.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Right-size memory, theo dõi restart count và đánh giá trace ingestion hoặc retention nếu cần.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Trace là công cụ debug gốc lỗi rất quan trọng trước fault injection.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`prometheus`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Thu thập metrics phục vụ SLO, alert và usage.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Đây là nguồn dữ liệu để verify sau khi sửa và là nền cho các quyết định về SLO, cost và right-size.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Giữ Prometheus trong danh sách observability cần theo dõi và dùng nó để verify metric sau fix.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Không có metrics thật thì CDO02 sẽ phải đánh giá theo cảm tính.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`otel-collector`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Thu và đẩy telemetry.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Nếu collector vỡ thì metric, log hoặc trace có thể sai hoặc mất một phần.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Giữ trong danh sách dependency telemetry cần theo dõi.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Không nhất thiết là top backlog item, nhưng cần biết nó là đường ống chung của observability.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`opensearch`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Dependency cho log, trace và query trong observability stack.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Query nặng ở tầng observability có thể liên quan đến bất ổn của Grafana.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Giữ trong danh sách dependency cần theo dõi khi điều tra sự cố observability.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Vì nếu chỉ sửa Grafana mà bỏ qua dependency phía sau thì rất dễ đánh giá thiếu.</div></div>
+      </article>
+    </section>
+
+    <h2 class="section-title">5. Nhóm workload liên quan Cost Optimization</h2>
+
+    <section class="grid">
+      <article class="card">
+        <h2>`load-generator`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Tạo tải nền để test, không phục vụ khách hàng thật.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Đây là một trong những workload dễ đốt tài nguyên. Nó có thể làm méo cả đánh giá Reliability lẫn Cost nếu để quá tay.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Rà soát CPU và memory request/limit, giảm nếu đang cấp quá tay và luôn coi đây là workload test, không phải customer-serving.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Vì cost của test tooling không nên làm ảnh hưởng quyết định cho hệ thống phục vụ khách thật.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>Toàn bộ app workloads trong namespace `techx-tf3`</h2>
+        <div class="block"><strong>Vai trò</strong><div>Đây là tập workload mà scheduler và autoscaler phải dựa vào để tính toán phân bổ tài nguyên.</div></div>
+        <div class="block"><strong>Vì sao CDO02 phải quan tâm?</strong><div>Hiện vẫn còn nhiều container chưa có CPU requests/limits đầy đủ.</div></div>
+        <div class="block"><strong>Giải pháp nên dùng</strong><div>Đặt CPU requests/limits đồng bộ, sau đó mới cài cluster-autoscaler, rồi cuối cùng mới right-size node.</div></div>
+        <div class="block"><strong>Vì sao nên xử lý như vậy?</strong><div>Đây là cách tối ưu cost có hệ thống, chứ không phải tối ưu lẻ từng service một cách rời rạc.</div></div>
+      </article>
+    </section>
+
+    <h2 class="section-title">6. Nhóm service không phải trọng tâm chính nhưng cần biết</h2>
+
+    <section class="grid">
+      <article class="card">
+        <h2>`frontend`, `frontend-proxy`</h2>
+        <div class="block"><strong>Vì sao cần biết?</strong><div>Để hiểu flow tổng thể và để test storefront.</div></div>
+        <div class="block"><strong>Vì sao không phải trọng tâm chính?</strong><div>Backlog CDO02 hiện tập trung vào checkout path, observability và cost runtime core hơn.</div></div>
+      </article>
+
+      <article class="card">
+        <h2>`ad`, `recommendation`, `email`, `image-provider`, `fraud-detection`, `flagd`, `llm`, `quote`</h2>
+        <div class="block"><strong>Vì sao cần biết?</strong><div>Chúng vẫn thuộc hệ thống và một số cũng có thể dùng 1 replica hoặc health check giả.</div></div>
+        <div class="block"><strong>Vì sao không phải trọng tâm chính?</strong><div>So với checkout, accounting, observability và cost foundations, ROI của việc đụng vào nhóm này hiện tại thấp hơn.</div></div>
+      </article>
+    </section>
+
+    <section class="summary">
+      <strong>Tóm tắt service trọng tâm nhất của CDO02</strong>
+      <ul>
+        <li><strong>Reliability core:</strong> `checkout`, `payment`, `cart`, `product-catalog`, `currency`, `shipping`, `accounting`, `product-reviews`, `kafka`, `postgresql`, `valkey-cart`</li>
+        <li><strong>Observability / runtime support:</strong> `grafana`, `jaeger`, `prometheus`, `otel-collector`, `opensearch`</li>
+        <li><strong>Cost focus:</strong> `load-generator` và toàn bộ app workloads cần đặt CPU requests/limits để mở đường cho autoscaler và right-size</li>
+      </ul>
+    </section>
+
+    <section class="footer">
+      <strong>Cách nói miệng nếu bị hỏi</strong>
+      <div>“Nếu nói rất ngắn, phần em đụng vào nhiều nhất là nhóm checkout path, nhóm accounting/Kafka, nhóm observability và nhóm workload cost foundation. Em không sửa mọi service theo cùng một cách; em tách ra service nào cần tăng replica, service nào cần sửa health check/probe, service nào cần sửa luồng message, service nào cần persistence, và service nào cần CPU requests để phục vụ autoscaling và cost optimization.”</div>
+    </section>
+  </main>
+</body>
+</html>

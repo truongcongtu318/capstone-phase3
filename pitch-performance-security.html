@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance + Security — Backlog Pitch</title>
+<style>
+  :root {
+    --bg: #F6F3ED;
+    --bg-raised: #EFEAE0;
+    --bg-inset: #E9E3D5;
+    --ink: #14181A;
+    --ink-soft: #4B5150;
+    --border: #D9D2C0;
+    --accent: #146B6B;
+    --accent-ink: #0B3E3E;
+    --accent-wash: rgba(20, 107, 107, 0.10);
+    --critical: #A6392C;
+    --critical-wash: rgba(166, 57, 44, 0.09);
+    --warning: #93650A;
+    --warning-wash: rgba(147, 101, 10, 0.10);
+    --good: #2F7A4F;
+    --good-wash: rgba(47, 122, 79, 0.10);
+    --shadow: 0 1px 2px rgba(20, 24, 26, 0.06), 0 8px 24px -12px rgba(20, 24, 26, 0.18);
+    --sans: -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", "Liberation Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12181A;
+      --bg-raised: #182123;
+      --bg-inset: #0D1214;
+      --ink: #F1EDE3;
+      --ink-soft: #A9B0AC;
+      --border: #2A3436;
+      --accent: #4FD1C0;
+      --accent-ink: #BFF5EA;
+      --accent-wash: rgba(79, 209, 192, 0.12);
+      --critical: #E2685A;
+      --critical-wash: rgba(226, 104, 90, 0.13);
+      --warning: #E0A93E;
+      --warning-wash: rgba(224, 169, 62, 0.13);
+      --good: #5FC98A;
+      --good-wash: rgba(95, 201, 138, 0.13);
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px -14px rgba(0,0,0,0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12181A; --bg-raised: #182123; --bg-inset: #0D1214;
+    --ink: #F1EDE3; --ink-soft: #A9B0AC; --border: #2A3436;
+    --accent: #4FD1C0; --accent-ink: #BFF5EA; --accent-wash: rgba(79, 209, 192, 0.12);
+    --critical: #E2685A; --critical-wash: rgba(226, 104, 90, 0.13);
+    --warning: #E0A93E; --warning-wash: rgba(224, 169, 62, 0.13);
+    --good: #5FC98A; --good-wash: rgba(95, 201, 138, 0.13);
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px -14px rgba(0,0,0,0.55);
+  }
+  :root[data-theme="light"] {
+    --bg: #F6F3ED; --bg-raised: #EFEAE0; --bg-inset: #E9E3D5;
+    --ink: #14181A; --ink-soft: #4B5150; --border: #D9D2C0;
+    --accent: #146B6B; --accent-ink: #0B3E3E; --accent-wash: rgba(20, 107, 107, 0.10);
+    --critical: #A6392C; --critical-wash: rgba(166, 57, 44, 0.09);
+    --warning: #93650A; --warning-wash: rgba(147, 101, 10, 0.10);
+    --good: #2F7A4F; --good-wash: rgba(47, 122, 79, 0.10);
+    --shadow: 0 1px 2px rgba(20, 24, 26, 0.06), 0 8px 24px -12px rgba(20, 24, 26, 0.18);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); height: 100%;
+  }
+  body {
+    background-image:
+      radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0);
+    background-size: 28px 28px;
+    background-attachment: fixed;
+  }
+
+  .deck {
+    height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+  }
+  .slide {
+    scroll-snap-align: start;
+    min-height: 100dvh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: clamp(22px, 4vw, 56px) clamp(20px, 6vw, 96px);
+    position: relative;
+  }
+  .slide-inner {
+    max-width: 1180px;
+    margin: auto;
+    width: 100%;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 22px; height: 1px;
+    background: var(--accent);
+    display: inline-block;
+  }
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+  h1 {
+    font-size: clamp(34px, 5.4vw, 60px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+  h2 {
+    font-size: clamp(26px, 3.6vw, 40px);
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  p { line-height: 1.6; color: var(--ink-soft); max-width: 65ch; }
+  p.lead { font-size: 18px; color: var(--ink); max-width: 62ch; }
+
+  .slidenum {
+    position: absolute;
+    bottom: clamp(16px, 3vw, 32px);
+    right: clamp(20px, 6vw, 96px);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    letter-spacing: 0.05em;
+  }
+  .slidenum b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  code, .mono { font-family: var(--mono); }
+
+  /* ---- Title slide ---- */
+  .title-slide { justify-content: center; align-items: flex-start; }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 22px;
+  }
+  .title-slide h1 { max-width: 16ch; }
+  .title-meta {
+    margin-top: 34px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    color: var(--ink-soft);
+  }
+  .title-meta strong { color: var(--ink); font-weight: 600; }
+  .status-strip {
+    margin-top: 44px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-raised);
+    padding: 14px 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-soft);
+    max-width: 640px;
+    box-shadow: var(--shadow);
+  }
+  .status-strip .line { display: flex; gap: 10px; }
+  .status-strip .ok { color: var(--good); }
+  .status-strip .bad { color: var(--critical); }
+
+  /* ---- generic grid/cards ---- */
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 860px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+  }
+  .card h3 { margin-bottom: 8px; }
+  .card p { margin: 0; font-size: 14.5px; }
+
+  .stripe-critical { border-left: 4px solid var(--critical); }
+  .stripe-warning { border-left: 4px solid var(--warning); }
+  .stripe-good { border-left: 4px solid var(--good); }
+  .stripe-accent { border-left: 4px solid var(--accent); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 3px 9px;
+    border-radius: 999px;
+    text-transform: uppercase;
+  }
+  .pill-critical { background: var(--critical-wash); color: var(--critical); }
+  .pill-warning { background: var(--warning-wash); color: var(--warning); }
+  .pill-good { background: var(--good-wash); color: var(--good); }
+  .pill-accent { background: var(--accent-wash); color: var(--accent-ink); }
+
+  /* ---- architecture diagram ---- */
+  .arch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+  }
+  .node {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+  }
+  .node.entry { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-wash); }
+  .arrow-down {
+    width: 1px; height: 22px; background: var(--border);
+  }
+  .lanes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    width: 100%;
+    margin-top: 18px;
+  }
+  .lane {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .lane-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .lane .node { font-size: 12.5px; padding: 8px 12px; }
+  .lane .chevron { color: var(--border); font-size: 13px; }
+  .datastores {
+    display: flex; gap: 14px; margin-top: 26px; justify-content: center; flex-wrap: wrap;
+  }
+  .datastore-chip {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px dashed var(--border);
+    color: var(--ink-soft);
+  }
+
+  /* ---- SLO table ---- */
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  th { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); font-weight: 600; }
+  td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-raised); box-shadow: var(--shadow); }
+  .table-wrap table { min-width: 640px; }
+  .table-wrap th, .table-wrap td { padding: 13px 16px; }
+  .table-wrap tr:last-child td { border-bottom: none; }
+
+  /* ---- formula slide ---- */
+  .formula-slide { justify-content: center; align-items: center; text-align: center; }
+  .formula {
+    font-family: var(--mono);
+    font-size: clamp(20px, 3.6vw, 34px);
+    font-weight: 600;
+    color: var(--accent-ink);
+    background: var(--accent-wash);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 34px 44px;
+    display: inline-block;
+    line-height: 1.5;
+    margin: 28px 0;
+  }
+  .formula .op { color: var(--ink-soft); font-weight: 400; margin: 0 6px; }
+
+  /* ---- rank detail slide ---- */
+  .rank-head {
+    display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; margin-bottom: 6px;
+  }
+  .rank-num {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--bg);
+    background: var(--ink);
+    border-radius: 8px;
+    padding: 4px 11px;
+  }
+  .field-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent-ink);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .evidence-block {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--ink-soft);
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+  .verified-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700;
+    color: var(--good); margin-top: 12px;
+  }
+  .verified-tag::before { content: "✓"; }
+
+  .two-col { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* ---- phase diagram ---- */
+  .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 10px; }
+  @media (max-width: 900px) { .phases { grid-template-columns: 1fr; } }
+  .phase-card { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); position: relative; }
+  .phase-num { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+  .phase-title { font-weight: 800; font-size: 17px; margin: 6px 0 12px; }
+  .phase-items { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 7px; }
+  .phase-items li { font-family: var(--mono); font-size: 13px; color: var(--ink-soft); display: flex; gap: 8px; }
+  .phase-items li::before { content: "›"; color: var(--accent); font-weight: 700; }
+  .phase-arrow { display: none; }
+  @media (min-width: 901px) {
+    .phase-card:not(:last-child)::after {
+      content: "→"; position: absolute; right: -22px; top: 50%; transform: translateY(-50%);
+      color: var(--border); font-size: 20px; font-family: var(--mono);
+    }
+  }
+
+  /* ---- pod security cards ---- */
+  .sec-card { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); }
+  .sec-card .name { font-family: var(--mono); font-weight: 700; font-size: 13.5px; color: var(--accent-ink); margin-bottom: 6px; }
+  .sec-card .does { font-size: 13px; color: var(--ink); margin: 0 0 8px; line-height: 1.5; }
+  .sec-card .risk { font-size: 12.5px; color: var(--critical); margin: 0; line-height: 1.5; }
+  .sec-card .risk b { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 3px; color: var(--critical); }
+  .sec-card.ok .risk { color: var(--good); }
+  .sec-card.ok .risk b { color: var(--good); }
+
+  /* ---- defer groups ---- */
+  .defer-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .defer-list li {
+    font-size: 13.5px; color: var(--ink-soft);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  .defer-list li b { color: var(--ink); }
+
+  /* ---- closing ---- */
+  .closing { justify-content: center; align-items: center; text-align: center; }
+  .closing h2 { max-width: 20ch; }
+
+  /* ---- nav dots ---- */
+  .nav {
+    position: fixed;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    z-index: 20;
+  }
+  .nav a {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border);
+    display: block;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .nav a:hover, .nav a:focus-visible { background: var(--accent); transform: scale(1.3); }
+  .nav a.active { background: var(--accent); transform: scale(1.4); }
+  .nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  @media (max-width: 720px) { .nav { display: none; } }
+
+  @media print {
+    .nav { display: none; }
+    .deck { height: auto; overflow: visible; }
+    .slide { min-height: 100vh; page-break-after: always; scroll-snap-align: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .deck { scroll-behavior: auto; }
+    .nav a { transition: none; }
+  }
+
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+</head>
+<body>
+<nav class="nav" id="navdots" aria-label="Điều hướng slide"></nav>
+
+<div class="deck" id="deck">
+
+  <!-- 1: TITLE -->
+  <section class="slide title-slide" id="s1" data-title="Mở đầu">
+    <div class="slide-inner">
+      <div class="kicker">TechX Corp Service Takeover · Tuần 1 · Pitch bảo vệ backlog</div>
+      <h1>Performance Efficiency<br>+ Security</h1>
+      <p class="lead" style="margin-top:18px;">Backlog ưu tiên trước hội đồng PM · CFO · SRE Lead — cluster <b style="color:var(--ink)">techx-corp-tf3</b>, namespace <b style="color:var(--ink)">techx-tf3</b>.</p>
+      <div class="title-meta">
+        <span>Team <strong>CDO01</strong></span>
+        <span>Trụ <strong>Performance + Security</strong></span>
+        <span>Thời lượng <strong>15–20 phút</strong></span>
+      </div>
+      <div class="status-strip">
+        <div class="line"><span>$</span><span>kubectl -n techx-tf3 get networkpolicy</span></div>
+        <div class="line" style="padding-left:14px;"><span class="bad">→ No resources found</span></div>
+        <div class="line"><span>$</span><span>kubectl top nodes</span></div>
+        <div class="line" style="padding-left:14px;"><span class="bad">→ error: Metrics API not available</span></div>
+        <div class="line"><span>$</span><span>kubectl -n techx-tf3 get pods grafana-...</span></div>
+        <div class="line" style="padding-left:14px;"><span class="bad">→ 11 restarts</span> <span style="opacity:.6">(6h32m trước)</span></div>
+      </div>
+    </div>
+    <div class="slidenum"><b>01</b> / 16</div>
+  </section>
+
+  <!-- 2: ARCHITECTURE -->
+  <section class="slide" id="s2" data-title="Kiến trúc">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 1 — Hiểu hệ thống</div>
+      <h2>Storefront thương mại điện tử, ~18 microservice polyglot</h2>
+      <p style="margin-top:10px;">Mọi request vào qua <code class="mono">frontend-proxy</code> (Envoy) → <code class="mono">frontend</code> (Next.js), rồi rẽ theo 3 luồng chính.</p>
+
+      <div class="arch">
+        <div class="node entry">frontend-proxy (Envoy, public)</div>
+        <div class="arrow-down"></div>
+        <div class="node">frontend (Next.js)</div>
+      </div>
+
+      <div class="lanes">
+        <div class="lane">
+          <div class="lane-label">Browse / search</div>
+          <div class="node">product-catalog</div>
+          <div class="chevron">+ recommendation, ad</div>
+        </div>
+        <div class="lane">
+          <div class="lane-label">Cart</div>
+          <div class="node">cart</div>
+          <div class="chevron">↓</div>
+          <div class="node">valkey-cart</div>
+        </div>
+        <div class="lane">
+          <div class="lane-label">Checkout</div>
+          <div class="node">checkout</div>
+          <div class="chevron">cart · catalog · currency · shipping · payment · email</div>
+          <div class="node">Kafka</div>
+          <div class="chevron">→ accounting, fraud-detection (async)</div>
+        </div>
+      </div>
+
+      <div class="datastores">
+        <span class="datastore-chip">Postgres — catalog, reviews, accounting</span>
+        <span class="datastore-chip">Valkey — cart state</span>
+        <span class="datastore-chip">Observability: OTel → Prometheus/Jaeger/OpenSearch → Grafana</span>
+      </div>
+    </div>
+    <div class="slidenum"><b>02</b> / 16</div>
+  </section>
+
+  <!-- 3: SLO -->
+  <section class="slide" id="s3" data-title="SLO">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 1 — Hiểu hệ thống</div>
+      <h2>SLO đang phải giữ</h2>
+      <div class="table-wrap" style="margin-top:20px;">
+        <table>
+          <thead><tr><th>SLO</th><th class="num">Ngưỡng</th></tr></thead>
+          <tbody>
+            <tr><td>Checkout success rate</td><td class="num">≥ 99.0%</td></tr>
+            <tr><td>Browse / search success rate</td><td class="num">≥ 99.5%</td></tr>
+            <tr><td>Cart success rate</td><td class="num">≥ 99.5%</td></tr>
+            <tr><td>Frontend p95 latency</td><td class="num">&lt; 1s</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:22px; max-width:70ch;">Đây là 4 con số duy nhất mọi quyết định backlog phía sau phải bảo vệ được — không chỉ nói suông, mà quy về đúng 1 trong 4 dòng này khi giải trình tác động business.</p>
+    </div>
+    <div class="slidenum"><b>03</b> / 16</div>
+  </section>
+
+  <!-- 4: TOP RISKS -->
+  <section class="slide" id="s4" data-title="3 rủi ro">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 1 — Hiểu hệ thống</div>
+      <h2>3 rủi ro lớn nhất nhìn ra</h2>
+      <div class="grid grid-3" style="margin-top:22px;">
+        <div class="card stripe-critical">
+          <span class="pill pill-critical">Security</span>
+          <h3 style="margin-top:10px;">Lateral movement thật</h3>
+          <p><b style="color:var(--ink);">0 NetworkPolicy</b> trong namespace. PoC sống: <code class="mono">image-provider</code> — service chỉ phục vụ ảnh tĩnh — connect thẳng được tới Postgres, Valkey, Grafana. Đã verify chạy thật, không phải suy đoán.</p>
+        </div>
+        <div class="card stripe-critical">
+          <span class="pill pill-critical">Performance</span>
+          <h3 style="margin-top:10px;">Incident đang sống</h3>
+          <p>Grafana OOMKilled <b style="color:var(--ink);">11 lần</b>, Jaeger <b style="color:var(--ink);">6 lần</b> — không phải rủi ro, là sự cố lặp lại thật. Team mù hoàn toàn về tài nguyên: <code class="mono">metrics-server</code> không tồn tại.</p>
+        </div>
+        <div class="card stripe-warning">
+          <span class="pill pill-warning">Cả 2 trụ</span>
+          <h3 style="margin-top:10px;">Chưa có guardrail nền</h3>
+          <p><b style="color:var(--ink);">0/29</b> container có <code class="mono">readOnlyRootFilesystem</code>. <b style="color:var(--ink);">0</b> ResourceQuota/LimitRange. Ingress ALB vẫn <code class="mono">HTTP/80</code> public song song CloudFront, chưa có quyết định chính thức.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slidenum"><b>04</b> / 16</div>
+  </section>
+
+  <!-- 5: FORMULA -->
+  <section class="slide formula-slide" id="s5" data-title="Công thức">
+    <div class="slide-inner">
+      <div class="eyebrow" style="justify-content:center;">Phần 2 — Backlog ưu tiên</div>
+      <h2>Cách xếp hạng mọi mục backlog</h2>
+      <div class="formula">
+        Ưu tiên <span class="op">=</span> Rủi ro <span class="op">(</span>khả năng × mức nghiêm trọng<span class="op">)</span> <span class="op">×</span> Tác động business
+      </div>
+      <p style="margin: 0 auto;">Không xếp theo cảm tính, và không xếp theo thứ tự "cái nào làm trước về mặt kỹ thuật" — hai thứ đó khác nhau, xem Phần 3.</p>
+    </div>
+    <div class="slidenum"><b>05</b> / 16</div>
+  </section>
+
+  <!-- 6: TOP 7 TABLE -->
+  <section class="slide" id="s6" data-title="Top 7">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 2 — Backlog ưu tiên</div>
+      <h2>Top 7, xếp đúng công thức Rủi ro × Tác động business</h2>
+      <div class="table-wrap" style="margin-top:20px;">
+        <table>
+          <thead>
+            <tr><th class="num">#</th><th>Mã</th><th>Item</th><th>Trụ</th><th>Priority</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num mono">1</td><td class="mono">P15</td><td>NetworkPolicy chặn lateral movement</td><td>Security</td><td><span class="pill pill-critical">P0</span></td></tr>
+            <tr><td class="num mono">2</td><td class="mono">P09</td><td>Sửa Grafana/Jaeger OOM (phần khẩn)</td><td>Performance</td><td><span class="pill pill-critical">Active</span></td></tr>
+            <tr><td class="num mono">3</td><td class="mono">P07</td><td>Cài lại metrics-server</td><td>Performance</td><td><span class="pill pill-warning">P0–P1</span></td></tr>
+            <tr><td class="num mono">4</td><td class="mono">P16</td><td>Chốt public ingress boundary</td><td>Security</td><td><span class="pill pill-warning">P0–P1</span></td></tr>
+            <tr><td class="num mono">5</td><td class="mono">P17</td><td>Pod Security hardening</td><td>Security</td><td><span class="pill pill-warning">P1</span></td></tr>
+            <tr><td class="num mono">6</td><td class="mono">P18</td><td>ResourceQuota + LimitRange</td><td>Performance/Cost</td><td><span class="pill pill-warning">P1–P2</span></td></tr>
+            <tr><td class="num mono">7</td><td class="mono">P11</td><td>Thiết kế HPA</td><td>Performance</td><td><span class="pill pill-warning">P1</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:16px; font-size:13.5px;">P09 xếp <b style="color:var(--ink)">"đã xảy ra thật"</b> chứ không phải "rủi ro" — một incident đang sống luôn vượt lên trước một rủi ro lý thuyết, dù severity/business impact của nó không cao nhất bảng.</p>
+    </div>
+    <div class="slidenum"><b>06</b> / 16</div>
+  </section>
+
+  <!-- 6b: PAIRWISE ORDER JUSTIFICATION -->
+  <section class="slide" id="s6b" data-title="Vì sao A trước B">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 3 — Bảo vệ thứ tự</div>
+      <h2>Vì sao A đứng trước B — từng cặp liền kề</h2>
+      <p style="margin-top:6px;">Không chỉ nhắc lại lý do của từng mục — đây là câu trả lời <b style="color:var(--ink)">so sánh trực tiếp</b> khi bị hỏi "sao X đứng trước Y".</p>
+      <div class="grid" style="margin-top:16px; gap:11px;">
+        <div class="card stripe-accent" style="padding:14px 18px;">
+          <p style="margin:0; font-size:13.5px;"><b style="color:var(--ink)">P15 trước P09</b> — P15 có cả 3 trục (khả năng/nghiêm trọng/tác động business) cùng ở mức Cao nhất; P09 tuy "đã xảy ra thật" nhưng chỉ ảnh hưởng khả năng <i>quan sát</i>, chưa chạm <i>dữ liệu</i> khách hàng như P15.</p>
+        </div>
+        <div class="card stripe-accent" style="padding:14px 18px;">
+          <p style="margin:0; font-size:13.5px;"><b style="color:var(--ink)">P09 trước P07</b> — P09 là sự cố <i>đang cháy thật</i> (observed, đo được số restart); P07 là <i>thiếu công cụ để dập lửa lần sau</i>. Đám cháy đang cháy luôn xử lý trước.</p>
+        </div>
+        <div class="card stripe-accent" style="padding:14px 18px;">
+          <p style="margin:0; font-size:13.5px;"><b style="color:var(--ink)">P07 trước P16</b> — khả năng của P07 đã confirm 100%, còn P16 cần kẻ tấn công chủ động dò ra URL ALB trước. P07 còn có hiệu ứng domino, chặn cả P09b/P18/P11 phía sau.</p>
+        </div>
+        <div class="card stripe-accent" style="padding:14px 18px;">
+          <p style="margin:0; font-size:13.5px;"><b style="color:var(--ink)">P16 trước P17</b> — 2 lớp phòng thủ khác tầng: P16 <i>ngăn chặn đầu vào</i>, P17 <i>giảm nhẹ hậu quả</i> (chỉ có tác dụng NẾU đã có lỗ hổng khác bị khai thác trước). Lớp ngăn chặn luôn đứng trước lớp giảm nhẹ.</p>
+        </div>
+        <div class="card stripe-accent" style="padding:14px 18px;">
+          <p style="margin:0; font-size:13.5px;"><b style="color:var(--ink)">P17 trước P18</b> — khả năng ngang nhau, nhưng P17 gắn với an ninh dữ liệu khách hàng/thanh toán (rò rỉ nếu bị khai thác), P18 chỉ gây gián đoạn vận hành tạm thời. Rủi ro bảo mật &gt; rủi ro vận hành ở cùng mức nghiêm trọng.</p>
+        </div>
+        <div class="card stripe-accent" style="padding:14px 18px;">
+          <p style="margin:0; font-size:13.5px;"><b style="color:var(--ink)">P18 trước P11</b> — P18 vá lỗ hổng <i>đang tồn tại ngay bây giờ</i> (ai cũng có thể vô tình gây ra); P11 chỉ có giá trị <i>nếu/khi</i> traffic tăng — hiện checkout chỉ ~0.064 req/s, chưa cần autoscale lúc này.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slidenum"><b>07</b> / 16</div>
+  </section>
+
+  <!-- 7: RANK 1 DETAIL -->
+  <section class="slide" id="s7" data-title="#1 NetworkPolicy">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 2 — Chi tiết Top 7</div>
+      <div class="rank-head"><span class="rank-num">RANK 1</span><h2>P15 — NetworkPolicy chặn lateral movement</h2></div>
+      <div class="two-col" style="margin-top:18px;">
+        <div>
+          <div class="field-label">Evidence</div>
+          <div class="evidence-block">$ kubectl -n techx-tf3 get networkpolicy
+→ No resources found
+
+PoC đã ghi nhận (live):
+image-provider → postgresql:5432   open
+image-provider → valkey-cart:6379  open
+image-provider → grafana:80        open</div>
+          <div class="verified-tag">VERIFIED sống qua SSM tunnel, 10/07/2026 — chưa gì thay đổi</div>
+        </div>
+        <div>
+          <div class="field-label">Rủi ro</div>
+          <p style="font-size:14px;">Một service không cần datastore vẫn đi ngang được tới database/cache/observability — PoC chạy được trên live cluster, không phải suy đoán.</p>
+          <div class="field-label" style="margin-top:16px;">Giải pháp</div>
+          <p style="font-size:14px;">Không deny-all toàn namespace. Bắt đầu bằng policy bảo vệ Postgres/Valkey/Kafka/observability theo đúng flow trong <code class="mono">ARCHITECTURE.md</code>, test sau mỗi policy.</p>
+          <div class="field-label" style="margin-top:16px;">Rollback</div>
+          <p style="font-size:14px;"><code class="mono">kubectl delete networkpolicy &lt;tên&gt;</code> — revert dưới 5 giây.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slidenum"><b>08</b> / 16</div>
+  </section>
+
+  <!-- 8: RANK 2 DETAIL -->
+  <section class="slide" id="s8" data-title="#2 Grafana/Jaeger">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 2 — Chi tiết Top 7</div>
+      <div class="rank-head"><span class="rank-num">RANK 2</span><h2>P09 — Grafana/Jaeger OOM (đang xảy ra sống)</h2></div>
+      <div class="two-col" style="margin-top:18px;">
+        <div>
+          <div class="field-label">Evidence</div>
+          <div class="evidence-block">grafana-7779557549-c7tvr   4/4   11 restarts (6h32m trước)
+jaeger-bbc8c79f5-6dl2v     1/1    6 restarts (6h54m trước)
+requests.memory=250Mi, limits.memory=300Mi  ← chưa đổi
+
+helm history: revision 5 FAILED — tăng request 512Mi
+nhưng quên tăng limit 300Mi → Helm từ chối patch
+revision 6 revert về số cũ. rev 7-8 không đụng tới.</div>
+          <div class="verified-tag">VERIFIED sống — vấn đề vẫn CHƯA được sửa</div>
+        </div>
+        <div>
+          <div class="field-label">Ảnh hưởng khách hàng</div>
+          <p style="font-size:14px;">Nếu checkout lỗi đúng lúc Jaeger đang restart, team không có trace để debug — kéo dài MTTR, khách chịu downtime lâu hơn cần thiết.</p>
+          <div class="field-label" style="margin-top:16px;">Giải pháp (làm ngay, Phase 1)</div>
+          <p style="font-size:14px;">Tăng cả <code class="mono">requests.memory</code> và <code class="mono">limits.memory</code> Grafana <b>cùng lúc</b> lên 400–512Mi. Jaeger: thêm <code class="mono">GOMEMLIMIT</code>. Không cần chờ metrics-server (P07).</p>
+        </div>
+      </div>
+    </div>
+    <div class="slidenum"><b>09</b> / 16</div>
+  </section>
+
+  <!-- 9: RANK 3 DETAIL -->
+  <section class="slide" id="s9" data-title="#3 metrics-server">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 2 — Chi tiết Top 7</div>
+      <div class="rank-head"><span class="rank-num">RANK 3</span><h2>P07 — Cài lại metrics-server</h2></div>
+      <div class="two-col" style="margin-top:18px;">
+        <div>
+          <div class="field-label">Evidence</div>
+          <div class="evidence-block">$ kubectl top nodes
+→ error: Metrics API not available
+
+$ kubectl -n kube-system get deploy metrics-server
+→ NotFound</div>
+          <div class="verified-tag">VERIFIED sống — vẫn NotFound</div>
+        </div>
+        <div>
+          <div class="field-label">Vì sao đứng rank 3 dù severity không cao nhất</div>
+          <p style="font-size:14px;">Bản thân nó không tự gây outage — nhưng <b style="color:var(--ink)">chặn domino</b> gần như toàn bộ backlog Performance phía sau: P09 (phần right-size), P18 (ResourceQuota), P11 (HPA) đều cần số liệu thật từ đây trước.</p>
+          <div class="field-label" style="margin-top:16px;">Acceptance</div>
+          <p style="font-size:14px;"><code class="mono">kubectl top nodes</code> trả số liệu cho 3 nodes. Right-size/HPA không được làm trước khi có baseline này.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slidenum"><b>10</b> / 16</div>
+  </section>
+
+  <!-- 10: RANK 4-7 GRID -->
+  <section class="slide" id="s10" data-title="#4–7">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 2 — Chi tiết Top 7</div>
+      <h2>Rank 4–7</h2>
+      <div class="grid grid-2" style="margin-top:20px;">
+        <div class="card stripe-warning">
+          <span class="pill pill-warning">Rank 4 · Security</span>
+          <h3 style="margin-top:10px;">P16 — Ingress boundary</h3>
+          <p>ALB vẫn <code class="mono">PORTS 80</code> public song song CloudFront HTTPS — 2 cửa vào, chỉ 1 cửa có khóa. Cần 1 ADR chốt CloudFront là entrypoint chính thức, rồi khóa ALB chỉ nhận traffic từ CloudFront.</p>
+        </div>
+        <div class="card stripe-warning">
+          <span class="pill pill-warning">Rank 5 · Security</span>
+          <h3 style="margin-top:10px;">P17 — Pod Security hardening</h3>
+          <p>0/29 container có <code class="mono">readOnlyRootFilesystem</code>, chưa có Pod Security Admission. Bật <code class="mono">audit/warn</code> trước, áp baseline securityContext cho service ưu tiên.</p>
+        </div>
+        <div class="card stripe-warning">
+          <span class="pill pill-warning">Rank 6 · Performance/Cost</span>
+          <h3 style="margin-top:10px;">P18 — ResourceQuota + LimitRange</h3>
+          <p>0 quota nào tồn tại — 1 workload lỗi (kể cả load-generator) có thể chiếm hết tài nguyên namespace. Làm ngay sau P07 để tính đúng số, không đoán.</p>
+        </div>
+        <div class="card stripe-warning">
+          <span class="pill pill-warning">Rank 7 · Performance</span>
+          <h3 style="margin-top:10px;">P11 — Thiết kế HPA</h3>
+          <p>0 HPA nào tồn tại. Traffic hiện tại thấp (~0.064 req/s checkout) nên chưa khẩn — nhưng là bước "trưởng thành" cuối, cần metrics + requests + quota làm nền trước.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slidenum"><b>11</b> / 16</div>
+  </section>
+
+  <!-- 11: EXECUTION PHASES -->
+  <section class="slide" id="s11" data-title="Thứ tự thực thi">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 3 — Bảo vệ thứ tự</div>
+      <h2>Priority ≠ thứ tự thực thi — đây là lý do</h2>
+      <p style="margin-top:10px;">Bảng Top-7 trả lời "cái gì đáng quan tâm nhất". Sơ đồ dưới trả lời "cái gì làm được trước về kỹ thuật" — hai câu hỏi khác nhau.</p>
+      <div class="phases">
+        <div class="phase-card">
+          <div class="phase-num">Phase 1 — ngay, song song</div>
+          <div class="phase-title">Không phụ thuộc gì</div>
+          <ul class="phase-items">
+            <li>P15 — NetworkPolicy</li>
+            <li>P16 — Ingress boundary</li>
+            <li>P17 — Pod Security</li>
+            <li>P07 — metrics-server</li>
+            <li>P09a — bump memory Grafana/Jaeger</li>
+          </ul>
+        </div>
+        <div class="phase-card">
+          <div class="phase-num">Phase 2 — sau P07</div>
+          <div class="phase-title">Cần số liệu thật</div>
+          <ul class="phase-items">
+            <li>P09b — right-size toàn bộ service</li>
+            <li>P18 — ResourceQuota/LimitRange</li>
+          </ul>
+        </div>
+        <div class="phase-card">
+          <div class="phase-num">Phase 3 — cuối</div>
+          <div class="phase-title">Cần Phase 1+2 xong</div>
+          <ul class="phase-items">
+            <li>P11 — HPA</li>
+            <li style="opacity:.7">(baseline load test P08 gộp làm điều kiện verify, không phải mục riêng)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="slidenum"><b>12</b> / 16</div>
+  </section>
+
+  <!-- 12: POD SECURITY 101 -->
+  <section class="slide" id="s12" data-title="Pod Security 101">
+    <div class="slide-inner">
+      <div class="eyebrow">Phụ lục — P17 giải thích</div>
+      <h2>6 thông số Pod Security — không set thì sao</h2>
+      <p style="margin-top:8px;">Không cái nào ngăn hacker khai thác lỗ hổng đầu tiên — chúng ngăn việc khai thác đó <b style="color:var(--ink)">leo thang</b>.</p>
+      <div class="grid grid-3" style="margin-top:18px;">
+        <div class="sec-card">
+          <div class="name">runAsNonRoot</div>
+          <p class="does">Container chạy bằng user thường hay root.</p>
+          <p class="risk"><b>Nếu không set</b>Container escape → hacker có ngay quyền root trên node.</p>
+        </div>
+        <div class="sec-card">
+          <div class="name">readOnlyRootFilesystem</div>
+          <p class="does">Container có ghi được vào filesystem chính nó không.</p>
+          <p class="risk"><b>Nếu không set</b>Hacker ghi backdoor/webshell, ở lại lâu dài.</p>
+        </div>
+        <div class="sec-card">
+          <div class="name">allowPrivilegeEscalation</div>
+          <p class="does">1 tiến trình con có tự nâng quyền hơn cha nó không.</p>
+          <p class="risk"><b>Nếu không set</b>1 lỗ hổng nhỏ → bàn đạp tự nâng quyền trong container.</p>
+        </div>
+        <div class="sec-card">
+          <div class="name">capabilities.drop: [ALL]</div>
+          <p class="does">~40 mảnh quyền nhỏ tách từ root, cấp sẵn dù không dùng.</p>
+          <p class="risk"><b>Nếu không set</b>Giữ cả bó "chìa khóa phụ" dư thừa để hacker thử.</p>
+        </div>
+        <div class="sec-card">
+          <div class="name">seccompProfile</div>
+          <p class="does">Danh sách syscall được phép gọi xuống kernel.</p>
+          <p class="risk"><b>Nếu không set</b>Gọi được syscall nguy hiểm dùng để escape container.</p>
+        </div>
+        <div class="sec-card ok">
+          <div class="name">privileged</div>
+          <p class="does">"Chìa khóa vạn năng" — gần như tắt hết cách ly với host.</p>
+          <p class="risk"><b>Hiện tại: 0/29 — điểm tốt</b>Không cần sửa mục này.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slidenum"><b>13</b> / 16</div>
+  </section>
+
+  <!-- 13: DEFER GROUPS -->
+  <section class="slide" id="s13" data-title="Cố ý bỏ gì">
+    <div class="slide-inner">
+      <div class="eyebrow">Phần 3 — Bảo vệ thứ tự</div>
+      <h2>Cố ý bỏ gì lúc này</h2>
+      <div class="grid grid-2" style="margin-top:20px;">
+        <div>
+          <h3 style="margin-bottom:10px;">Nhóm A — ngoài phạm vi trụ<br><span style="font-weight:400;color:var(--ink-soft);font-size:13px;">Không phải bỏ sót — CDO02 sở hữu</span></h3>
+          <ul class="defer-list">
+            <li><b>P01–P06, P10, P14</b> — health check, probe, replicas, checkout rollback, Kafka ack/DLQ, cart persistence — trụ Reliability, team CDO02.</li>
+            <li><b>P13</b> — Postgres connection pool: khớp evidence Performance của team, nhưng ownership CDO02 theo meeting note.</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="margin-bottom:10px;">Nhóm B — trong phạm vi nhưng defer<br><span style="font-weight:400;color:var(--ink-soft);font-size:13px;">Rủi ro làm sớm &gt; lợi ích</span></h3>
+          <ul class="defer-list">
+            <li><b>P08 độc lập</b> — enabler đo lường, gộp vào điều kiện của P11.</li>
+            <li><b>Karpenter, Managed RDS/ElastiCache/MSK, WAF đầy đủ</b> — cần baseline/ADR/cost estimate trước.</li>
+            <li><b>Deny-all NetworkPolicy, Pod Security restricted ngay, CPU limits cứng</b> — có thể tự làm gãy app khi chưa có số liệu/allowlist.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="slidenum"><b>14</b> / 16</div>
+  </section>
+
+  <!-- 14: Q&A PREP -->
+  <section class="slide" id="s14" data-title="Q&A">
+    <div class="slide-inner">
+      <div class="eyebrow">Phụ lục — chuẩn bị bị vặn</div>
+      <h2>3 câu hay bị hỏi nhất</h2>
+      <div class="grid" style="margin-top:18px; gap:14px;">
+        <div class="card stripe-accent">
+          <p style="color:var(--ink); font-weight:600; margin-bottom:6px;">"Checkout success rate 100%, sao vẫn P0?"</p>
+          <p>100% ở mức 0.064 req/s không phải bằng chứng chịu tải — checkout chỉ ~6% trọng số traffic, cần Users 100–300+ mới đo được gì có ý nghĩa.</p>
+        </div>
+        <div class="card stripe-accent">
+          <p style="color:var(--ink); font-weight:600; margin-bottom:6px;">"P17 báo 0/28, sao verify ra 4/29 đã có seccomp?"</p>
+          <p>Số liệu lệch nhẹ so với lúc thu thập evidence ban đầu — có tín hiệu ai đó đã sửa 1 phần, đang xác nhận lại. Rủi ro cốt lõi (0 container read-only root FS) vẫn còn nguyên.</p>
+        </div>
+        <div class="card stripe-accent">
+          <p style="color:var(--ink); font-weight:600; margin-bottom:6px;">"Sao không làm hết mọi thứ tuần này?"</p>
+          <p>Một phần thuộc trụ khác (CDO02 đã cover); phần còn lại — kể cả việc từng tưởng quan trọng như baseline load test — là công cụ đo lường chứ không tự giảm rủi ro, nhường chỗ cho guardrail thật có tác dụng ngay.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slidenum"><b>15</b> / 16</div>
+  </section>
+
+  <!-- 15: CLOSING -->
+  <section class="slide closing" id="s15" data-title="Kết">
+    <div class="slide-inner">
+      <div class="eyebrow" style="justify-content:center;">Tóm tắt</div>
+      <h2>Chặn lateral movement + khóa ingress trước.<br>Dựng nền đo lường.<br>Rồi mới autoscale.</h2>
+      <p class="lead" style="margin: 18px auto 0;">7 mục, đều có evidence sống, verify lại ngay trước giờ pitch. Karpenter, managed database, WAF đầy đủ — defer có chủ đích, không phải thiếu sót.</p>
+      <div class="title-meta" style="justify-content:center; margin-top:30px;">
+        <span>Team <strong>CDO01</strong> — Performance Efficiency + Security</span>
+      </div>
+    </div>
+    <div class="slidenum"><b>16</b> / 16</div>
+  </section>
+
+</div>
+
+<script>
+  (function () {
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var navEl = document.getElementById('navdots');
+    var deck = document.getElementById('deck');
+
+    slides.forEach(function (s, i) {
+      var a = document.createElement('a');
+      a.href = '#' + s.id;
+      a.setAttribute('aria-label', (i + 1) + '. ' + (s.dataset.title || ''));
+      navEl.appendChild(a);
+    });
+    var dots = Array.prototype.slice.call(navEl.querySelectorAll('a'));
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          var idx = slides.indexOf(e.target);
+          dots.forEach(function (d) { d.classList.remove('active'); });
+          if (dots[idx]) dots[idx].classList.add('active');
+        }
+      });
+    }, { root: deck, threshold: 0.6 });
+    slides.forEach(function (s) { io.observe(s); });
+
+    document.addEventListener('keydown', function (e) {
+      var cur = slides.findIndex(function (s) {
+        var r = s.getBoundingClientRect();
+        return r.top > -50 && r.top < window.innerHeight * 0.5;
+      });
+      if (cur === -1) cur = 0;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+        e.preventDefault();
+        var next = slides[Math.min(cur + 1, slides.length - 1)];
+        next.scrollIntoView({ behavior: 'smooth' });
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault();
+        var prev = slides[Math.max(cur - 1, 0)];
+        prev.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  })();
+</script>
+</body>
+</html>

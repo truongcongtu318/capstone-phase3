@@ -1,23 +1,10 @@
 """
-test_interactive.py — Interactive CLI Test cho Shopping Copilot Agent.
-
-Test toàn bộ luồng chat end-to-end:
-  - Nhập câu hỏi tự do từ terminal
-  - Hiển thị kết quả JSON đầy đủ (status, reply, token, guardrail info)
-  - Hỗ trợ multi-turn (giữ session liên tục)
-  - Hỗ trợ xác nhận hành động ghi (confirm/cancel)
-  - Hiển thị cache stats, session info
-
-2 chế độ chạy:
-  1. MOCK mode (mặc định): mock gRPC, dùng LLM Groq thật → test luồng agent
-  2. LIVE mode: gọi gRPC thật (cần port-forward từ EKS) → test end-to-end
+test_interactive.py — Interactive CLI Test cho Shopping Copilot Agent (AWS Bedrock).
 
 Chạy:
-    py test_interactive.py              # Mock mode (cần GROQ_API_KEY trong .env)
-    py test_interactive.py --live       # Live mode (cần cả gRPC port-forward)
-    py test_interactive.py --no-llm     # Full mock (không cần API key, test guardrail only)
-
-Tham chiếu: agentic_design.md — Mục 6, 8.
+    py tests/test_interactive.py              # Mock mode (cần AWS credentials)
+    py tests/test_interactive.py --live       # Live mode (cần cả gRPC port-forward)
+    py tests/test_interactive.py --no-llm     # Full mock (không cần LLM, test guardrail only)
 """
 
 import sys
@@ -25,6 +12,7 @@ import os
 import json
 import uuid
 import time
+import asyncio
 import logging
 import argparse
 from datetime import datetime
@@ -38,10 +26,10 @@ sys.path.insert(0, os.path.dirname(ROOT))
 # ── Parse arguments ──
 parser = argparse.ArgumentParser(description="Interactive Shopping Copilot Test")
 parser.add_argument("--live", action="store_true", help="Chế độ LIVE — gọi gRPC thật (cần port-forward)")
-parser.add_argument("--no-llm", action="store_true", help="Full mock — không cần GROQ_API_KEY")
+parser.add_argument("--no-llm", action="store_true", help="Full mock — không cần Bedrock")
 parser.add_argument("--user-id", default="test_user_001", help="User ID cho session (default: test_user_001)")
 parser.add_argument("--debug", action="store_true", help="Bật debug logging")
-args = parser.parse_args()
+args, _ = parser.parse_known_args()
 
 # ── Logging ──
 log_level = logging.DEBUG if args.debug else logging.WARNING
@@ -160,17 +148,18 @@ def _build_mock_shipping_response():
 
 
 def _setup_grpc_mocks():
-    """Mock tất cả gRPC calls với dữ liệu giả."""
-    import tools.review_tool
-    import tools.cart_tool
-    import tools.recommendation_tool
-    import tools.currency_tool
-    import tools.shipping_tool
+    """Mock tất cả gRPC calls với dữ liệu giả sử dụng prefix src."""
+    logger = logging.getLogger(__name__)
+    import src.tools.review_tool
+    import src.tools.cart_tool
+    import src.tools.recommendation_tool
+    import src.tools.currency_tool
+    import src.tools.shipping_tool
 
     # Mock grpc.insecure_channel cho tất cả modules
     all_modules = [
-        tools.review_tool, tools.cart_tool,
-        tools.recommendation_tool, tools.currency_tool, tools.shipping_tool,
+        src.tools.review_tool, src.tools.cart_tool,
+        src.tools.recommendation_tool, src.tools.currency_tool, src.tools.shipping_tool,
     ]
 
     # Tạo mock channel và stubs
@@ -184,13 +173,12 @@ def _setup_grpc_mocks():
             p.start()
             _patches.append(p)
         except AttributeError:
-            # Một số module như shipping_tool không dùng grpc
             continue
 
     # Mock agent's grpc channel (for confirm flow)
     try:
-        import agent.copilot_agent
-        p = patch(f"agent.copilot_agent.grpc.insecure_channel", return_value=mock_channel)
+        import src.agent.copilot_agent
+        p = patch(f"src.agent.copilot_agent.grpc.insecure_channel", return_value=mock_channel)
         p.start()
         _patches.append(p)
     except Exception:
@@ -201,35 +189,8 @@ def _setup_grpc_mocks():
     mock_aio_channel = MagicMock()
     mock_aio_channel.close = AsyncMock()
     try:
-        import tools.search.strategies
-        p = patch("tools.search.strategies.grpc.aio.insecure_channel", return_value=mock_aio_channel)
-        p.start()
-        _patches.append(p)
-        
-        async def async_search_mock(req):
-            return _build_mock_search_response()
-            
-        async def async_list_mock(req):
-            mock_resp = MagicMock()
-            mock_resp.products = []
-            for p in MOCK_PRODUCTS:
-                item = MagicMock()
-                item.id = p["id"]
-                item.name = p["name"]
-                item.description = p["desc"]
-                price = MagicMock()
-                price.units = int(float(p["price"]))
-                price.nanos = int((float(p["price"]) % 1) * 1e9)
-                price.currency_code = p["currency"]
-                item.price_usd = price
-                item.categories = ["vintage"]
-                mock_resp.products.append(item)
-            return mock_resp
-            
-        mock_async_catalog_stub = MagicMock()
-        mock_async_catalog_stub.return_value.SearchProducts = async_search_mock
-        mock_async_catalog_stub.return_value.ListProducts = async_list_mock
-        p = patch("tools.search.strategies.demo_pb2_grpc.ProductCatalogServiceStub", mock_async_catalog_stub)
+        import grpc.aio
+        p = patch("grpc.aio.insecure_channel", return_value=mock_aio_channel)
         p.start()
         _patches.append(p)
     except Exception as e:
@@ -238,7 +199,7 @@ def _setup_grpc_mocks():
     # ── Mock Review Stub ──
     mock_review_stub = MagicMock()
     mock_review_stub.return_value.GetProductReviews.side_effect = lambda req: _build_mock_reviews_response(req.product_id)
-    p = patch("tools.review_tool.demo_pb2_grpc.ProductReviewServiceStub", mock_review_stub)
+    p = patch("src.tools.review_tool.demo_pb2_grpc.ProductReviewServiceStub", mock_review_stub)
     p.start()
     _patches.append(p)
 
@@ -247,7 +208,6 @@ def _setup_grpc_mocks():
         user_id = req.user_id
         if user_id not in MOCK_CART:
             MOCK_CART[user_id] = []
-        # Check if product already in cart
         for item in MOCK_CART[user_id]:
             if item["product_id"] == req.item.product_id:
                 item["quantity"] += req.item.quantity
@@ -261,13 +221,13 @@ def _setup_grpc_mocks():
     mock_cart_stub = MagicMock()
     mock_cart_stub.return_value.GetCart.side_effect = lambda req: _build_mock_cart_response(req.user_id)
     mock_cart_stub.return_value.AddItem.side_effect = _mock_add_item
-    p = patch("tools.cart_tool.demo_pb2_grpc.CartServiceStub", mock_cart_stub)
+    p = patch("src.tools.cart_tool.demo_pb2_grpc.CartServiceStub", mock_cart_stub)
     p.start()
     _patches.append(p)
 
     # Mock agent's CartServiceStub too (for confirm flow)
     try:
-        p = patch("agent.copilot_agent.demo_pb2_grpc.CartServiceStub", mock_cart_stub)
+        p = patch("src.agent.copilot_agent.demo_pb2_grpc.CartServiceStub", mock_cart_stub)
         p.start()
         _patches.append(p)
     except Exception:
@@ -276,14 +236,14 @@ def _setup_grpc_mocks():
     # ── Mock Recommendation Stub ──
     mock_reco_stub = MagicMock()
     mock_reco_stub.return_value.ListRecommendations.return_value = _build_mock_recommendations_response()
-    p = patch("tools.recommendation_tool.demo_pb2_grpc.RecommendationServiceStub", mock_reco_stub)
+    p = patch("src.tools.recommendation_tool.demo_pb2_grpc.RecommendationServiceStub", mock_reco_stub)
     p.start()
     _patches.append(p)
 
     # ── Mock Currency Stub ──
     mock_currency_stub = MagicMock()
     mock_currency_stub.return_value.Convert.return_value = _build_mock_currency_response()
-    p = patch("tools.currency_tool.demo_pb2_grpc.CurrencyServiceStub", mock_currency_stub)
+    p = patch("src.tools.currency_tool.demo_pb2_grpc.CurrencyServiceStub", mock_currency_stub)
     p.start()
     _patches.append(p)
 
@@ -291,11 +251,10 @@ def _setup_grpc_mocks():
     try:
         mock_shipping_stub = MagicMock()
         mock_shipping_stub.return_value.GetQuote.return_value = _build_mock_shipping_response()
-        p = patch("tools.shipping_tool.demo_pb2_grpc.ShippingServiceStub", mock_shipping_stub)
+        p = patch("src.tools.shipping_tool.demo_pb2_grpc.ShippingServiceStub", mock_shipping_stub)
         p.start()
         _patches.append(p)
     except AttributeError:
-        # shipping_tool dùng REST nên không cần patch grpc stub
         pass
 
 
@@ -306,34 +265,36 @@ def _setup_llm_mock():
     mock_llm = MagicMock()
 
     def _mock_invoke(messages, *a, **kw):
-        # Đọc tin nhắn cuối cùng
         last_msg = messages[-1].content if messages else ""
-        # Trả câu trả lời mẫu (không gọi tool)
         return AIMessage(content=(
             f"[MOCK LLM] Tôi nhận được câu hỏi: \"{last_msg}\"\n\n"
             f"Đây là chế độ mock (--no-llm). LLM không thật sự hoạt động.\n"
             f"Các guardrail layers vẫn chạy đầy đủ.\n"
-            f"Để test với LLM thật, bỏ flag --no-llm và set GROQ_API_KEY trong .env"
+            f"Để test với LLM thật, bỏ flag --no-llm."
+        ))
+
+    async def _mock_ainvoke(messages, *a, **kw):
+        last_msg = messages[-1].content if messages else ""
+        return AIMessage(content=(
+            f"[MOCK LLM] Tôi nhận được câu hỏi: \"{last_msg}\"\n\n"
+            f"Đây là chế độ mock (--no-llm). LLM không thật sự hoạt động.\n"
+            f"Các guardrail layers vẫn chạy đầy đủ.\n"
+            f"Để test với LLM thật, bỏ flag --no-llm."
         ))
 
     mock_llm.invoke = _mock_invoke
+    mock_llm.ainvoke = _mock_ainvoke
     mock_llm.bind_tools = MagicMock(return_value=mock_llm)
 
-    p = patch("agent.copilot_agent._build_llm", return_value=mock_llm)
+    p = patch("src.agent.copilot_agent.CopilotAgent._build_llm", return_value=mock_llm)
     p.start()
     _patches.append(p)
-
-    # Đảm bảo _API_KEY có giá trị
-    p2 = patch("agent.copilot_agent._API_KEY", "mock-key-for-testing")
-    p2.start()
-    _patches.append(p2)
 
 
 # ══════════════════════════════════════════════════════════════════
 # Display helpers
 # ══════════════════════════════════════════════════════════════════
 
-# ANSI colors
 class C:
     RESET = "\033[0m"
     BOLD = "\033[1m"
@@ -355,7 +316,7 @@ def _print_banner():
 ╚══════════════════════════════════════════════════════════════╝{C.RESET}
 """)
 
-    mode = "LIVE (gRPC thật)" if args.live else ("MOCK (no LLM)" if args.no_llm else "MOCK (LLM Groq thật)")
+    mode = "LIVE (gRPC thật)" if args.live else ("MOCK (no LLM)" if args.no_llm else "MOCK (LLM Bedrock thật)")
     print(f"  {C.DIM}Mode:{C.RESET}      {C.YELLOW}{mode}{C.RESET}")
     print(f"  {C.DIM}User ID:{C.RESET}   {C.WHITE}{args.user_id}{C.RESET}")
     print(f"  {C.DIM}Session:{C.RESET}   {C.WHITE}(auto-generated){C.RESET}")
@@ -380,7 +341,6 @@ def _print_result(result: dict, elapsed_ms: int):
     token = result.get("token")
     error_code = result.get("error_code")
 
-    # Status badge
     if status == "ok":
         badge = f"{C.GREEN}✅ OK{C.RESET}"
     elif status == "pending":
@@ -400,24 +360,25 @@ def _print_result(result: dict, elapsed_ms: int):
         print(f"  {C.DIM}│{C.RESET} {C.BOLD}Token:{C.RESET}   {C.YELLOW}{short_token}{C.RESET}")
     print(f"  {C.DIM}│{C.RESET}")
 
-    # Reply content
-    reply_lines = reply.split("\n")
+    reply_lines = str(reply).split("\n")
     for line in reply_lines:
         color = C.GREEN if status == "ok" else (C.YELLOW if status == "pending" else C.RED)
         print(f"  {C.DIM}│{C.RESET}   {color}{line}{C.RESET}")
 
     print(f"  {C.DIM}└{'─' * 58}{C.RESET}")
 
-    # JSON dump
     print(f"\n  {C.DIM}JSON:{C.RESET}")
-    json_str = json.dumps(result, indent=2, ensure_ascii=False)
+    # Remove steps list from JSON view for clean terminal logging
+    result_copy = result.copy()
+    if "steps" in result_copy:
+        result_copy["steps"] = f"<{len(result_copy['steps'])} steps recorded>"
+    json_str = json.dumps(result_copy, indent=2, ensure_ascii=False)
     for line in json_str.split("\n"):
         print(f"  {C.DIM}  {line}{C.RESET}")
     print()
 
 
 def _print_session_info(agent, session_id):
-    """In thông tin session hiện tại."""
     session = agent._sessions.dump(session_id)
     if not session:
         print(f"  {C.YELLOW}Session '{session_id}' chưa tồn tại.{C.RESET}\n")
@@ -430,7 +391,6 @@ def _print_session_info(agent, session_id):
     print(f"  Created:     {session.get('created_at', '?')}")
     print(f"  Last Active: {session.get('last_active', '?')}")
     print(f"  Messages:    {len(session.get('messages', []))}")
-    print(f"  Total Turns: {session.get('metadata', {}).get('total_turns', 0)}")
 
     pending = session.get("pending_confirmation", {})
     if pending.get("token"):
@@ -441,16 +401,15 @@ def _print_session_info(agent, session_id):
     msgs = session.get("messages", [])
     if msgs:
         print(f"\n  {C.DIM}Recent messages:{C.RESET}")
-        for m in msgs[-6:]:  # Last 6
+        for m in msgs[-6:]:
             role = m.get("role", "?")
-            content = m.get("content", "")[:80]
+            content = str(m.get("content", ""))[:80]
             icon = "👤" if role == "user" else "🤖"
-            print(f"    {icon} {C.DIM}[{role}]{C.RESET} {content}{'...' if len(m.get('content', '')) > 80 else ''}")
+            print(f"    {icon} {C.DIM}[{role}]{C.RESET} {content}{'...' if len(str(m.get('content', ''))) > 80 else ''}")
     print()
 
 
 def _print_cache_stats(agent):
-    """In cache stats."""
     stats = agent._cache.stats()
     print(f"\n  {C.CYAN}{C.BOLD}Cache Stats{C.RESET}")
     print(f"  {C.DIM}{'─' * 50}{C.RESET}")
@@ -462,7 +421,6 @@ def _print_cache_stats(agent):
 
 
 def _print_cart():
-    """In mock cart data."""
     print(f"\n  {C.CYAN}{C.BOLD}Mock Cart Data{C.RESET}")
     print(f"  {C.DIM}{'─' * 50}{C.RESET}")
     if not MOCK_CART:
@@ -479,15 +437,13 @@ def _print_cart():
 # Main loop
 # ══════════════════════════════════════════════════════════════════
 
-def main():
-    # ── Setup mocks ──
+async def async_main():
     if not args.live:
         _setup_grpc_mocks()
     if args.no_llm:
         _setup_llm_mock()
 
-    # ── Init agent ──
-    from agent.copilot_agent import CopilotAgent
+    from src.agent.copilot_agent import CopilotAgent
     agent = CopilotAgent()
 
     session_id = str(uuid.uuid4())
@@ -510,7 +466,6 @@ def main():
         if not user_input:
             continue
 
-        # ── Lệnh đặc biệt ──
         cmd = user_input.lower()
 
         if cmd in ("/quit", "/exit", "/q"):
@@ -540,7 +495,7 @@ def main():
                 print(f"  {C.YELLOW}Không có hành động nào đang chờ xác nhận.{C.RESET}\n")
                 continue
             t0 = time.monotonic()
-            result = agent.confirm(session_id=session_id, token=pending_token)
+            result = await agent.confirm(session_id=session_id, token=pending_token)
             elapsed_ms = int((time.monotonic() - t0) * 1000)
             _print_result(result, elapsed_ms)
             pending_token = None
@@ -555,9 +510,9 @@ def main():
             print(f"  {C.RED}✖ Đã huỷ hành động đang chờ.{C.RESET}\n")
             continue
 
-        # ── Chat bình thường ──
+        # Chat
         t0 = time.monotonic()
-        result = agent.chat(
+        result = await agent.chat(
             session_id=session_id,
             user_id=user_id,
             user_message=user_input,
@@ -566,12 +521,10 @@ def main():
 
         _print_result(result, elapsed_ms)
 
-        # Track pending token
         if result.get("status") == "pending" and result.get("token"):
             pending_token = result["token"]
             print(f"  {C.YELLOW}💡 Gõ /confirm để xác nhận, hoặc /cancel để huỷ.{C.RESET}\n")
 
-    # ── Cleanup mocks ──
     for p in _patches:
         try:
             p.stop()
@@ -580,4 +533,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(async_main())
