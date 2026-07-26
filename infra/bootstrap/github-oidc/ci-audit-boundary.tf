@@ -61,9 +61,9 @@ locals {
     "arn:aws:events:*:${local.m12_account_id}:rule/${var.cluster_name}-m12-audit-heartbeat-*",
   ]
 
+  # M12 không có topic riêng: alert đi qua đúng hai topic alert của M11.
   m12_topic_arns = [
     "arn:aws:sns:*:${local.m12_account_id}:${var.cluster_name}-audit-detection-*",
-    "arn:aws:sns:*:${local.m12_account_id}:${var.cluster_name}-m12-audit-heartbeat-fallback",
   ]
 
   m12_function_arns = [

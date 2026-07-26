@@ -20,8 +20,12 @@ module "eks_platform" {
   node_desired_size           = var.node_desired_size
   node_min_size               = var.node_min_size
   node_max_size               = var.node_max_size
+  enable_stateful_node_group  = var.enable_stateful_node_group
   stateful_node_subnet_id     = module.network.private_subnet_ids[index(var.azs, var.stateful_node_availability_zone)]
   stateful_node_instance_type = var.stateful_node_instance_type
+  stateful_node_desired_size  = var.stateful_node_desired_size
+  stateful_node_min_size      = var.stateful_node_min_size
+  stateful_node_max_size      = var.stateful_node_max_size
   eks_admin_principal_arns    = var.eks_admin_principal_arns
   eks_kubernetes_group_principals = {
     operator = {

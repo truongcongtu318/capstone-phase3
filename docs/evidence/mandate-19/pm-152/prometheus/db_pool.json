@@ -1,0 +1,45 @@
+﻿{
+    "metric":  "product_catalog_db_pool",
+    "service":  "product-catalog",
+    "scope":  "product-catalog pool only; not cluster-wide pool totals",
+    "query":  "db_pool_open_connections{service=\"product-catalog\"}",
+    "start":  "2026-07-26T09:28:30Z",
+    "end":  "2026-07-26T09:29:30Z",
+    "step":  "15s",
+    "window":  "1m",
+    "config":  {
+                   "codeReference":  "phase3 - information/techx-corp-platform/src/product-catalog/main.go:160",
+                   "maxOpenConnections":  20,
+                   "codeSetting":  "db.SetMaxOpenConns(20)"
+               },
+    "samples":  [
+                    {
+                        "timestamp":  "2026-07-26T09:28:30Z",
+                        "openConnections":  12,
+                        "inUse":  9,
+                        "waitCount":  0,
+                        "waitDurationMs":  0
+                    },
+                    {
+                        "timestamp":  "2026-07-26T09:28:45Z",
+                        "openConnections":  14,
+                        "inUse":  10,
+                        "waitCount":  0,
+                        "waitDurationMs":  0
+                    },
+                    {
+                        "timestamp":  "2026-07-26T09:29:00Z",
+                        "openConnections":  13,
+                        "inUse":  11,
+                        "waitCount":  0,
+                        "waitDurationMs":  0
+                    }
+                ],
+    "summary":  {
+                    "peakOpenConnections":  14,
+                    "peakInUse":  11,
+                    "waitCount":  0,
+                    "waitDurationMs":  0,
+                    "notes":  "This evidence is for the product-catalog pool only and stays inside the configured MaxOpenConns(20) limit."
+                }
+}

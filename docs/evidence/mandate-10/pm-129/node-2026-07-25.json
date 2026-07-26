@@ -1,0 +1,323 @@
+{
+    "apiVersion": "v1",
+    "kind": "Node",
+    "metadata": {
+        "annotations": {
+            "alpha.kubernetes.io/provided-node-ip": "10.0.40.78",
+            "csi.volume.kubernetes.io/nodeid": "{\"ebs.csi.aws.com\":\"i-07b70b83dc00a05a0\"}",
+            "karpenter.k8s.aws/ec2nodeclass-hash": "13465851345953991581",
+            "karpenter.k8s.aws/ec2nodeclass-hash-version": "v5",
+            "karpenter.k8s.aws/instance-profile-name": "techx-corp-tf3_8361969134352333049",
+            "karpenter.sh/nodeclaim-min-values-relaxed": "false",
+            "karpenter.sh/nodepool-hash": "3590567033522538393",
+            "karpenter.sh/nodepool-hash-version": "v3",
+            "node.alpha.kubernetes.io/ttl": "0",
+            "volumes.kubernetes.io/controller-managed-attach-detach": "true"
+        },
+        "creationTimestamp": "2026-07-23T03:22:35Z",
+        "finalizers": [
+            "karpenter.sh/termination"
+        ],
+        "labels": {
+            "beta.kubernetes.io/arch": "amd64",
+            "beta.kubernetes.io/instance-type": "t3.medium",
+            "beta.kubernetes.io/os": "linux",
+            "failure-domain.beta.kubernetes.io/region": "ap-southeast-1",
+            "failure-domain.beta.kubernetes.io/zone": "ap-southeast-1c",
+            "k8s.io/cloud-provider-aws": "64ddbd29b0a81ea783b0ffe9567793c8",
+            "karpenter.k8s.aws/ec2nodeclass": "flash-sale-spot",
+            "karpenter.k8s.aws/instance-capability-flex": "false",
+            "karpenter.k8s.aws/instance-category": "t",
+            "karpenter.k8s.aws/instance-cpu": "2",
+            "karpenter.k8s.aws/instance-cpu-manufacturer": "intel",
+            "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz": "2500",
+            "karpenter.k8s.aws/instance-ebs-bandwidth": "2085",
+            "karpenter.k8s.aws/instance-encryption-in-transit-supported": "false",
+            "karpenter.k8s.aws/instance-family": "t3",
+            "karpenter.k8s.aws/instance-generation": "3",
+            "karpenter.k8s.aws/instance-hypervisor": "nitro",
+            "karpenter.k8s.aws/instance-memory": "4096",
+            "karpenter.k8s.aws/instance-network-bandwidth": "256",
+            "karpenter.k8s.aws/instance-size": "medium",
+            "karpenter.k8s.aws/instance-tenancy": "default",
+            "karpenter.sh/capacity-type": "spot",
+            "karpenter.sh/do-not-sync-taints": "true",
+            "karpenter.sh/initialized": "true",
+            "karpenter.sh/nodepool": "flash-sale-spot",
+            "karpenter.sh/registered": "true",
+            "kubernetes.io/arch": "amd64",
+            "kubernetes.io/hostname": "ip-10-0-40-78.ap-southeast-1.compute.internal",
+            "kubernetes.io/os": "linux",
+            "node.kubernetes.io/instance-type": "t3.medium",
+            "techx.io/capacity": "spot",
+            "techx.io/workload": "elastic",
+            "topology.ebs.csi.aws.com/zone": "ap-southeast-1c",
+            "topology.k8s.aws/zone-id": "apse1-az3",
+            "topology.kubernetes.io/region": "ap-southeast-1",
+            "topology.kubernetes.io/zone": "ap-southeast-1c"
+        },
+        "name": "ip-10-0-40-78.ap-southeast-1.compute.internal",
+        "ownerReferences": [
+            {
+                "apiVersion": "karpenter.sh/v1",
+                "blockOwnerDeletion": true,
+                "kind": "NodeClaim",
+                "name": "flash-sale-spot-q9z6f",
+                "uid": "8798e177-fed8-48ec-a4ae-ea578254703e"
+            }
+        ],
+        "resourceVersion": "9003841",
+        "uid": "7c8f025f-891c-465c-97b1-12b643634d6e"
+    },
+    "spec": {
+        "providerID": "aws:///ap-southeast-1c/i-07b70b83dc00a05a0",
+        "taints": [
+            {
+                "effect": "NoSchedule",
+                "key": "techx.io/workload",
+                "value": "elastic"
+            }
+        ]
+    },
+    "status": {
+        "addresses": [
+            {
+                "address": "10.0.40.78",
+                "type": "InternalIP"
+            },
+            {
+                "address": "ip-10-0-40-78.ap-southeast-1.compute.internal",
+                "type": "InternalDNS"
+            },
+            {
+                "address": "ip-10-0-40-78.ap-southeast-1.compute.internal",
+                "type": "Hostname"
+            }
+        ],
+        "allocatable": {
+            "cpu": "1930m",
+            "ephemeral-storage": "18181869946",
+            "hugepages-1Gi": "0",
+            "hugepages-2Mi": "0",
+            "memory": "3371436Ki",
+            "pods": "17"
+        },
+        "capacity": {
+            "cpu": "2",
+            "ephemeral-storage": "20893676Ki",
+            "hugepages-1Gi": "0",
+            "hugepages-2Mi": "0",
+            "memory": "3926444Ki",
+            "pods": "17"
+        },
+        "conditions": [
+            {
+                "lastHeartbeatTime": "2026-07-25T11:56:02Z",
+                "lastTransitionTime": "2026-07-23T03:22:31Z",
+                "message": "kubelet has sufficient memory available",
+                "reason": "KubeletHasSufficientMemory",
+                "status": "False",
+                "type": "MemoryPressure"
+            },
+            {
+                "lastHeartbeatTime": "2026-07-25T11:56:02Z",
+                "lastTransitionTime": "2026-07-23T03:22:31Z",
+                "message": "kubelet has no disk pressure",
+                "reason": "KubeletHasNoDiskPressure",
+                "status": "False",
+                "type": "DiskPressure"
+            },
+            {
+                "lastHeartbeatTime": "2026-07-25T11:56:02Z",
+                "lastTransitionTime": "2026-07-23T03:22:31Z",
+                "message": "kubelet has sufficient PID available",
+                "reason": "KubeletHasSufficientPID",
+                "status": "False",
+                "type": "PIDPressure"
+            },
+            {
+                "lastHeartbeatTime": "2026-07-25T11:56:02Z",
+                "lastTransitionTime": "2026-07-23T03:22:47Z",
+                "message": "kubelet is posting ready status",
+                "reason": "KubeletReady",
+                "status": "True",
+                "type": "Ready"
+            }
+        ],
+        "daemonEndpoints": {
+            "kubeletEndpoint": {
+                "Port": 10250
+            }
+        },
+        "features": {
+            "supplementalGroupsPolicy": true
+        },
+        "images": [
+            {
+                "names": [
+                    "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:e6874914182473a905354d9e17c55fc1aec7d690c5f1428758c0b6c78e114e9e"
+                ],
+                "sizeBytes": 237321556
+            },
+            {
+                "names": [
+                    "docker.io/nicolaka/netshoot@sha256:b09d9b21381f47a79b3cbcb30da25266dc17186ea00ae65e99fdc51396f48e70",
+                    "docker.io/nicolaka/netshoot:latest"
+                ],
+                "sizeBytes": 218745451
+            },
+            {
+                "names": [
+                    "ghcr.io/chaos-mesh/chaos-daemon@sha256:69b1d3c09cfa58df94f5be7e498591f88f5007f6d22ebeeeda1731cb37acd377",
+                    "ghcr.io/chaos-mesh/chaos-daemon:v2.8.3"
+                ],
+                "sizeBytes": 197752276
+            },
+            {
+                "names": [
+                    "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:b6c7b60dec137dfe54f7fdc82b340421661aedbeed6ed34cd55f2ae29916508a"
+                ],
+                "sizeBytes": 100968582
+            },
+            {
+                "names": [
+                    "docker.io/otel/opentelemetry-collector-contrib@sha256:d57bfe8eee2378f31cb1193239fbcac521d54a5a071fca2bfc106916a32b892d",
+                    "docker.io/otel/opentelemetry-collector-contrib:0.151.0"
+                ],
+                "sizeBytes": 98639444
+            },
+            {
+                "names": [
+                    "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:801b602b7ac4afc3887a27cb3a97b13ea10ce35bce64afe047e3dd2b42ae5f1d"
+                ],
+                "sizeBytes": 83233480
+            },
+            {
+                "names": [
+                    "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:6b8243bbf1d91d1bc195703fdbe2e8029a948c38b5717efec8b41ecf1847b3f0"
+                ],
+                "sizeBytes": 80788965
+            },
+            {
+                "names": [
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/amazon-k8s-cni-init@sha256:57866ee72791f6564a316a8e9ad5df0737200f64cbfcbf6ad4153b5bc80f4fb6",
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/amazon-k8s-cni-init:v1.22.4-eksbuild.3"
+                ],
+                "sizeBytes": 69724381
+            },
+            {
+                "names": [
+                    "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:bbf660788c9c1b5881bd626f691e26e26a1d5774be13515ebbeefae481afe858"
+                ],
+                "sizeBytes": 65717672
+            },
+            {
+                "names": [
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/amazon-k8s-cni@sha256:7ba0bb50de053432467d1cc629dfc846de4e534f00b73828a1ff33fcee70c8e7",
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/amazon-k8s-cni:v1.22.4-eksbuild.3"
+                ],
+                "sizeBytes": 57915596
+            },
+            {
+                "names": [
+                    "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:445421455ac16010ed81361a66de4798e7e727ced81bcc7b6244f3a3852876c1"
+                ],
+                "sizeBytes": 46785617
+            },
+            {
+                "names": [
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/aws-ebs-csi-driver@sha256:90e7015c43235aba69108f15d31a969bb4bfdc8948185c109c48b1baeb0f6d2d",
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/aws-ebs-csi-driver:v1.62.0"
+                ],
+                "sizeBytes": 36761998
+            },
+            {
+                "names": [
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/amazon/aws-network-policy-agent@sha256:c8555b6f2aed6d795a1637e0fe7f1f47cca2465354438157bdc8d8a6beb61045",
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/amazon/aws-network-policy-agent:v1.4.0-eksbuild.1"
+                ],
+                "sizeBytes": 33957519
+            },
+            {
+                "names": [
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/kube-proxy@sha256:b8ebef58f08f46330b4c23be76d83dca7177dbe773a54cea2d9c8eb1615661e4",
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/kube-proxy:v1.35.3-eksbuild.17"
+                ],
+                "sizeBytes": 31806393
+            },
+            {
+                "names": [
+                    "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:f01846d1253f755c96e37b9c321553a9520c3f06ec54780a63048a3966d32fa0"
+                ],
+                "sizeBytes": 30644260
+            },
+            {
+                "names": [
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/livenessprobe@sha256:c886786e6943802d91549b16f66419265aa640fdec9a561633e437e3adf26317",
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/livenessprobe:v2.19.0-eksbuild.2"
+                ],
+                "sizeBytes": 16739929
+            },
+            {
+                "names": [
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/csi-node-driver-registrar@sha256:f8c41e3b0060885f292aafa6f460db63dd3ec9e4ade89cf61f8c845be958482d",
+                    "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/csi-node-driver-registrar:v2.17.0-eksbuild.2"
+                ],
+                "sizeBytes": 16609410
+            },
+            {
+                "names": [
+                    "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:a3c486d60884913b50b0a4858c8d1cd89dfdf8a30c9505577327e308afe990c6"
+                ],
+                "sizeBytes": 15064155
+            },
+            {
+                "names": [
+                    "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:ebea1f1d2ab51dac3a1de5493d4a8e97e6607601f966315eb1608a4d6f9aeeb8"
+                ],
+                "sizeBytes": 9202235
+            },
+            {
+                "names": [
+                    "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:8bfd3b9a23a2fd7624bc116844248ccd2bbb246635927899f0b4208fd179d2ed"
+                ],
+                "sizeBytes": 8109943
+            },
+            {
+                "names": [
+                    "602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/pause:3.10",
+                    "localhost/kubernetes/pause:latest"
+                ],
+                "sizeBytes": 318731
+            }
+        ],
+        "nodeInfo": {
+            "architecture": "amd64",
+            "bootID": "ba5981c0-1b58-4b27-8d49-fd4f631ad229",
+            "containerRuntimeVersion": "containerd://2.2.4+unknown",
+            "kernelVersion": "6.12.90-120.164.amzn2023.x86_64",
+            "kubeProxyVersion": "",
+            "kubeletVersion": "v1.35.6-eks-8f14419",
+            "machineID": "ec28fa004d8673c2269e0159c384ba50",
+            "operatingSystem": "linux",
+            "osImage": "Amazon Linux 2023.12.20260611",
+            "systemUUID": "ec28fa00-4d86-73c2-269e-0159c384ba50"
+        },
+        "runtimeHandlers": [
+            {
+                "features": {
+                    "recursiveReadOnlyMounts": true,
+                    "userNamespaces": true
+                },
+                "name": ""
+            },
+            {
+                "features": {
+                    "recursiveReadOnlyMounts": true,
+                    "userNamespaces": true
+                },
+                "name": "runc"
+            }
+        ]
+    }
+}

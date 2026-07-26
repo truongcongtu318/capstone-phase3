@@ -1,0 +1,56 @@
+# Mandate #15 — Scenario 2, BƯỚC B: nhiễu vô hại ở `recommendation`
+#
+# APPLY CÙNG LÚC với scenario-2a-payment-real-issue.yaml (cả hai ở T+0).
+#
+# Bản trước bắt apply file này trễ 5 phút. Lý do lúc đó: tưởng engine khởi động cùng lúc
+# bơm lỗi rồi mới warm-up 5 phút, nên nhiễu ngắn bắn ở T+0 sẽ tắt trước khi engine kịp
+# nhìn. AIO02 xác nhận lại: **engine chạy liên tục**, tức luôn ở trạng thái warm — không
+# còn giai đoạn mù lúc đầu, nên không có lý do gì để trì hoãn nhiễu nữa. Bỏ luôn việc
+# canh hẹn giờ giữa lượt chạy, bớt một chỗ dễ hỏng.
+#
+# `duration: 5m` (thay vì 2m) chọn để ĐÚNG dù con số "5 phút" của engine là thời gian
+# warm-up hay là độ trễ phát hiện thường trực: dù cần tới 5 phút dữ liệu liên tục mới
+# kết luận được, nhiễu vẫn sống đủ dài để engine coi nó là một incident riêng.
+#
+# Đây là "nhiễu phụ": chỉ số tài nguyên nhảy rõ nhưng KHÔNG gây lỗi. Engine phải nhận ra
+# đây là chuyện nhỏ, tách riêng khỏi sự cố `payment`, và tuyệt đối không để nó che mất
+# `payment`.
+#
+# Vì sao KHÔNG dùng flag `recommendationCacheFailure`: flag đó làm hỏng cache thật, tức
+# là gây lỗi — trong khi spec đòi nhiễu "không gây lỗi". Dùng nó là tự phá bài test, vì
+# lúc đó engine gom cả 2 vào một cluster "đều là lỗi" cũng không sai. StressChaos tạo
+# đúng thứ spec cần: CPU nhảy, error rate vẫn 0.
+#
+# CHẠY:  kubectl apply -f chaos/experiments/scenario-2b-recommendation-noise.yaml
+# GỠ:    kubectl delete -f chaos/experiments/scenario-2b-recommendation-noise.yaml
+#
+# Dòng thời gian: nhiễu sống T+0..T+5, payment sống T+0..T+10.
+#   T+0..T+5  — cả hai cùng anomaly => đây là lúc chấm "tách được 2 cluster hay không".
+#               Đúng tình huống khó nhất: correlator gom theo cửa sổ thời gian sẽ dính 2
+#               thứ này làm một, chỉ correlator xét đồ thị phụ thuộc mới tách được.
+#   T+5..T+10 — chỉ còn payment => chấm "không bỏ sót sự cố thật sau khi nhiễu tắt".
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: m15-s2-recommendation-noise
+  namespace: techx-tf3
+spec:
+  mode: all
+  duration: 5m
+  selector:
+    namespaces:
+      - techx-tf3
+    labelSelectors:
+      app.kubernetes.io/name: recommendation
+  containerNames:
+    - recommendation
+  stressors:
+    cpu:
+      # load 20 = ~200m, tức ~40% của CPU limit 500m mà recommendation đang đặt.
+      # Chốt bằng đo thật (dry-run 24/07): CPU nhảy 8m -> 173m (spike rõ trên Grafana)
+      # trong khi fail_ratio giữ 0 và endpoint /api/recommendations p95 18-41ms không lỗi.
+      # ĐỪNG nâng lên 80 (giá trị nháp ban đầu): cgroup chỉ 500m, load 80 (~800m yêu cầu)
+      # bóp nghẹt app -> recommendation bắt đầu timeout -> hết "nhiễu vô hại" và bài test
+      # no-masking mất ý nghĩa. Nếu sau này recommendation được nới CPU limit thì đo lại.
+      workers: 1
+      load: 20

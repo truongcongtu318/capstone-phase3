@@ -33,17 +33,6 @@
       "reviewDate": "2026-08-22",
       "source": "infra/modules/audit-detection/main.tf",
       "status": "approved-false-positive"
-    },
-    {
-      "rule": "AVD-AWS-0057",
-      "tfsecIgnore": "aws-iam-no-policy-wildcards",
-      "resource": "data.aws_iam_policy_document.m12_audit_heartbeat",
-      "reason": "The Mandate 12 audit heartbeat role is read-only and holds no mutating action. Resource-level scoping is not available for cloudwatch:DescribeAlarms or cloudtrail:DescribeTrails, and the log statement uses the CloudWatch Logs child-stream ARN suffix :* that is required to address streams under the heartbeat log group.",
-      "owner": "tuu-ngo",
-      "ticket": "PM-126",
-      "reviewDate": "2026-08-22",
-      "source": "infra/live/production/audit-heartbeat.tf",
-      "status": "approved-operational-necessity"
     }
   ]
 }

@@ -1,0 +1,351 @@
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "annotations": {
+            "kubectl.kubernetes.io/restartedAt": "2026-07-25T07:34:47Z",
+            "resource.opentelemetry.io/service.namespace": "techx-corp"
+        },
+        "creationTimestamp": "2026-07-25T07:55:43Z",
+        "generateName": "checkout-rollout-6d97d4ff58-",
+        "generation": 1,
+        "labels": {
+            "app.kubernetes.io/component": "checkout",
+            "app.kubernetes.io/name": "checkout",
+            "app.kubernetes.io/version": "2.2.0",
+            "opentelemetry.io/name": "checkout",
+            "rollouts-pod-template-hash": "6d97d4ff58",
+            "topology.kubernetes.io/region": "ap-southeast-1",
+            "topology.kubernetes.io/zone": "ap-southeast-1c"
+        },
+        "name": "checkout-rollout-6d97d4ff58-7fk5p",
+        "namespace": "techx-tf3",
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "ReplicaSet",
+                "name": "checkout-rollout-6d97d4ff58",
+                "uid": "25ff6dc4-9311-42fe-b51d-9a7600e304e2"
+            }
+        ],
+        "resourceVersion": "8888695",
+        "uid": "9f5dc115-363c-4639-baf3-45c81c9368ac"
+    },
+    "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+            {
+                "env": [
+                    {
+                        "name": "OTEL_SERVICE_NAME",
+                        "valueFrom": {
+                            "fieldRef": {
+                                "apiVersion": "v1",
+                                "fieldPath": "metadata.labels['app.kubernetes.io/component']"
+                            }
+                        }
+                    },
+                    {
+                        "name": "OTEL_COLLECTOR_NAME",
+                        "value": "otel-gateway"
+                    },
+                    {
+                        "name": "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE",
+                        "value": "cumulative"
+                    },
+                    {
+                        "name": "CHECKOUT_PORT",
+                        "value": "8080"
+                    },
+                    {
+                        "name": "CART_ADDR",
+                        "value": "cart:8080"
+                    },
+                    {
+                        "name": "CURRENCY_ADDR",
+                        "value": "currency:8080"
+                    },
+                    {
+                        "name": "EMAIL_ADDR",
+                        "value": "http://email:8080"
+                    },
+                    {
+                        "name": "PAYMENT_ADDR",
+                        "value": "payment:8080"
+                    },
+                    {
+                        "name": "PRODUCT_CATALOG_ADDR",
+                        "value": "product-catalog:8080"
+                    },
+                    {
+                        "name": "SHIPPING_ADDR",
+                        "value": "http://shipping:8080"
+                    },
+                    {
+                        "name": "KAFKA_ADDR",
+                        "value": "b-1.techxtf3kafka.4xa0zb.c6.kafka.ap-southeast-1.amazonaws.com:9096,b-2.techxtf3kafka.4xa0zb.c6.kafka.ap-southeast-1.amazonaws.com:9096,b-3.techxtf3kafka.4xa0zb.c6.kafka.ap-southeast-1.amazonaws.com:9096"
+                    },
+                    {
+                        "name": "FLAGD_HOST",
+                        "value": "flagd"
+                    },
+                    {
+                        "name": "FLAGD_PORT",
+                        "value": "8013"
+                    },
+                    {
+                        "name": "OTEL_EXPORTER_OTLP_ENDPOINT",
+                        "value": "http://$(OTEL_COLLECTOR_NAME):4317"
+                    },
+                    {
+                        "name": "GOMEMLIMIT",
+                        "value": "16MiB"
+                    },
+                    {
+                        "name": "KAFKA_SECURITY_PROTOCOL",
+                        "value": "SASL_SSL"
+                    },
+                    {
+                        "name": "KAFKA_SASL_USERNAME",
+                        "valueFrom": {
+                            "secretKeyRef": {
+                                "key": "username",
+                                "name": "techx-tf3-kafka-scram"
+                            }
+                        }
+                    },
+                    {
+                        "name": "KAFKA_SASL_PASSWORD",
+                        "valueFrom": {
+                            "secretKeyRef": {
+                                "key": "password",
+                                "name": "techx-tf3-kafka-scram"
+                            }
+                        }
+                    }
+                ],
+                "image": "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:ebea1f1d2ab51dac3a1de5493d4a8e97e6607601f966315eb1608a4d6f9aeeb8",
+                "imagePullPolicy": "IfNotPresent",
+                "lifecycle": {
+                    "preStop": {
+                        "sleep": {
+                            "seconds": 5
+                        }
+                    }
+                },
+                "livenessProbe": {
+                    "failureThreshold": 3,
+                    "initialDelaySeconds": 15,
+                    "periodSeconds": 20,
+                    "successThreshold": 1,
+                    "tcpSocket": {
+                        "port": 8080
+                    },
+                    "timeoutSeconds": 2
+                },
+                "name": "checkout",
+                "ports": [
+                    {
+                        "containerPort": 8080,
+                        "name": "service",
+                        "protocol": "TCP"
+                    }
+                ],
+                "readinessProbe": {
+                    "failureThreshold": 3,
+                    "grpc": {
+                        "port": 8080,
+                        "service": ""
+                    },
+                    "initialDelaySeconds": 5,
+                    "periodSeconds": 10,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 2
+                },
+                "resources": {
+                    "limits": {
+                        "cpu": "500m",
+                        "memory": "64Mi"
+                    },
+                    "requests": {
+                        "cpu": "100m",
+                        "memory": "32Mi"
+                    }
+                },
+                "securityContext": {
+                    "allowPrivilegeEscalation": false,
+                    "capabilities": {
+                        "drop": [
+                            "ALL"
+                        ]
+                    },
+                    "readOnlyRootFilesystem": true,
+                    "runAsGroup": 65532,
+                    "runAsNonRoot": true,
+                    "runAsUser": 65532
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File"
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "ip-10-0-40-78.ap-southeast-1.compute.internal",
+        "nodeSelector": {
+            "techx.io/workload": "elastic"
+        },
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+            "seccompProfile": {
+                "type": "RuntimeDefault"
+            }
+        },
+        "serviceAccount": "techx-corp",
+        "serviceAccountName": "techx-corp",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+            {
+                "effect": "NoSchedule",
+                "key": "techx.io/workload",
+                "operator": "Equal",
+                "value": "elastic"
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            }
+        ],
+        "topologySpreadConstraints": [
+            {
+                "labelSelector": {
+                    "matchLabels": {
+                        "opentelemetry.io/name": "checkout"
+                    }
+                },
+                "maxSkew": 1,
+                "minDomains": 2,
+                "topologyKey": "kubernetes.io/hostname",
+                "whenUnsatisfiable": "DoNotSchedule"
+            },
+            {
+                "labelSelector": {
+                    "matchLabels": {
+                        "opentelemetry.io/name": "checkout"
+                    }
+                },
+                "maxSkew": 1,
+                "minDomains": 2,
+                "topologyKey": "topology.kubernetes.io/zone",
+                "whenUnsatisfiable": "DoNotSchedule"
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-07-25T07:55:44Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "PodReadyToStartContainers"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-07-25T07:55:43Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-07-25T07:55:55Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-07-25T07:55:55Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-07-25T07:55:43Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "allocatedResources": {
+                    "cpu": "100m",
+                    "memory": "32Mi"
+                },
+                "containerID": "containerd://2170798e34ba8c12af123ca42190487c42d457714273c4fbe9a7d7d4aef1efc1",
+                "image": "sha256:65b7971b72c5c9aac9f9d0b11ae0a1004eb0c2ef8d1544c761105657fa53c921",
+                "imageID": "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:ebea1f1d2ab51dac3a1de5493d4a8e97e6607601f966315eb1608a4d6f9aeeb8",
+                "lastState": {},
+                "name": "checkout",
+                "ready": true,
+                "resources": {
+                    "limits": {
+                        "cpu": "500m",
+                        "memory": "64Mi"
+                    },
+                    "requests": {
+                        "cpu": "100m",
+                        "memory": "32Mi"
+                    }
+                },
+                "restartCount": 0,
+                "started": true,
+                "state": {
+                    "running": {
+                        "startedAt": "2026-07-25T07:55:44Z"
+                    }
+                },
+                "user": {
+                    "linux": {
+                        "gid": 65532,
+                        "supplementalGroups": [
+                            65532
+                        ],
+                        "uid": 65532
+                    }
+                }
+            }
+        ],
+        "hostIP": "10.0.40.78",
+        "hostIPs": [
+            {
+                "ip": "10.0.40.78"
+            }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.0.44.181",
+        "podIPs": [
+            {
+                "ip": "10.0.44.181"
+            }
+        ],
+        "qosClass": "Burstable",
+        "startTime": "2026-07-25T07:55:43Z"
+    }
+}

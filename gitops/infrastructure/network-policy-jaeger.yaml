@@ -3,31 +3,36 @@ kind: NetworkPolicy
 metadata:
   name: jaeger-access
   namespace: techx-tf3
+  annotations:
+    mandate-17.techx.io/service-clusterip-evidence: "2026-07-25:kube-dns=172.20.0.10,prometheus=172.20.123.8,otel-gateway=172.20.117.175"
 spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: jaeger
   policyTypes:
     - Ingress
+    - Egress
   ingress:
-    # Telemetry ingestion: open to all workloads in the namespace
+    # Only the OTel gateway may send OTLP/gRPC telemetry to Jaeger.
     - from:
-        - podSelector: {}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: otel-gateway
       ports:
         - protocol: TCP
-          port: 14250
-        - protocol: TCP
-          port: 14268
-        - protocol: TCP
           port: 4317
+    # Node-level telemetry agent ingress remains explicit and namespace-scoped.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: otel-node-agent
+      ports:
         - protocol: TCP
-          port: 4318
-        - protocol: UDP
-          port: 6831
-        - protocol: UDP
-          port: 6832
-    # Query API / UI: restricted to Grafana, AIOps Engine, and cloudflared
-    # (cloudflared serves the jaeger.arthur-ngo.org Zero Trust route — REL-17)
+          port: 8888
+    # Query API / UI access remains limited to approved platform workloads.
     - from:
         - podSelector:
             matchLabels:
@@ -43,3 +48,36 @@ spec:
           port: 16686
         - protocol: TCP
           port: 16685
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+        - ipBlock:
+            cidr: 172.20.0.10/32
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        - ipBlock:
+            cidr: 172.20.123.8/32
+      ports:
+        - protocol: TCP
+          port: 9090
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: otel-gateway
+        - ipBlock:
+            cidr: 172.20.117.175/32
+      ports:
+        - protocol: TCP
+          port: 4318

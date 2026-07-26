@@ -1599,6 +1599,25 @@ jaeger:
 
 prometheus:
   enabled: true
+  # Directive #18 A4 - metric cardinality. The kubernetes-api-servers scrape job alone is
+  # ~56% of all active series (measured 131k / 237k), almost entirely apiserver/etcd
+  # latency+size histogram buckets that no storefront SLO or cluster-ops dashboard reads.
+  # Drop the _bucket series (keeping _count/_sum, so request/error rates and averages
+  # survive) plus the kubelet buckets. scrapeConfigs is a keyed map in the subchart, so
+  # this deep-merges: it only adds metric_relabel_configs to these two jobs and leaves the
+  # other eight scrape jobs (and each job's relabel/SD config) untouched. Validated with
+  # promtool. cadvisor is deliberately left alone - dashboards use its container_* gauges.
+  scrapeConfigs:
+    kubernetes-api-servers:
+      metric_relabel_configs:
+        - source_labels: [__name__]
+          regex: '(apiserver|etcd)_.*_bucket'
+          action: drop
+    kubernetes-nodes:
+      metric_relabel_configs:
+        - source_labels: [__name__]
+          regex: 'kubelet_.*_bucket'
+          action: drop
   alertmanager:
     enabled: false
   configmapReload:
@@ -1724,6 +1743,21 @@ grafana:
       drop: ["ALL"]
     seccompProfile:
       type: RuntimeDefault
+
+# Directive #18 A2 - external retention for OpenSearch log indices. See
+# templates/otel-logs-retention-cronjob.yaml for why this is a stateless CronJob
+# rather than an in-cluster ISM policy (OpenSearch runs on emptyDir here).
+otelLogsRetention:
+  enabled: true
+  # Daily at 01:30; low-traffic window.
+  schedule: "30 1 * * *"
+  # Keep this many days of daily otel-logs-* indices; older ones are deleted.
+  retentionDays: 7
+  indexPrefix: otel-logs
+  opensearchEndpoint: http://opensearch:9200
+  # Reuse the exact image the OpenSearch pod already runs (has curl + date, already
+  # vetted/pulled) so no new supply-chain surface is introduced. Keep digest-pinned.
+  image: opensearchproject/opensearch@sha256:b5dd1512af2a99748c942cfbbd7f32162623336b210667d0fc6333c6321f171d
 
 opensearch:
   enabled: true

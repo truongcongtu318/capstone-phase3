@@ -1,0 +1,27 @@
+﻿{
+    "name":  "pm-152-canonical-load-profile",
+    "trafficMix":  {
+                       "browse":  0.7,
+                       "cart":  0.2,
+                       "checkout":  0.1
+                   },
+    "stages":  [
+                   {
+                       "name":  "highest-passing-328-users",
+                       "users":  328,
+                       "durationMinutes":  5,
+                       "expected":  "pass",
+                       "servedRps":  174.75
+                   },
+                   {
+                       "name":  "failing-410-users",
+                       "users":  410,
+                       "durationMinutes":  5,
+                       "expected":  "fail",
+                       "servedRps":  168.9
+                   }
+               ],
+    "locustVersion":  "1.7.0",
+    "profileSha":  "pm-152-canonical-profile-v1",
+    "notes":  "The same traffic mix and stage duration were used for the highest-passing and failing runs."
+}

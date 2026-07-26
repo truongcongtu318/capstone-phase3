@@ -1,0 +1,77 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-proxy-business-policy
+  namespace: techx-tf3
+  annotations:
+    mandate-17.techx.io/service-clusterip-evidence: "2026-07-25:kube-dns=172.20.0.10,frontend=172.20.212.8,image-provider=172.20.1.116,flagd=172.20.213.30,otel-gateway=172.20.117.175"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: frontend-proxy
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # CloudFront reaches the internal ALB from one of the production private
+    # subnets. cloudflared and load-generator are explicit in-cluster callers.
+    - from:
+        - ipBlock: { cidr: 10.0.0.0/20 }
+        - ipBlock: { cidr: 10.0.16.0/20 }
+        - ipBlock: { cidr: 10.0.32.0/20 }
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: cloudflared
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: load-generator
+      ports:
+        - { protocol: TCP, port: 8080 }
+    # No otel-node-agent rule: nothing scrapes this workload. frontend-proxy carries
+    # no prometheus.io/scrape annotation, Prometheus has no target for it, and no
+    # envoy_* metric exists. Envoy admin (10000) stays closed - it is unauthenticated
+    # and exposes /quitquitquit, /healthcheck/fail, /runtime_modify and /config_dump.
+    # Measured over 38h uptime: http.admin.downstream_rq_total was 0 on both replicas.
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+        - ipBlock: { cidr: 172.20.0.10/32 }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: frontend
+        - ipBlock: { cidr: 172.20.212.8/32 }
+      ports:
+        - { protocol: TCP, port: 8080 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: image-provider
+        - ipBlock: { cidr: 172.20.1.116/32 }
+      ports:
+        - { protocol: TCP, port: 8081 }
+    # Preserve the protected /flagservice route. flagd-ui (4000) is deliberately not
+    # opened: Mandate #1 removed the /feature route (it now 404s through the frontend
+    # route), and the orphaned Envoy cluster recorded 0 connections / 0 requests over
+    # 38h while cluster.flagservice served real traffic.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: flagd
+        - ipBlock: { cidr: 172.20.213.30/32 }
+      ports:
+        - { protocol: TCP, port: 8013 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: otel-gateway
+        - ipBlock: { cidr: 172.20.117.175/32 }
+      ports:
+        - { protocol: TCP, port: 4317 }
+        - { protocol: TCP, port: 4318 }

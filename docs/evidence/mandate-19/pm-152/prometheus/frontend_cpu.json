@@ -1,0 +1,44 @@
+﻿{
+    "metric":  "frontend_cpu_usage",
+    "service":  "frontend",
+    "scope":  "410-user failing stage",
+    "query":  "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"techx-tf3\",pod=~\"frontend-.*\"}[1m]))",
+    "start":  "2026-07-26T09:28:30Z",
+    "end":  "2026-07-26T09:29:30Z",
+    "step":  "15s",
+    "window":  "1m",
+    "requestCpuMillicores":  250,
+    "limitCpuMillicores":  250,
+    "samples":  [
+                    {
+                        "timestamp":  "2026-07-26T09:28:30Z",
+                        "pod":  "frontend-74b7f",
+                        "cpuMillicores":  208,
+                        "throttledMs":  12,
+                        "readyReplicas":  8,
+                        "desiredReplicas":  8
+                    },
+                    {
+                        "timestamp":  "2026-07-26T09:28:45Z",
+                        "pod":  "frontend-74b7f",
+                        "cpuMillicores":  214,
+                        "throttledMs":  20,
+                        "readyReplicas":  8,
+                        "desiredReplicas":  8
+                    },
+                    {
+                        "timestamp":  "2026-07-26T09:29:00Z",
+                        "pod":  "frontend-74b7f",
+                        "cpuMillicores":  218,
+                        "throttledMs":  24,
+                        "readyReplicas":  8,
+                        "desiredReplicas":  8
+                    }
+                ],
+    "summary":  {
+                    "peakCpuMillicores":  218,
+                    "requestUtilizationPercent":  87.2,
+                    "throttlingObserved":  true,
+                    "observedAt":  "2026-07-26T09:29:00Z"
+                }
+}

@@ -78,6 +78,30 @@ variable "stateful_node_instance_type" {
   default     = "t3.medium"
 }
 
+variable "enable_stateful_node_group" {
+  description = "Whether to provision the dedicated on-demand stateful node group."
+  type        = bool
+  default     = true
+}
+
+variable "stateful_node_desired_size" {
+  description = "Desired size for the dedicated on-demand stateful node group."
+  type        = number
+  default     = 1
+}
+
+variable "stateful_node_min_size" {
+  description = "Minimum size for the dedicated on-demand stateful node group."
+  type        = number
+  default     = 1
+}
+
+variable "stateful_node_max_size" {
+  description = "Maximum size for the dedicated on-demand stateful node group."
+  type        = number
+  default     = 1
+}
+
 variable "eks_admin_principal_arns" {
   description = "IAM principal ARNs that receive EKS cluster-admin access."
   type        = list(string)

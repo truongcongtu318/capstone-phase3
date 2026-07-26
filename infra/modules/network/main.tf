@@ -44,6 +44,9 @@ resource "aws_security_group" "vpc_endpoints" {
   }
 }
 
+# Gateway endpoint for S3 has no ENI and no hourly charge, so it stays. ECR layer
+# blobs live in S3, meaning image-layer bytes keep flowing over this free endpoint
+# even after the ECR interface endpoints below are removed.
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = module.vpc.vpc_id
   service_name      = "com.amazonaws.${var.region}.s3"
@@ -51,29 +54,26 @@ resource "aws_vpc_endpoint" "s3" {
   route_table_ids   = module.vpc.private_route_table_ids
 }
 
-resource "aws_vpc_endpoint" "ecr_api" {
-  vpc_id              = module.vpc.vpc_id
-  service_name        = "com.amazonaws.${var.region}.ecr.api"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = module.vpc.private_subnets
-  security_group_ids  = [aws_security_group.vpc_endpoints.id]
-  private_dns_enabled = true
-}
-
-resource "aws_vpc_endpoint" "ecr_dkr" {
-  vpc_id              = module.vpc.vpc_id
-  service_name        = "com.amazonaws.${var.region}.ecr.dkr"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = module.vpc.private_subnets
-  security_group_ids  = [aws_security_group.vpc_endpoints.id]
-  private_dns_enabled = true
+locals {
+  # Directive #18 (A1): collapse the SSM-family interface endpoints from all 3 AZs down
+  # to the single subnet in azs[0] (ap-southeast-1a, the bastion AZ). This drops 12 of the
+  # 15 endpoint ENIs. The removed ecr.api/ecr.dkr endpoints (6 ENIs) now resolve via public
+  # DNS and egress through NAT: only the tiny ECR auth/API calls take that path, while layer
+  # downloads stay on the free S3 gateway endpoint above.
+  #   Trade-off: if AZ 1a is lost, SSM to the bastion is unavailable - but the bastion itself
+  #   lives in 1a, and Cloudflare Zero Trust remains as the second control-plane access path.
+  #   NAT data-processing measured at ~$7/mo vs the 15-ENI endpoint fleet at ~$142/mo; see
+  #   docs/cost-breakdown-2026-07-22.md (sections 1.1, 5.3).
+  # NOTE: this assumes azs[0] is the bastion AZ. If var.azs is ever reordered, revisit both
+  # this selection and the stateful-node/bastion subnet wiring in infra/live/production.
+  vpce_ssm_subnet_ids = [module.vpc.private_subnets[0]]
 }
 
 resource "aws_vpc_endpoint" "ssm" {
   vpc_id              = module.vpc.vpc_id
   service_name        = "com.amazonaws.${var.region}.ssm"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = module.vpc.private_subnets
+  subnet_ids          = local.vpce_ssm_subnet_ids
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 }
@@ -82,7 +82,7 @@ resource "aws_vpc_endpoint" "ssmmessages" {
   vpc_id              = module.vpc.vpc_id
   service_name        = "com.amazonaws.${var.region}.ssmmessages"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = module.vpc.private_subnets
+  subnet_ids          = local.vpce_ssm_subnet_ids
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 }
@@ -91,7 +91,7 @@ resource "aws_vpc_endpoint" "ec2messages" {
   vpc_id              = module.vpc.vpc_id
   service_name        = "com.amazonaws.${var.region}.ec2messages"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = module.vpc.private_subnets
+  subnet_ids          = local.vpce_ssm_subnet_ids
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 }

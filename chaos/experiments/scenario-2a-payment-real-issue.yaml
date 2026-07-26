@@ -1,0 +1,73 @@
+# Mandate #15 — Scenario 2, BƯỚC A: sự cố thật ở `payment`
+#
+# Scenario 2 ("KHÔNG BỊ CHE" / no masking) chạy bằng HAI file, APPLY CÙNG LÚC ở T+0:
+#   A (file này) — sự cố thật ở `payment`, 10 phút
+#   B (scenario-2b-recommendation-noise.yaml) — nhiễu vô hại, 5 phút
+#
+# Giữ 2 file thay vì gộp làm 1 để gỡ được riêng từng phần khi cần (ví dụ muốn tắt nhiễu
+# sớm mà giữ sự cố thật), chứ KHÔNG phải để apply lệch giờ.
+#
+# Dòng thời gian:
+#   T+0 ........ apply CẢ HAI file.
+#   T+0..T+5 ... cả hai cùng anomaly -> chấm "tách được 2 cluster hay không". Đây là tình
+#                huống khó nhất cho AlertCorrelator: gom theo cửa sổ thời gian thì 2 thứ
+#                này dính làm một, chỉ khi xét đồ thị phụ thuộc mới tách được.
+#   T+5..T+10 .. nhiễu tắt, chỉ còn payment -> chấm "không bỏ sót sự cố thật sau khi
+#                nhiễu tắt", và loại trừ kiểu "chỉ thấy payment nhờ nhiễu đã hết".
+#   T+10 ....... file A tự hết hạn, netem tự gỡ.
+#
+# GHI CHÚ LỊCH SỬ: bản trước bắt apply B trễ 5 phút, vì tưởng engine khởi động cùng lúc
+# bơm lỗi rồi mới warm-up. AIO02 xác nhận **engine chạy liên tục** nên luôn warm — không
+# còn giai đoạn mù lúc đầu, bỏ được việc canh hẹn giờ. Nhiễu nâng 2m -> 5m để chắc chắn
+# đủ tín hiệu dù "5 phút" của engine là warm-up hay là độ trễ phát hiện thường trực.
+#
+# `recommendation` và `payment` không có cạnh nào nối nhau trong đồ thị phụ thuộc (cả
+# hai chỉ chung ancestor `frontend`), nên tách được 2 cluster là bằng chứng engine thật
+# sự dùng topology chứ không chỉ dùng cửa sổ thời gian.
+#
+# ĐO GÌ:
+#   - Phải ra ĐÚNG 2 incident cluster, không phải 1 (bị gộp) và không phải 3+ (vỡ vụn)
+#   - Cluster `payment` phải được xếp mức nghiêm trọng cao hơn `recommendation`
+#   - KHÔNG được bỏ sót `payment` — đây là cái spec sợ nhất
+#   - Mốc t0 lấy từ `.status.conditions[type=AllInjected].lastTransitionTime` của TỪNG
+#     file, KHÔNG phải lúc bấm apply (chaos-daemon mất vài giây mới bơm xong).
+#
+# ⚠️ `mode: all` = CẢ 2 replica payment đều chậm 5s -> luồng thanh toán gãy thật, SLO
+# checkout vỡ thật suốt 10 phút. Báo trước cho CDO01 + AIO02 khung giờ chạy.
+#
+# CHẠY:  kubectl apply -f chaos/experiments/scenario-2a-payment-real-issue.yaml
+# GỠ:    kubectl delete -f chaos/experiments/scenario-2a-payment-real-issue.yaml
+#
+# `duration: 10m` là chốt an toàn: hết giờ Chaos Mesh tự gỡ netem kể cả khi không ai
+# nhớ delete. Đừng bỏ field này đi.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: m15-s2-payment-real-issue
+  namespace: techx-tf3
+spec:
+  action: delay
+  mode: all
+  duration: 10m
+  # BÊN BỊ BƠM: checkout (nguồn phát traffic) — KHÔNG phải payment.
+  # Xem giải thích đầy đủ trong scenario-1-payment-latency.yaml: bơm thẳng vào payment
+  # làm probe kubelet (timeout 2s/3s) fail vì delay 5s, pod bị loại khỏi endpoint và
+  # restart liên tục -> sự cố trượt từ "chậm" thành "chết", sai chữ ký spec cần.
+  selector:
+    namespaces:
+      - techx-tf3
+    labelSelectors:
+      app.kubernetes.io/name: checkout
+  # Chỉ traffic đi TỚI payment bị chậm; probe kubelet -> payment không đụng.
+  direction: to
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - techx-tf3
+      labelSelectors:
+        app.kubernetes.io/name: payment
+  delay:
+    latency: "5s"
+    jitter: "500ms"
+    correlation: "50"

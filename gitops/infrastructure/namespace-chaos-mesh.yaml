@@ -1,0 +1,25 @@
+# Namespace cho Chaos Mesh (Mandate #15 — bộ scenario lỗi thật cho AIOps engine).
+#
+# PSS = privileged, KHÁC với các namespace khác (restricted/baseline). Lý do:
+# DaemonSet `chaos-daemon` bắt buộc chạy privileged + hostPID + hostPath vào
+# /run/containerd để vào được network namespace của pod đích (tc netem) và cgroup
+# (stress-ng). Không có quyền này thì không inject được lỗi nào cả.
+#
+# Đánh đổi đã được thu hẹp bằng 2 lớp:
+#   1. `clusterScoped: false` + `targetNamespace: techx-tf3` trong chart — controller
+#      CHỈ được phép inject vào techx-tf3. RoleBinding chỉ sinh ở techx-tf3, không
+#      chạm tới argocd/kube-system/external-secrets/argo-rollouts.
+#   2. Experiment KHÔNG nằm trong ArgoCD app nào (xem chaos/README.md) — phải có
+#      người chủ động `kubectl apply` mới có lỗi, và `kubectl delete` là gỡ ngay.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chaos-mesh
+  labels:
+    kubernetes.io/metadata.name: chaos-mesh
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/audit-version: v1.35
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: v1.35
+    pod-security.kubernetes.io/warn: privileged
+    pod-security.kubernetes.io/warn-version: v1.35

@@ -664,6 +664,8 @@ jobs:
           REPORT_ROOT="$GITHUB_WORKSPACE/trivy-reports/post-push"
           mkdir -p "$REPORT_ROOT"
 
+          expected_platform_count="$(printf '%s' "$BUILD_PLATFORMS" | tr ',' '\n' | grep -c .)"
+
           service_count="$(jq '.services | length' approved-images.json)"
 
           for ((index = 0; index < service_count; index++)); do
@@ -671,6 +673,8 @@ jobs:
             digest="$(jq -r ".services[$index].digest" approved-images.json)"
             image="${ECR_REGISTRY}/${ECR_REPOSITORY}@${digest}"
 
+            # `< /dev/null` on both trivy invocations is defensive hardening
+            # so nothing inside this loop can ever read from its stdin.
             while IFS= read -r platform; do
               safe_platform="${platform//\//-}"
               report="$REPORT_ROOT/${service}-${safe_platform}.json"
@@ -682,7 +686,7 @@ jobs:
                 --format json \
                 --output "$report" \
                 --no-progress \
-                "$image"
+                "$image" < /dev/null
 
               echo "Enforcing zero ${TRIVY_SEVERITIES} findings for $image ($platform)"
               trivy image \
@@ -691,8 +695,22 @@ jobs:
                 --severity "$TRIVY_SEVERITIES" \
                 --exit-code 1 \
                 --no-progress \
-                "$image"
-            done < <(printf '%s' "$BUILD_PLATFORMS" | tr ',' '\n')
+                "$image" < /dev/null
+            # `printf '%s\n'` (not `'%s'`) is required: without the trailing
+            # newline, `tr ',' '\n'` leaves the last platform unterminated,
+            # and `read -r` returns non-zero on an unterminated final line —
+            # `while read` then skips that iteration's body entirely instead
+            # of running it. That silently dropped the last platform in
+            # BUILD_PLATFORMS from every post-push scan since 2026-07-16: for
+            # a two-platform build only the amd64 report was ever produced,
+            # arm64 never was, even though nothing else in this step failed.
+            done < <(printf '%s\n' "$BUILD_PLATFORMS" | tr ',' '\n')
+
+            actual_platform_count="$(find "$REPORT_ROOT" -maxdepth 1 -type f -name "${service}-*.json" | wc -l)"
+            if [[ "$actual_platform_count" -ne "$expected_platform_count" ]]; then
+              echo "::error::${service} produced ${actual_platform_count} post-push Trivy report(s) but BUILD_PLATFORMS='${BUILD_PLATFORMS}' requires ${expected_platform_count}; failing closed" >&2
+              exit 1
+            fi
           done
 
       - name: Upload post-push Trivy reports

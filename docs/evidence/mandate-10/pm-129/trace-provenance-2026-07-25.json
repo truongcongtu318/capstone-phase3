@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "overallResult": "FAIL",
+  "pod": "checkout-rollout-6d97d4ff58-7fk5p",
+  "namespace": "techx-tf3",
+  "failedStep": "image-manifest",
+  "error": "runtime child digest is not a member of the release index",
+  "generatedAt": "2026-07-25T11:55:38Z"
+}

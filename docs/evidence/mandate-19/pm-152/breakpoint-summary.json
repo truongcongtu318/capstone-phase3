@@ -1,0 +1,13 @@
+﻿{
+    "highestPassingStage":  "328 users",
+    "failingStage":  "410 users",
+    "sustainedServedRps":  174.75,
+    "breakpointServedRps":  168.9,
+    "primaryBottleneck":  "frontend CPU saturation and throttling",
+    "coBottlenecks":  [
+                          "frontend-proxy pending/overflow not observed",
+                          "product-catalog DB pool remained below configured limit"
+                      ],
+    "failureWindow":  "2026-07-26T09:28:30Z to 2026-07-26T09:29:30Z",
+    "conclusion":  "The failing stage shows frontend CPU saturation as the earliest bottleneck while Envoy and DB pool remained below overflow pressure."
+}

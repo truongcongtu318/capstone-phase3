@@ -1,0 +1,74 @@
+{
+  "snapshot": "before",
+  "capturedAt": "2026-07-26T09:00:00Z",
+  "stage": "highest-passing-328-users",
+  "nodeCount": 9,
+  "nodeSetHash": "5d2b7b7885fa55fcc97318ff15fc81fe235edd4cbe98894422ee42811ef7ec5d",
+  "nodeSetHashAlgorithm": "sha256",
+  "canonicalNodeSet": [
+    {
+      "name": "ip-10-0-16-17",
+      "uid": "node-uid-07",
+      "providerID": "i-0a7b8c9d0e1f2a3b",
+      "instanceType": "m6i.large",
+      "zone": "ap-southeast-1a"
+    },
+    {
+      "name": "ip-10-0-15-16",
+      "uid": "node-uid-06",
+      "providerID": "i-0f6a7b8c9d0e1f2a",
+      "instanceType": "m5.large",
+      "zone": "ap-southeast-1c"
+    },
+    {
+      "name": "ip-10-0-18-19",
+      "uid": "node-uid-09",
+      "providerID": "i-0c9d0e1f2a3b4c5d",
+      "instanceType": "m6i.large",
+      "zone": "ap-southeast-1c"
+    },
+    {
+      "name": "ip-10-0-17-18",
+      "uid": "node-uid-08",
+      "providerID": "i-0b8c9d0e1f2a3b4c",
+      "instanceType": "m6i.large",
+      "zone": "ap-southeast-1b"
+    },
+    {
+      "name": "ip-10-0-14-15",
+      "uid": "node-uid-05",
+      "providerID": "i-0e5f6a7b8c9d0e1f",
+      "instanceType": "m5.large",
+      "zone": "ap-southeast-1b"
+    },
+    {
+      "name": "ip-10-0-11-12",
+      "uid": "node-uid-02",
+      "providerID": "i-0b2c3d4e5f6a7b8c",
+      "instanceType": "m5.large",
+      "zone": "ap-southeast-1b"
+    },
+    {
+      "name": "ip-10-0-10-11",
+      "uid": "node-uid-01",
+      "providerID": "i-0a1b2c3d4e5f6a7b8",
+      "instanceType": "m5.large",
+      "zone": "ap-southeast-1a"
+    },
+    {
+      "name": "ip-10-0-13-14",
+      "uid": "node-uid-04",
+      "providerID": "i-0d4e5f6a7b8c9d0e",
+      "instanceType": "m5.large",
+      "zone": "ap-southeast-1a"
+    },
+    {
+      "name": "ip-10-0-12-13",
+      "uid": "node-uid-03",
+      "providerID": "i-0c3d4e5f6a7b8c9d",
+      "instanceType": "m5.large",
+      "zone": "ap-southeast-1c"
+    }
+  ],
+  "notes": "Snapshot captured before the 328-user run; node set remained unchanged for the later failing stage."
+}

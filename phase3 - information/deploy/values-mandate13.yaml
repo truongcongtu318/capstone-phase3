@@ -1,0 +1,20 @@
+# Mandate 13 production override:
+# - dua 1 workload da co 2 replicas + PDB len arm64/Graviton de co evidence live
+# - tranh tao SPOF moi khi dien tap mat 1 spot node
+# - de file rieng de tranh chong len values-prod.yaml lon va kho review
+
+components:
+  product-catalog:
+    schedulingRules:
+      nodeSelector:
+        techx.io/workload: elastic
+        techx.io/arch: arm64
+      tolerations:
+        - key: techx.io/workload
+          operator: Equal
+          value: elastic
+          effect: NoSchedule
+        - key: techx.io/arch
+          operator: Equal
+          value: arm64
+          effect: NoSchedule

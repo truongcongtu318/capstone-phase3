@@ -14,16 +14,6 @@ moved {
 }
 
 moved {
-  from = aws_vpc_endpoint.ecr_api
-  to   = module.network.aws_vpc_endpoint.ecr_api
-}
-
-moved {
-  from = aws_vpc_endpoint.ecr_dkr
-  to   = module.network.aws_vpc_endpoint.ecr_dkr
-}
-
-moved {
   from = aws_vpc_endpoint.ssm
   to   = module.network.aws_vpc_endpoint.ssm
 }

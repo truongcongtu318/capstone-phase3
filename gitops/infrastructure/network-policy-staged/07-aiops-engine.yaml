@@ -1,0 +1,58 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aiops-engine-platform-policy
+  namespace: techx-tf3
+  annotations:
+    mandate-17.techx.io/public-egress-exception: "Slack webhook HTTPS"
+    mandate-17.techx.io/promotion-blocked: "true"
+    mandate-17.techx.io/promotion-blocker: "verify Kubernetes API use and replace broad HTTPS egress"
+    mandate-17.techx.io/kubernetes-api-dependency: "unverified"
+spec:
+  podSelector:
+    matchLabels:
+      app: aiops-engine
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - { protocol: TCP, port: 9090 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: jaeger
+      ports:
+        - { protocol: TCP, port: 16685 }
+        - { protocol: TCP, port: 16686 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: opensearch
+      ports:
+        - { protocol: TCP, port: 9200 }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 100.64.0.0/10
+              - 127.0.0.0/8
+              - 169.254.0.0/16
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - { protocol: TCP, port: 443 }

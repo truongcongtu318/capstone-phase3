@@ -43,9 +43,11 @@ spec:
       expireAfter: 168h
       terminationGracePeriod: 10m
   limits:
+    # PM-152 (Mandate 19 breakpoint test): tạm khoá nodes: 2 -> 0, không cho
+    # fallback on-demand tự tạo node giữa bài test. PHẢI trả lại nodes: 2 sau khi test xong.
     cpu: "4"
     memory: 16Gi
-    nodes: 2
+    nodes: 0
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     consolidateAfter: 10m

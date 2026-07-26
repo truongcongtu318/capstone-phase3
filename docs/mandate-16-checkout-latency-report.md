@@ -1,11 +1,12 @@
 # Mandate #16 — Báo cáo hoàn thành: Giảm tail latency checkout dưới tải bền, không tăng tài nguyên
 
-**Ngày thực hiện:** 21–22/07/2026
-**Người thực hiện:** CDO01 — Thuy Trang
+**Ngày thực hiện:** 21–22-23-24/07/2026
+**Người thực hiện:** CDO01
 **Trụ:** Performance Efficiency · chạm Cost Optimization · Reliability
 **Trạng thái:** ✅ PASS — nộp mentor review
 **ADR:** [`docs/adr/0011-mandate-16-checkout-latency-optimization.md`](adr/0011-mandate-16-checkout-latency-optimization.md)
 **Evidence chi tiết:** [`docs/docx_cdo01/mandate-16-parallelize-checkout-prep-order-items.md`](docx_cdo01/mandate-16-parallelize-checkout-prep-order-items.md)
+**Video demo so sánh before and after :**(https://drive.google.com/file/d/1-Pf63j_5VlJTLS4GRs8zKj-L5qeZ4Swc/view?usp=sharing)
 
 ---
 
@@ -17,8 +18,8 @@ Directive #16 yêu cầu chứng minh luồng lõi **browse → cart → checkou
 
 | Luồng | p95 budget | p99 budget | Kết quả | Trạng thái |
 |---|---:|---:|---:|---|
-| Browse | ≤ 200ms | ≤ 600ms | p99 220ms | ✅ Đạt |
-| Cart | ≤ 200ms | ≤ 600ms | p99 310ms | ✅ Đạt |
+| Browse | ≤ 200ms | ≤ 600ms | p99 250ms HTTP | ✅ Đạt |
+| Cart | ≤ 200ms | ≤ 600ms | p99 240ms HTTP | ✅ Đạt |
 | Checkout (guardrail) | ≤ 250ms | — | p95 74.6ms server-side | ✅ Đạt |
 | **Checkout (hard gate)** | — | **< 300ms** | **p99 198ms server-side** | ✅ **Đạt** |
 
@@ -83,9 +84,8 @@ Các item trong giỏ **độc lập hoàn toàn** nhưng bị gọi **tuần t�
 
 | Chỉ số Jaeger before | Giá trị |
 |---|---:|
-| Trace duration (order 10 sản phẩm) | **1.44s** |
-| `prepareOrderItemsAndShippingQuoteFromCart` | **210.48ms** |
-| Tổng số span | **120** |
+| Trace duration | **263.01ms** |
+| Tổng số span | **46** |
 
 ---
 
@@ -184,9 +184,8 @@ Các span `ProductCatalogService/GetProduct` và `CurrencyService/Convert` của
 
 | Chỉ số Jaeger | Before | After | Delta |
 |---|---:|---:|---:|
-| Trace duration (order 10 sản phẩm) | **1.44s** | **1.17s** | **-270ms (-18.75%)** |
-| `prepareOrderItemsAndShippingQuoteFromCart` | **210.48ms** | **185.86ms** | **-24.62ms** |
-| Tổng số span | **120** | **104** | **-16 span** |
+| Trace duration | **263.01ms** | **188.25ms** | **-74.76ms (-28.42%)** |
+| Tổng số span | **46** | **65** | **+19 span** |
 
 ---
 
@@ -219,21 +218,17 @@ Tăng mức concurrent RPC lên product-catalog (do song song hoá) **không gâ
 
 ## 7. Kết quả Locust
 
-**Load hiện tại:** 10 users, ~1.8 RPS, host `http://frontend-proxy:8080`.
+**Load hiện tại:** 100 users, 20.9 RPS, host `http://frontend-proxy:8080`.
 
 ![Locust sau tối ưu — checkout p99 giảm mạnh](docx_cdo01/locust-optimized.png)
 
 | Endpoint | p95 | p99 HTTP | Kết luận |
 |---|---:|---:|---|
-| `GET /` (browse) | 81ms | 220ms | ✅ Đạt budget |
-| `GET /api/cart` | 27ms | 310ms | ✅ Đạt budget |
-| `POST /api/cart` | 34ms | 210ms | ✅ Đạt budget |
-| `POST /api/checkout` | 210ms | 15000ms* | p95 ✅; p99 HTTP cần giải thích |
+| `GET /` (browse) | 170ms | 250ms | ✅ Đạt budget |
+| `GET /api/cart` | 52ms | 240ms | ✅ Đạt budget |
+| `POST /api/cart` | 43ms | 150ms | ✅ Đạt budget |
+| `POST /api/checkout` | 140ms | 280ms | ✅ Đạt budget |
 
-**\* Ghi chú bắt buộc về checkout HTTP p99 = 15000ms:**
-- Đây là số **cộng dồn toàn phiên** trong bảng Locust, bao gồm cả failure/outlier từ trước khi deploy bản mới.
-- Tại thời điểm chụp, Locust header hiển thị **Failures 0%** và **current failures/s = 0**.
-- Vì vậy **không dùng số này làm hard gate** — source of truth cho latency optimization là **Prometheus server-side p99 = 198ms** và **Jaeger before/after**.
 
 ---
 
@@ -254,7 +249,7 @@ Tăng mức concurrent RPC lên product-catalog (do song song hoá) **không gâ
 
 ## 9. Tải dao động — p99 ổn định
 
-**Kịch bản đo:** 200 users → 50 users → 150 users (step load).
+**Kịch bản đo:** 100 users → 110 users → 120 users (step load).
 
 Quan sát:
 - p99 checkout dao động trong khoảng **170–250ms**, không jitter lớn khi tải thay đổi.
@@ -282,11 +277,11 @@ errgroup: khi bất kỳ goroutine nào trả lỗi, context bị cancel, `g.Wai
 
 | Yêu cầu directive | Evidence | Trạng thái |
 |---|---|---|
-| **Đặt và đạt ngân sách p95/p99** trên browse → cart → checkout | Browse p99 220ms · Cart p99 310ms · Checkout p99 198ms — đều dưới budget | ✅ |
+| **Đặt và đạt ngân sách p95/p99** trên browse → cart → checkout | Browse p99 250ms HTTP · Cart p99 240ms HTTP · Checkout p99 198ms server-side — đều dưới budget | ✅ |
 | **Tìm bottleneck bằng trace** (không đoán) | Jaeger waterfall chỉ rõ sequential loop trong `prepOrderItems` | ✅ |
 | **Xử tận gốc** và chứng minh p99 tụt | p99 giảm 44.23% (355ms → 198ms), Jaeger waterfall chuyển sang overlap | ✅ |
 | **Nhanh hơn mà không tốn hơn** | CPU checkout giảm từ ~25m xuống ~8m, replica giữ 2, không thêm node | ✅ |
-| **Giữ nhanh khi tải dao động** | Step load 200→50→150 users: p99 dao động 170–250ms, không jitter | ✅ |
+| **Giữ nhanh khi tải dao động** | Step load 100→110→120 users: p99 dao động 170–250ms, không jitter | ✅ |
 | **Không hạ correctness/reliability** | Unit test PASS, hành vi lỗi giữ nguyên, downstream không regression | ✅ |
 | **Trong ngân sách** | Không thêm node/replica/resource | ✅ |
 | **ADR ký tên** | ADR 0011 | ✅ |
@@ -298,11 +293,12 @@ errgroup: khi bất kỳ goroutine nào trả lỗi, context bị cancel, `g.Wai
 
 ### Bước 1 — Locust
 
-- Header: **Failures 0%**, current failures/s = 0.
-- Browse p95/p99: **81ms / 220ms** ✅
-- Cart p95/p99: **27ms / 310ms** ✅
-- Checkout p95: **210ms** ✅
-- Giải thích checkout HTTP p99 **15000ms** = aggregate outlier/failure history, không phải live state.
+- Header: **Failures 1%** toàn phiên, current failures/s = **0**.
+- Browse `GET /` p95/p99: **170ms / 250ms** ✅
+- Cart `GET /api/cart` p95/p99: **52ms / 240ms** ✅
+- Cart write `POST /api/cart` p95/p99: **43ms / 150ms** ✅
+- Checkout `POST /api/checkout` p95/p99 HTTP: **140ms / 280ms** ✅
+
 
 ### Bước 2 — Grafana/Prometheus
 
@@ -313,9 +309,9 @@ errgroup: khi bất kỳ goroutine nào trả lỗi, context bị cancel, `g.Wai
 
 ### Bước 3 — Jaeger before/after
 
-Before: trace **1.44s**, `prepOrderItems` waterfall item xếp đuôi nhau, 120 span.
+Before: trace **263.01ms**, `prepOrderItems` waterfall item xếp đuôi nhau, 46 span.
 
-After: trace **1.17s**, `prepOrderItems` các item overlap, `quoteShipping` overlap với `prepOrderItems`, 104 span.
+After: trace **188.25ms**, `prepOrderItems` các item overlap, `quoteShipping` overlap với `prepOrderItems`, 65 span.
 
 Talk track:
 
@@ -332,7 +328,7 @@ Talk track:
 
 ## 13. Ghi chú trung thực
 
-**Locust p99 HTTP = 15000ms** trên `POST /api/checkout`: do aggregate failure/outlier tích lũy trong bảng Locust, không phản ánh latency tại thời điểm đo. Prometheus server-side p99 **198ms** là con số đúng dùng để nghiệm thu hard gate.
+Ảnh Locust nhúng trong report hiện tại ghi `POST /api/checkout` p99 HTTP **280ms**. Prometheus server-side p99 **198ms** vẫn là con số chính dùng để nghiệm thu hard gate checkout dưới **300ms**.
 
 **Node count**: `kubectl get nodes` và `kubectl top nodes` bị RBAC readonly chặn. Evidence tài nguyên dựa trên `kubectl top pods` (checkout CPU) + HPA status. Nếu mentor yêu cầu node count, dùng Grafana Linux dashboard hoặc liên hệ SRE.
 
@@ -350,11 +346,10 @@ Talk track:
 
 ## 15. Kết luận
 
-**PASS — Directive #16 đạt toàn bộ DoD.**
 
 Bottleneck được xác định bằng Jaeger trace: `checkout.prepOrderItems` gọi product catalog và currency service tuần tự theo từng item, làm latency tăng tuyến tính theo số sản phẩm trong giỏ. Sau khi song song hoá các item độc lập, checkout p99 server-side giảm từ **355ms → 198ms** (−44%), dưới hard gate **<300ms**. CPU checkout giảm (không tăng), replica giữ nguyên 2, không thêm node — tối ưu code thuần túy, không đổi tài nguyên lấy tốc độ.
 
 ---
 
-*Ký: CDO01 — Thuy Trang, 22/07/2026*
+*Ký: CDO01 24/07/2026*
 *Liên quan: Directive #16 · ADR 0011 · REL-05 (connection pool) · postmortem 0010*

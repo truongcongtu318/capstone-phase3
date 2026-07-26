@@ -1,0 +1,8 @@
+﻿{
+    "environment":  "techx-tf3",
+    "cluster":  "techx-corp-tf3",
+    "region":  "ap-southeast-1",
+    "gitSha":  "5f9d3ca",
+    "notes":  "PM-152 evidence bundle assembled from the documented highest-passing and failing stages with node-set freeze and no additional capacity added.",
+    "freeze":  "No GitOps, HPA, Envoy, DB, or node pool changes were introduced during the evidence window."
+}

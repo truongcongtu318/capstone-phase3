@@ -1,0 +1,11 @@
+﻿{
+    "run":  "run-1",
+    "stage":  "highest-passing-328-users",
+    "startedAt":  "2026-07-26T08:55:00Z",
+    "endedAt":  "2026-07-26T09:00:00Z",
+    "users":  328,
+    "targetRps":  180,
+    "observedServedRps":  174.75,
+    "status":  "pass",
+    "notes":  "Sustained 5-minute pass run used for the old ceiling."
+}

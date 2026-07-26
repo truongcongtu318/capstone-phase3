@@ -1,8 +1,10 @@
 # PM-129 closure status — immutable provenance and release evidence
 
-Date: 2026-07-23  
+Date: 2026-07-23 (updated 2026-07-25)  
 Scope: immutable CI dependencies, image provenance, and live traceability  
-Status: **CI/release evidence PASS; live trace BLOCKED by an external Terraform incident**
+Status: **CI/release evidence PASS; live trace ran read-only end-to-end on 2026-07-25
+and FAILED at the `image-manifest` step (script assumption gap, not a supply-chain
+failure) — see §4**
 
 ## 1. Before PM-129
 
@@ -46,17 +48,37 @@ configuration uses two replicas and an Argo Rollouts canary with
 
 ## 4. What is not complete
 
-The remaining DoD item is one successful trace against a real running pod. The
-attempt is blocked by the private-cluster access path:
+The remaining DoD item is one successful trace against a real running pod.
 
-- `kubectl` currently times out against `https://localhost:8443`.
+**Update 2026-07-25:** the access blocker described below is resolved — dynamic
+bastion lookup + SSM tunnel worked, `gh`/`cosign` were installed, and the trace ran
+read-only end to end. It progressed further than any prior attempt (past preflight,
+pod fetch, digest validation) but still returned `overallResult: FAIL`, now at the
+`image-manifest` step: containerd `2.2.4` on this cluster reports a pod's `imageID` as
+the release **index** digest itself rather than the platform-specific child manifest
+digest the script expects, so the membership check fails even though the running
+digest (`sha256:ebea1f1d...`) is confirmed correct against the promoted/reviewed
+image. Independently verified: the pod's `imageID` equals the exact digest promoted
+in PR #369, and the release index (fetched directly via
+`docker buildx imagetools inspect`) is the expected 2-platform + 2-attestation index
+from that promotion. Full evidence and root cause:
+`docs/evidence/mandate-10/pm-129/trace-attempt-2026-07-25.md`.
+
+This is a script-assumption gap (containerd behavior differs from what the script was
+written against), not a supply-chain or signing failure — but per the fail-closed
+policy it still must not be marked PASS until fixed and rerun. A fix is proposed
+(accept `child_digest == release_digest` as well as membership in `.manifests[]`) but
+not yet implemented; it needs its own reviewed PR like #441/#442.
+
+Historical blocker (resolved 2026-07-25, kept for record):
+
+- `kubectl` previously timed out against `https://localhost:8443`.
 - The original bastion was replaced by an independent Terraform Apply event;
   the old hardcoded tunnel target became invalid.
-- A later access-only PR (#371) made bastion lookup dynamic, but a live
-  Kubernetes read has not yet succeeded from this session.
+- A later access-only PR (#371) made bastion lookup dynamic; as of 2026-07-25 a
+  live Kubernetes read succeeds via this path.
 
-This is an access/infra validation blocker, not a PM-129 CI or image-signing
-failure. PM-129 must not be marked 100% complete until the trace returns
+PM-129 must not be marked 100% complete until the trace returns
 `overallResult: PASS` with the five required links:
 
 `runtime digest → source commit/run → merged PR approval → exact Trivy pass → Cosign identity + PM-127 SBOM`.

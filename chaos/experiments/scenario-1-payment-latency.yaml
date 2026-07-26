@@ -1,0 +1,84 @@
+# Mandate #15 — Scenario 1: "BẮT ĐÚNG" (catch correctly)
+#
+# Mục tiêu: dựng đúng hiện tượng spec mô tả — P90 latency của luồng thanh toán vọt từ
+# ~0.1s lên >5s, kéo theo `checkout` rồi `frontend` (blast radius 3 tầng).
+#
+# ⚠️ ĐỌC KỸ CHỖ NÀY TRƯỚC KHI SỬA `selector` — bài học từ lần chạy 24/07:
+#
+# Bản đầu tiên đặt delay TRỰC TIẾP lên pod `payment`. Sai, và sai một cách âm thầm.
+# netem làm chậm MỌI traffic vào pod, kể cả probe của kubelet. `payment` đặt
+# readinessProbe tcpSocket timeout 2s và livenessProbe timeout 3s — đều NHỎ HƠN delay
+# 5s, nên:
+#   - readiness luôn fail  -> pod bị loại khỏi Service endpoint
+#   - liveness fail 3 lần  -> kubelet giết + restart container, lặp lại liên tục
+# Đo thật trong lượt chạy 24/07: sau 3 phút cả 2 replica đã `0/1 NotReady`, restart 3
+# lần, và `endpoints payment` RỖNG HOÀN TOÀN.
+#
+# Hậu quả: sự cố biến chất từ "payment CHẬM" (đúng spec) thành "payment CHẾT HẲN".
+# checkout không còn nhận response chậm mà là không có endpoint để gọi. Engine chấm
+# theo đặc trưng latency sẽ thấy sai chữ ký, còn ai đọc kết quả thì tưởng đã test
+# latency trong khi thực tế đã test outage.
+#
+# Buổi chạy nháp 2 phút KHÔNG lộ ra lỗi này, vì liveness cần ~60s mới tích đủ 3 lần
+# fail. Chỉ khi kéo lên 10 phút nó mới hiện.
+#
+# CÁCH LÀM ĐÚNG (bản hiện tại): bơm delay lên pod `checkout`, giới hạn vào traffic ĐI
+# TỚI `payment` (`direction: to` + `target`). Khi đó:
+#   - đường checkout -> payment chậm 5s  => đúng hiện tượng spec cần
+#   - probe kubelet -> payment KHÔNG đụng => payment giữ Ready, không restart
+#   - probe kubelet -> checkout KHÔNG đụng => filter chỉ khớp traffic có đích là
+#     payment pod IP, còn probe tới checkout có đích là chính checkout pod IP
+#
+# ĐO GÌ:
+#   - Lead-time  = t(engine ra alert) − t0
+#   - Root cause = engine phải chỉ đúng `payment`, KHÔNG phải checkout/frontend
+#   - Blast radius = engine phải liệt kê checkout (+ frontend)
+#
+#   t0 lấy từ `.status.conditions[type=AllInjected].lastTransitionTime`, KHÔNG phải lúc
+#   bấm apply — chaos-daemon mất vài giây mới bơm xong. Lệch mốc là lead-time sai.
+#
+# ⚠️ `mode: all` = MỌI replica checkout đều chậm khi gọi payment -> luồng thanh toán
+# gãy thật, SLO checkout vỡ thật suốt 10 phút. Báo trước CDO01 + AIO02 khung giờ chạy.
+#
+# CHẠY:   kubectl apply -f chaos/experiments/scenario-1-payment-latency.yaml
+# GỠ:     kubectl delete -f chaos/experiments/scenario-1-payment-latency.yaml
+# TẠM DỪNG (giữ object để đọc status):
+#         kubectl -n techx-tf3 annotate networkchaos m15-s1-payment-latency \
+#           experiment.chaos-mesh.org/pause=true --overwrite
+#
+# `duration: 10m` là chốt an toàn: hết giờ Chaos Mesh tự gỡ netem kể cả khi không ai
+# nhớ delete. Đừng bỏ field này đi.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: m15-s1-payment-latency
+  namespace: techx-tf3
+spec:
+  action: delay
+  mode: all
+  duration: 10m
+  # BÊN BỊ BƠM: checkout (nguồn phát traffic)
+  selector:
+    namespaces:
+      - techx-tf3
+    labelSelectors:
+      app.kubernetes.io/name: checkout
+  # CHỈ traffic đi TỚI payment mới bị làm chậm. Nhờ vậy probe của kubelet tới payment
+  # không dính, payment giữ Ready và không bị restart — giữ đúng bản chất "chậm",
+  # không trượt thành "chết".
+  direction: to
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - techx-tf3
+      labelSelectors:
+        app.kubernetes.io/name: payment
+  delay:
+    # 5s để vượt hẳn ngưỡng spec (>5.0s) chứ không nằm sát mép — sát mép thì không
+    # phân biệt được engine bắt đúng hay chỉ ăn may nhiễu đo đạc.
+    latency: "5s"
+    # jitter + correlation để phân bố giống nghẽn thật, không phải một hằng số phẳng lì
+    # mà mô hình học được chỉ sau vài điểm.
+    jitter: "500ms"
+    correlation: "50"

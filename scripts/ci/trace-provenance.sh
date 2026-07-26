@@ -178,8 +178,17 @@ main() {
   [[ -n "$service" ]] || service="$container_name"
   if ! run_json image-manifest "$WORK/manifest.json" docker buildx imagetools inspect --raw "$release_image"; then write_failure "$result_tmp"; return 1; fi
   manifest_json="$(cat "$WORK/manifest.json")"
-  jq -e --arg child "$child_digest" '.manifests[]?.digest == $child' <<<"$manifest_json" >/dev/null \
-    || { fail_step image-manifest "runtime child digest is not a member of the release index"; write_failure "$result_tmp"; return 1; }
+  # `any()` is required, not a bare `.manifests[]?.digest == $child` stream: `jq -e`
+  # only checks the LAST emitted value of a stream, and the index always lists
+  # attestation manifests (architecture "unknown") after the real platform
+  # manifests, so the bare form failed closed on every run regardless of whether
+  # an earlier entry matched. Some container runtimes (confirmed: containerd
+  # 2.2.4 on EKS 1.35/AL2023) also report a digest-pinned pod's imageID as the
+  # release index digest itself rather than resolving to the child platform
+  # manifest, so accept that as equivalent proof of provenance too.
+  jq -e --arg child "$child_digest" '[.manifests[]?.digest] | any(. == $child)' <<<"$manifest_json" >/dev/null \
+    || [[ "$child_digest" == "$release_digest" ]] \
+    || { fail_step image-manifest "runtime child digest is neither a member of the release index nor equal to the index digest"; write_failure "$result_tmp"; return 1; }
 
   if ! run_json ecr "$WORK/ecr.json" aws ecr describe-images --repository-name "$IMAGE_REPOSITORY" --image-ids "imageDigest=$release_digest" --region "$REGION" --output json; then write_failure "$result_tmp"; return 1; fi
   ecr_json="$(cat "$WORK/ecr.json")"
@@ -283,23 +292,35 @@ main() {
 
   if ! run_json argo "$WORK/apps.json" kubectl get applications.argoproj.io -A -o json; then write_failure "$result_tmp"; return 1; fi
   apps_json="$(cat "$WORK/apps.json")"
-  local app_count
-  app_count="$(jq --arg repo "$REPOSITORY" --arg ns "$NAMESPACE" '[.items[] | ((.spec.source.repoURL // "") as $url | (.spec.sources[]?.repoURL // $url)) as $source | select(($source==("https://github.com/"+$repo) or $source==("https://github.com/"+$repo+".git") or $source==("git@github.com:"+$repo+".git")) and (.spec.destination.namespace==$ns or .spec.destination.namespace=="techx-tf3"))] | length' <<<"$apps_json")"
-  [[ "$app_count" -eq 1 ]] || { fail_step argo "expected exactly one matching healthy Argo application"; write_failure "$result_tmp"; return 1; }
-  jq -e --arg repo "$REPOSITORY" --arg ns "$NAMESPACE" --arg sha "$promotion_merge_sha" '[.items[] | ((.spec.source.repoURL // "") as $url | (.spec.sources[]?.repoURL // $url)) as $source | select(($source==("https://github.com/"+$repo) or $source==("https://github.com/"+$repo+".git") or $source==("git@github.com:"+$repo+".git")) and (.spec.destination.namespace==$ns or .spec.destination.namespace=="techx-tf3")) | select(.status.sync.status=="Synced" and .status.health.status=="Healthy" and .status.sync.revision==$sha)] | length == 1' <<<"$apps_json" >/dev/null \
-    || { fail_step argo "Argo application is not Healthy/Synced at promotion merge SHA"; write_failure "$result_tmp"; return 1; }
+  local matching_apps app_count argo_revision
+  matching_apps="$(jq -c --arg repo "$REPOSITORY" --arg ns "$NAMESPACE" '[.items[] | ((.spec.source.repoURL // "") as $url | (.spec.sources[]?.repoURL // $url)) as $source | select(($source==("https://github.com/"+$repo) or $source==("https://github.com/"+$repo+".git") or $source==("git@github.com:"+$repo+".git")) and (.spec.destination.namespace==$ns or .spec.destination.namespace=="techx-tf3"))]' <<<"$apps_json")"
+  app_count="$(jq 'length' <<<"$matching_apps")"
+  [[ "$app_count" -eq 1 ]] || { fail_step argo "expected exactly one matching Argo application"; write_failure "$result_tmp"; return 1; }
+  jq -e '.[0] | .status.sync.status=="Synced" and .status.health.status=="Healthy"' <<<"$matching_apps" >/dev/null \
+    || { fail_step argo "Argo application is not Healthy/Synced"; write_failure "$result_tmp"; return 1; }
+  argo_revision="$(jq -r '.[0].status.sync.revision // empty' <<<"$matching_apps")"
+  [[ "$argo_revision" =~ ^[0-9a-f]{40}$ ]] \
+    || { fail_step argo "Argo sync revision is not a valid commit SHA"; write_failure "$result_tmp"; return 1; }
+  # ArgoCD tracks main HEAD with auto-sync + selfHeal, so unrelated commits keep
+  # landing on main after this promotion merges. The live revision will almost
+  # never equal the promotion SHA exactly — what must hold is that the promoted
+  # commit is included in (an ancestor of, or equal to) what is currently synced.
+  run_json argo-ancestry "$WORK/argo-compare.json" gh api "repos/${REPOSITORY}/compare/${promotion_merge_sha}...${argo_revision}" \
+    || { write_failure "$result_tmp"; return 1; }
+  jq -e '.status=="ahead" or .status=="identical"' "$WORK/argo-compare.json" >/dev/null \
+    || { fail_step argo "promotion merge SHA is not an ancestor of the current Argo revision"; write_failure "$result_tmp"; return 1; }
 
   jq -n --arg pod "$POD" --arg namespace "$NAMESPACE" --arg container "$container_name" \
     --arg service "$service" --arg release "$release_ref" --arg index "$release_digest" --arg child "$child_digest" \
     --arg source_sha "$source_sha" --arg source_pr "$source_number" --arg promotion_pr "$promotion_number" \
-    --arg promotion_sha "$promotion_merge_sha" --arg run "$workflow_run" --arg attempt "$workflow_attempt" \
+    --arg promotion_sha "$promotion_merge_sha" --arg argo_revision "$argo_revision" --arg run "$workflow_run" --arg attempt "$workflow_attempt" \
     --arg issuer "$OIDC_ISSUER" --arg identity "$OIDC_IDENTITY" \
     '{schemaVersion:1,overallResult:"PASS",generatedAt:(now|todateiso8601),pod:$pod,namespace:$namespace,container:$container,service:$service,
       runtime:{releaseImage:$release,indexDigest:$index,childDigest:$child},
       build:{workflowRunId:$run,workflowRunAttempt:$attempt,sourceSha:$source_sha},
       review:{sourcePr:$source_pr,promotionPr:$promotion_pr,promotionMergeSha:$promotion_sha},
       scans:{trivy:"PASS",cosign:"PASS",sbom:"PASS"},signature:{issuer:$issuer,identity:$identity},
-      gitops:{argoRevision:$promotion_sha,status:"Healthy/Synced"}}' > "$result_tmp"
+      gitops:{promotionRevision:$promotion_sha,argoRevision:$argo_revision,promotionIsAncestor:true,status:"Healthy/Synced"}}' > "$result_tmp"
   mkdir -p -- "$(dirname -- "$OUTPUT")"
   mv -f -- "$result_tmp" "$OUTPUT"
   cat "$OUTPUT"

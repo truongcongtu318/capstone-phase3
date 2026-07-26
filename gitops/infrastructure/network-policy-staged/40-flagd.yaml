@@ -1,0 +1,69 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: flagd-protected-path-policy
+  namespace: techx-tf3
+  annotations:
+    mandate-17.techx.io/protected-path: "/flagservice must remain reachable"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: flagd
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - ad
+                  - cart
+                  - checkout
+                  - email
+                  - fraud-detection
+                  - frontend
+                  - llm
+                  - payment
+                  - product-catalog
+                  - product-reviews
+                  - recommendation
+      ports:
+        - { protocol: TCP, port: 8013 }
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: load-generator
+      ports:
+        - { protocol: TCP, port: 8013 }
+        - { protocol: TCP, port: 8016 }
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: frontend-proxy
+      ports:
+        - { protocol: TCP, port: 8013 }
+        - { protocol: TCP, port: 4000 }
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: otel-gateway
+      ports:
+        - { protocol: TCP, port: 4317 }
+        - { protocol: TCP, port: 4318 }
+    # Exact public source configured in values-flagd-sync.yaml.
+    - to:
+        - ipBlock: { cidr: 122.248.223.194/32 }
+      ports:
+        - { protocol: TCP, port: 443 }

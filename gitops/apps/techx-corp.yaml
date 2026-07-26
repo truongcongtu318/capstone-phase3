@@ -14,6 +14,7 @@ spec:
         - values.yaml
         - ../deploy/values-flagd-sync.yaml
         - ../deploy/values-prod.yaml
+        - ../deploy/values-mandate13.yaml
         - ../deploy/values-aio-llm.yaml
       parameters:
         - name: default.image.repository
@@ -45,6 +46,16 @@ spec:
       kind: Deployment
       namespace: techx-tf3
       name: ad
+      jsonPointers: [/spec/replicas]
+    # payment không có HPA — miễn trừ ở đây là để AIOps engine (Mandate #15) tự scale
+    # được khi nó quyết định khắc phục sự cố. Không có dòng này thì selfHeal kéo
+    # replicas về giá trị trong chart chỉ sau vài giây, engine tưởng đã hành động
+    # thành công trong khi thực tế bị vô hiệu hoá — và không có lỗi nào báo ra.
+    # Argo CD vẫn sở hữu mọi field khác của payment, chỉ nhả riêng /spec/replicas.
+    - group: apps
+      kind: Deployment
+      namespace: techx-tf3
+      name: payment
       jsonPointers: [/spec/replicas]
     - group: apps
       kind: Deployment

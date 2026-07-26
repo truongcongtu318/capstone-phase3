@@ -29,6 +29,9 @@
     "otelGateway": {
       "type": "object"
     },
+    "otelLogsRetention": {
+      "type": "object"
+    },
     "otel-node-agent": {
       "type": "object"
     },

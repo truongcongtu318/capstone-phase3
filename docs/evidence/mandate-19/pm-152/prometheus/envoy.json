@@ -1,0 +1,35 @@
+﻿{
+    "metric":  "envoy_upstream_overflow",
+    "service":  "frontend-proxy",
+    "scope":  "410-user failing stage",
+    "query":  "max(envoy_cluster_upstream_rq_pending_overflow{cluster=~\".*\"}) or vector(0)",
+    "start":  "2026-07-26T09:28:30Z",
+    "end":  "2026-07-26T09:29:30Z",
+    "step":  "15s",
+    "window":  "1m",
+    "samples":  [
+                    {
+                        "timestamp":  "2026-07-26T09:28:30Z",
+                        "upstreamRqPendingOverflow":  0,
+                        "upstreamCxOverflow":  0,
+                        "activeConnections":  800
+                    },
+                    {
+                        "timestamp":  "2026-07-26T09:28:45Z",
+                        "upstreamRqPendingOverflow":  0,
+                        "upstreamCxOverflow":  0,
+                        "activeConnections":  792
+                    },
+                    {
+                        "timestamp":  "2026-07-26T09:29:00Z",
+                        "upstreamRqPendingOverflow":  0,
+                        "upstreamCxOverflow":  0,
+                        "activeConnections":  810
+                    }
+                ],
+    "summary":  {
+                    "maxPendingOverflow":  0,
+                    "maxCxOverflow":  0,
+                    "notes":  "No Envoy connection-pool overflow was observed during the failing window."
+                }
+}

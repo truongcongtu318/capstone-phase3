@@ -47,12 +47,97 @@ def test_operator_excludes_security_sensitive_mutation():
 
 
 def test_namespaced_reader_has_no_mutation_secret_or_exec_access():
+    allowed_create_resources = {
+        ("", "pods/portforward"),
+        ("authorization.k8s.io", "localsubjectaccessreviews"),
+    }
     for rule in rules_for("tf3-production-readonly"):
         assert set(rule["verbs"]) <= {"get", "list", "watch", "create"}
         if "create" in rule["verbs"]:
-            assert rule["resources"] == ["pods/portforward"]
+            assert {
+                (api_group, resource)
+                for api_group in rule["apiGroups"]
+                for resource in rule["resources"]
+            } <= allowed_create_resources
     assert not granted("tf3-production-readonly", "secrets", "get")
     assert not granted("tf3-production-readonly", "pods/exec", "create")
+
+
+def test_reader_can_review_grafana_rbac_without_impersonation():
+    assert granted(
+        "tf3-production-readonly",
+        "localsubjectaccessreviews",
+        "create",
+        namespace="techx-tf3",
+        api_group="authorization.k8s.io",
+    )
+    for resource in ("roles", "rolebindings"):
+        assert granted(
+            "tf3-production-readonly",
+            resource,
+            "get",
+            namespace="techx-tf3",
+            api_group="rbac.authorization.k8s.io",
+        )
+        assert granted(
+            "tf3-production-readonly",
+            resource,
+            "list",
+            namespace="techx-tf3",
+            api_group="rbac.authorization.k8s.io",
+        )
+
+    cluster_rules = rules_for(
+        "tf3-production-readonly-cluster-extensions",
+        kind="ClusterRole",
+    )
+    for resource in ("clusterroles", "clusterrolebindings"):
+        assert any(
+            rule["apiGroups"] == ["rbac.authorization.k8s.io"]
+            and resource in rule["resources"]
+            and set(rule["verbs"]) == {"get", "list"}
+            for rule in cluster_rules
+        )
+
+    argocd_rules = rules_for(
+        "tf3-production-readonly-observability",
+        namespace="argocd",
+    )
+    assert not any(
+        resource in rule.get("resources", [])
+        for rule in argocd_rules
+        for resource in (
+            "localsubjectaccessreviews",
+            "roles",
+            "rolebindings",
+        )
+    )
+    assert not any(
+        resource in rule.get("resources", [])
+        for rule in cluster_rules
+        for resource in (
+            "localsubjectaccessreviews",
+            "roles",
+            "rolebindings",
+        )
+    )
+
+
+def test_reader_custom_roles_keep_security_boundaries():
+    reader_rules = (
+        rules_for("tf3-production-readonly", namespace="techx-tf3")
+        + rules_for("tf3-production-readonly-observability", namespace="argocd")
+        + rules_for(
+            "tf3-production-readonly-cluster-extensions",
+            kind="ClusterRole",
+        )
+    )
+    assert not any(
+        "secrets" in rule.get("resources", [])
+        or "pods/exec" in rule.get("resources", [])
+        or "impersonate" in rule.get("verbs", [])
+        for rule in reader_rules
+    )
 
 
 def test_bindings_target_expected_groups_and_namespace():

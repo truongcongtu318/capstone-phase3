@@ -1,0 +1,57 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: otel-gateway-platform-policy
+  namespace: techx-tf3
+  annotations:
+    mandate-17.techx.io/service-clusterip-evidence: "2026-07-25:kube-dns=172.20.0.10,jaeger=172.20.93.48,prometheus=172.20.123.8,opensearch=172.20.106.195"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: otel-gateway
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - { protocol: TCP, port: 4317 }
+        - { protocol: TCP, port: 4318 }
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+        - ipBlock: { cidr: 172.20.0.10/32 }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: jaeger
+        - ipBlock: { cidr: 172.20.93.48/32 }
+      ports:
+        - { protocol: TCP, port: 4317 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        - ipBlock: { cidr: 172.20.123.8/32 }
+      ports:
+        - { protocol: TCP, port: 9090 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: opensearch
+        - ipBlock: { cidr: 172.20.106.195/32 }
+      ports:
+        - { protocol: TCP, port: 9200 }
+    # k8sattributes watches the private EKS API.
+    - to:
+        - ipBlock: { cidr: 172.20.0.1/32 }
+        - ipBlock: { cidr: 10.0.0.0/16 }
+      ports:
+        - { protocol: TCP, port: 443 }

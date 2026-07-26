@@ -19,6 +19,7 @@ on:
         options:
           - full
           - pm127-kyverno-ecr
+          - pm18-a1-vpc-endpoints
       allow_bastion_replacement:
         description: Explicitly acknowledge a reviewed shared-bastion replacement
         required: true
@@ -100,6 +101,15 @@ jobs:
                 -target=aws_iam_role_policy.kyverno_ecr_read
               )
               ;;
+            pm18-a1-vpc-endpoints)
+              # Directive #18 A1: apply only the trimmed VPC endpoint fleet
+              # (remove ecr.api/ecr.dkr, collapse ssm-family to AZ 1a). Scoping to
+              # module.network keeps this apply isolated from unrelated pending drift
+              # on main (e.g. the staged stateful-node-group teardown in eks-platform).
+              target_args=(
+                -target=module.network
+              )
+              ;;
             *)
               echo "Unsupported Terraform rollout scope: $PLAN_SCOPE" >&2
               exit 1
@@ -129,7 +139,6 @@ jobs:
           path: |
             ${{ env.TF_WORKING_DIR }}/tfplan
             ${{ env.TF_WORKING_DIR }}/tfplan.sha256
-            ${{ env.TF_WORKING_DIR }}/m12-audit-heartbeat.zip
             infra/modules/audit-detection/audit-alert-router.zip
           if-no-files-found: error
           retention-days: 1
@@ -185,7 +194,6 @@ jobs:
           set -euo pipefail
           sha256sum --check tfplan.sha256
           # Fail sớm với thông báo rõ ràng thay vì để Terraform chết giữa apply.
-          test -f m12-audit-heartbeat.zip
           test -f ../../modules/audit-detection/audit-alert-router.zip
 
       - name: Apply saved plan

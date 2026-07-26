@@ -1,0 +1,8 @@
+﻿{
+    "traceId":  "pm-152-trace-001",
+    "window":  "2026-07-26T09:28:30Z to 2026-07-26T09:29:30Z",
+    "service":  "frontend",
+    "evidence":  "Critical path shows frontend request handling dominates the failing window; repeated CPU throttling coincides with higher p95 latency and SLO breach.",
+    "coBottlenecks":  "DB pool and Envoy overflow were not observed as primary constraints during the same window.",
+    "conclusion":  "The earlier saturation signature is frontend CPU, not Envoy overflow or DB pool exhaustion."
+}

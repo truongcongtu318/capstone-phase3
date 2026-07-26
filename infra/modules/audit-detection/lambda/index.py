@@ -1,3 +1,9 @@
+# Deploy marker: đổi giá trị này để ép re-deploy router qua CI khi cần đồng bộ
+# lại hash. Lần apply hỏng trước để state lệch ba đằng (source_code_hash,
+# code_sha256, CodeSha256 live) khiến invariant router-integrity của heartbeat
+# FAIL giả. Bump marker → source_code_hash đổi → CI re-deploy → cả ba hội tụ về
+# một hash. KHÔNG đổi logic; chỉ cần khác chuỗi cũ.
+# router-deploy-marker: 2026-07-24.1
 import json
 import logging
 import os

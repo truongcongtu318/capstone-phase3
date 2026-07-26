@@ -1,0 +1,149 @@
+# Chaos Mesh — công cụ bơm lỗi hạ tầng cho Mandate #15 (AIOps engine của AIO02).
+#
+# Vì sao KHÔNG dùng flagd để tạo scenario: giá trị flag đang chạy đồng bộ từ nguồn
+# trung tâm của BTC (`values-flagd-sync.yaml`), TF chỉ đọc được chứ không set được,
+# và luật cấm tuyệt đối không cho đổi TOKEN/URI hay thêm nguồn flag khác. Chaos Mesh
+# bơm lỗi ở tầng k8s/network/cgroup nên không đụng gì tới đường đọc flagd.
+#
+# auto-sync TẮT có chủ đích (giống kyverno-app): đây là công cụ có khả năng gây sự cố,
+# việc cài/nâng cấp phải là hành động người bấm, không để pipeline tự đẩy.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chaos-mesh
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.chaos-mesh.org
+    chart: chaos-mesh
+    targetRevision: 2.8.3
+    helm:
+      values: |
+        # Giới hạn phạm vi: controller chỉ inject được vào techx-tf3.
+        # Đã verify bằng `helm template`: RoleBinding chỉ sinh ở techx-tf3,
+        # không có quyền nào chạm argocd/kube-system.
+        clusterScoped: false
+        enableProfiling: false
+        controllerManager:
+          targetNamespace: techx-tf3
+          replicaCount: 2
+          # ValidatingAdmissionPolicy `mandate05-native-resource-requirements`
+          # (Deny, mọi namespace trừ kube-system) đòi đủ requests+limits cpu/memory.
+          # Chart mặc định để resources rỗng -> pod bị chặn admission. Phải set tay.
+          resources:
+            requests:
+              cpu: 25m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+        chaosDaemon:
+          # EKS 1.35 chạy containerd, KHÔNG phải docker. Chart mặc định là
+          # docker + /var/run/docker.sock -> chaos-daemon không vào được container.
+          runtime: containerd
+          socketPath: /run/containerd/containerd.sock
+          # chaos-daemon phải có mặt trên MỌI node, nếu không thì pod nằm trên node
+          # thiếu daemon sẽ không bơm lỗi được — và im lặng, không báo gì.
+          # Lần cài đầu (24/07) dính đúng bẫy này: chart để tolerations rỗng nên
+          # daemon chỉ lên 4/8 node, trong khi payment/checkout/frontend/product-catalog
+          # đều nằm trên 3 node Karpenter có taint `techx.io/workload=elastic`.
+          # Scenario 1 và 2 sẽ chạy mà không tạo ra lỗi nào.
+          # Dùng `operator: Exists` (dung thứ mọi taint) thay vì liệt kê từng taint:
+          # Karpenter sinh node động, liệt kê cứng là hỏng lại ngay lần sau CDO01
+          # thêm nodepool mới. Đây cũng là cách các agent DaemonSet khác (CNI,
+          # node-exporter) vẫn làm.
+          tolerations:
+            - operator: Exists
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+        # Tắt những thành phần 3 kịch bản Mandate #15 không dùng — bớt tốn tài nguyên
+        # (ngân sách đang vượt trần) và bớt bề mặt tấn công.
+        # dashboard: UI web, không cần vì AIO02 điều khiển bằng CRD/kubectl.
+        # dnsServer: chỉ phục vụ DNSChaos, không có trong 3 kịch bản.
+        dashboard:
+          create: false
+        dnsServer:
+          create: false
+        bpfki:
+          create: false
+        prometheus:
+          create: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: chaos-mesh
+  # Chart tự sinh cert (webhook + mTLS giữa controller và daemon) bằng hàm Helm
+  # genSignedCert, và gắn annotation `rollme` random — cả hai đổi giá trị MỖI LẦN
+  # ArgoCD render. Không bỏ qua thì app OutOfSync vĩnh viễn và selfHeal sẽ xoay cert
+  # + rolling-restart DaemonSet/Deployment liên tục. Đã kiểm chứng bằng cách render
+  # 2 lần và so md5 — khác nhau.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: chaos-mesh-webhook-certs
+      namespace: chaos-mesh
+      jsonPointers:
+        - /data
+    - group: ""
+      kind: Secret
+      name: chaos-mesh-daemon-certs
+      namespace: chaos-mesh
+      jsonPointers:
+        - /data
+    - group: ""
+      kind: Secret
+      name: chaos-mesh-daemon-client-certs
+      namespace: chaos-mesh
+      jsonPointers:
+        - /data
+    - group: ""
+      kind: Secret
+      name: chaos-mesh-chaosd-client-certs
+      namespace: chaos-mesh
+      jsonPointers:
+        - /data
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: chaos-mesh-mutation
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: chaos-mesh-validation
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: chaos-mesh-validation-auth
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    - group: apps
+      kind: Deployment
+      name: chaos-controller-manager
+      namespace: chaos-mesh
+      jsonPointers:
+        - /spec/template/metadata/annotations/rollme
+    - group: apps
+      kind: DaemonSet
+      name: chaos-daemon
+      namespace: chaos-mesh
+      jsonPointers:
+        - /spec/template/metadata/annotations/rollme
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # Namespace tạo bởi gitops/infrastructure/namespace-chaos-mesh.yaml (sync-wave 0)
+      # để giữ nhãn PSS privileged — KHÔNG bật CreateNamespace, ArgoCD tạo hộ sẽ
+      # thiếu nhãn và chaos-daemon bị PSS chặn.
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true

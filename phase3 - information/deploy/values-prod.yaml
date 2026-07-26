@@ -37,6 +37,19 @@ grafana:
     limits:
       cpu: 200m
       memory: 1Gi
+  # REL-17-04: đẩy Grafana sang AZ KHÁC Prometheus (best-effort). Trước đây cả hai (mỗi
+  # cái 1 replica) cùng nằm trên ip-10-0-8-134 / AZ 1a → mất AZ 1a = mất CẢ dashboard lẫn
+  # nguồn metric đúng lúc demo req#2. Dùng preferred (soft) khớp convention repo (cloudflared/
+  # otel-gateway) + không rủi ro Pending; base node trải 3 AZ nên thực tế luôn tách được.
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: prometheus
+            topologyKey: topology.kubernetes.io/zone
 
 jaeger:
   jaeger:
@@ -74,7 +87,7 @@ opensearch:
   resources:
     requests:
       cpu: 250m
-      memory: 750Mi
+      memory: 1280Mi
     limits:
       cpu: 750m
       memory: 1600Mi
@@ -84,10 +97,21 @@ prometheus:
     resources:
       requests:
         cpu: 150m
-        memory: 450Mi
+        memory: 900Mi
       limits:
         cpu: 800m
         memory: 1200Mi
+    # REL-17-04: đẩy Prometheus sang AZ KHÁC Grafana (best-effort, đối xứng với
+    # grafana.affinity) → mất 1 AZ không mất cả hai nửa dashboard SLO cùng lúc.
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: grafana
+              topologyKey: topology.kubernetes.io/zone
 
 opentelemetry-collector:
   # Mandate 5 OTEL step 1 (tat truoc, xoa sau): otel-node-agent (host/kubelet/
@@ -225,6 +249,8 @@ components:
           minDomains: 2
           topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: DoNotSchedule
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor
           labelSelector:
             matchLabels:
               opentelemetry.io/name: frontend
@@ -232,6 +258,11 @@ components:
           minDomains: 2
           topologyKey: topology.kubernetes.io/zone
           whenUnsatisfiable: DoNotSchedule
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor # nếu không có dòng này 2 node arm64 có taint nhưng frontend không vào được vẫn tính vào domain hợp lệ, nhưng ở đó không có pod frontend làm global min = 0
+          # khi frontend thêm 1 pod, công thức (1+1) - 0 = 2 skew = 2 > maxSkew, pod sẽ pending
+          # 4 domain eligible: 1, 1, 0, 0, 0 → global min = 0
+          
           labelSelector:
             matchLabels:
               opentelemetry.io/name: frontend
@@ -1131,7 +1162,7 @@ components:
     resources:
       requests:
         cpu: 200m
-        memory: 1Gi
+        memory: 256Mi
       limits:
         cpu: "1"
         memory: 1500Mi

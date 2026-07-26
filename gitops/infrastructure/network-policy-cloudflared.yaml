@@ -1,0 +1,116 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cloudflared-platform-policy
+  namespace: techx-tf3
+  annotations:
+    mandate-17.techx.io/service-clusterip-evidence: "2026-07-26:kube-dns=172.20.0.10,grafana=172.20.79.132,jaeger=172.20.93.48,argocd-server=172.20.60.48"
+    mandate-17.techx.io/tunnel-route-source: "infra/modules/cloudflare-access/main.tf cloudflare_zero_trust_tunnel_cloudflared_config.eks_api"
+    mandate-17.techx.io/cloudflare-edge-evidence: "2026-07-26:www.cloudflare.com/ips-v4; region1+region2.v2.argotunnel.com resolved inside 198.41.128.0/17"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflared
+  policyTypes: [Ingress, Egress]
+  # cloudflared only ever dials out - it publishes no Service and nothing in the cluster
+  # connects to it. Its kubelet liveness probe on :2000 is unaffected: the VPC CNI network
+  # policy agent does not evaluate node-sourced probe traffic. Proof on this cluster -
+  # otel-gateway-platform-policy allows ingress only from podSelector {} on 4317/4318,
+  # never on its probe port 13133, and both otel-gateway pods sit at 0 restarts.
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+        - ipBlock: { cidr: 172.20.0.10/32 }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # Cloudflare Tunnel transport. cloudflared prefers QUIC on 7844/udp, falls back to
+    # HTTP/2 on 7844/tcp, and reaches api.cloudflare.com over 443/tcp - all of which land
+    # inside the published Cloudflare ranges below. The full list is allowed rather than
+    # today's two argotunnel /24s because Cloudflare re-homes tunnel edges without notice,
+    # and pinning a /24 would cut the mentors' only SSO path the first time that happens.
+    #
+    # 443/udp is deliberately NOT opened. QUIC runs on 7844, and cloudflared's Go HTTP
+    # client does not speak HTTP/3, so nothing here needs it.
+    #
+    # These CIDRs are a snapshot of an externally-owned list. Re-check against
+    # https://www.cloudflare.com/ips-v4 when touching this policy - the annotation above
+    # records when it was last read.
+    - to:
+        - ipBlock: { cidr: 173.245.48.0/20 }
+        - ipBlock: { cidr: 103.21.244.0/22 }
+        - ipBlock: { cidr: 103.22.200.0/22 }
+        - ipBlock: { cidr: 103.31.4.0/22 }
+        - ipBlock: { cidr: 141.101.64.0/18 }
+        - ipBlock: { cidr: 108.162.192.0/18 }
+        - ipBlock: { cidr: 190.93.240.0/20 }
+        - ipBlock: { cidr: 188.114.96.0/20 }
+        - ipBlock: { cidr: 197.234.240.0/22 }
+        - ipBlock: { cidr: 198.41.128.0/17 }
+        - ipBlock: { cidr: 162.158.0.0/15 }
+        - ipBlock: { cidr: 104.16.0.0/13 }
+        - ipBlock: { cidr: 104.24.0.0/14 }
+        - ipBlock: { cidr: 172.64.0.0/13 }
+        - ipBlock: { cidr: 131.0.72.0/22 }
+      ports:
+        - { protocol: TCP, port: 7844 }
+        - { protocol: UDP, port: 7844 }
+        - { protocol: TCP, port: 443 }
+    # Route 1/4 - kubectl.arthur-ngo.org -> tcp://<private EKS endpoint>:443. The endpoint
+    # resolved to 10.0.23.132 and 10.0.8.89 on 2026-07-26, but EKS replaces those ENIs on
+    # its own, so the three production private subnets are the stable unit here.
+    - to:
+        - ipBlock: { cidr: 10.0.0.0/20 }
+        - ipBlock: { cidr: 10.0.16.0/20 }
+        - ipBlock: { cidr: 10.0.32.0/20 }
+      ports:
+        - { protocol: TCP, port: 443 }
+    # Route 2/4 - grafana.arthur-ngo.org -> http://grafana.techx-tf3.svc:80.
+    # NetworkPolicy matches the DESTINATION port, and this Service DNATs 80 -> 3000, so the
+    # two peer kinds must be split across two rules: the ClusterIP fallback is matched
+    # before DNAT (:80), the podSelector after it (:3000). Same lesson already recorded in
+    # network-policy-grafana.yaml, where allowing only :80 silently dropped every packet
+    # and Cloudflare answered 502.
+    - to:
+        - ipBlock: { cidr: 172.20.79.132/32 }
+      ports:
+        - { protocol: TCP, port: 80 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grafana
+      ports:
+        - { protocol: TCP, port: 3000 }
+    # Route 3/4 - jaeger.arthur-ngo.org -> http://jaeger.techx-tf3.svc:16686. This Service
+    # maps 16686 -> 16686, so one rule covers both sides of the DNAT.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: jaeger
+        - ipBlock: { cidr: 172.20.93.48/32 }
+      ports:
+        - { protocol: TCP, port: 16686 }
+    # Route 4/4 - argocd.arthur-ngo.org -> https://argocd-server.argocd.svc:443, which DNATs
+    # 443 -> 8080. Split for the same reason as grafana above.
+    - to:
+        - ipBlock: { cidr: 172.20.60.48/32 }
+      ports:
+        - { protocol: TCP, port: 443 }
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argocd
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-server
+      ports:
+        - { protocol: TCP, port: 8080 }
+    # No frontend-proxy rule. The tunnel config is Terraform-managed and declares exactly
+    # four ingress_rule hostnames plus an http_status:404 catch-all - the storefront is
+    # served through CloudFront, never through this tunnel.

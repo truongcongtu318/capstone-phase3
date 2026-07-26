@@ -1,0 +1,60 @@
+# Vá khiếm khuyết của chart chaos-mesh 2.8.3 khi chạy `clusterScoped: false`.
+#
+# TRIỆU CHỨNG: `chaos-controller-manager` CrashLoopBackOff, log:
+#   failed to list *v1alpha1.RemoteCluster: remoteclusters.chaos-mesh.org is forbidden:
+#   User "system:serviceaccount:chaos-mesh:chaos-controller-manager" cannot list
+#   resource "remoteclusters" in API group "chaos-mesh.org" at the cluster scope
+#   ... unable to start manager: failed to wait for networkchaos-pipeline caches to sync
+#
+# NGUYÊN NHÂN: `controllerManager.enabledControllers` mặc định là `["*"]`, nên controller
+# `remotecluster` luôn bật và mở informer watch `RemoteCluster`. `remoteclusters` là CRD
+# **Cluster-scoped duy nhất** của Chaos Mesh (22 CRD còn lại đều Namespaced). Ở chế độ
+# namespace-scoped, chart chỉ cấp quyền `chaos-mesh.org` qua RoleBinding trong
+# `techx-tf3`; ClusterRole cluster-level của nó chỉ có nodes/PV/PVC + subjectaccessreviews,
+# không có resource `chaos-mesh.org` nào. Informer bị 403 → cache không sync → manager
+# chết → 2 replica thay nhau giành leader rồi cùng crash.
+#
+# VÌ SAO VÁ BẰNG FILE RIÊNG: `extraObjects` của chart 2.8.3 hỏng — template gọi helper
+# `external-secrets.render` không tồn tại (copy nhầm từ chart external-secrets), render
+# là lỗi ngay. Sửa trực tiếp ClusterRole do chart sinh cũng không được vì ArgoCD revert.
+#
+# VÌ SAO KHÔNG trim `enabledControllers` xuống 3 loại đang dùng: NetworkChaos còn dựa vào
+# controller nội bộ (`networkchaos-pipeline` / `podnetworkchaos`) mà tên không xuất hiện
+# trong values chart. Trim nhầm thì chaos không xuống tới `chaos-daemon` nhưng CR vẫn báo
+# injected — hỏng âm thầm, đúng loại lỗi nguy hiểm nhất cho một harness đo đạc.
+#
+# PHẠM VI: chỉ đọc (get/list/watch) đúng 1 CRD mà TF không bao giờ tạo object nào.
+# KHÔNG nới phạm vi bơm lỗi — phạm vi đó do RoleBinding
+# `chaos-mesh-chaos-controller-manager-target-namespace` trong `techx-tf3` quyết định,
+# file này không đụng tới.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: chaos-mesh-controller-manager-remotecluster-read
+  labels:
+    app.kubernetes.io/part-of: chaos-mesh
+rules:
+  - apiGroups:
+      - chaos-mesh.org
+    resources:
+      - remoteclusters
+      - remoteclusters/status
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: chaos-mesh-controller-manager-remotecluster-read
+  labels:
+    app.kubernetes.io/part-of: chaos-mesh
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: chaos-mesh-controller-manager-remotecluster-read
+subjects:
+  - kind: ServiceAccount
+    name: chaos-controller-manager
+    namespace: chaos-mesh

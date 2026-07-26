@@ -40,6 +40,26 @@ variable "stateful_node_instance_type" {
   type        = string
 }
 
+variable "enable_stateful_node_group" {
+  description = "Whether to provision the dedicated on-demand stateful node group."
+  type        = bool
+}
+
+variable "stateful_node_desired_size" {
+  description = "Desired size for the dedicated on-demand stateful node group."
+  type        = number
+}
+
+variable "stateful_node_min_size" {
+  description = "Minimum size for the dedicated on-demand stateful node group."
+  type        = number
+}
+
+variable "stateful_node_max_size" {
+  description = "Maximum size for the dedicated on-demand stateful node group."
+  type        = number
+}
+
 variable "eks_admin_principal_arns" {
   type = list(string)
 }

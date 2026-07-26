@@ -1,0 +1,11 @@
+﻿{
+    "run":  "run-2",
+    "stage":  "failing-410-users",
+    "startedAt":  "2026-07-26T09:25:00Z",
+    "endedAt":  "2026-07-26T09:31:00Z",
+    "users":  410,
+    "targetRps":  220,
+    "observedServedRps":  168.9,
+    "status":  "fail",
+    "notes":  "Failing run used to reproduce the breakpoint and capture saturation evidence."
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "overallResult": "FAIL",
+  "pod": "checkout-rollout-6d97d4ff58-7fk5p",
+  "namespace": "techx-tf3",
+  "failedStep": "trivy",
+  "error": "expected exactly one arm64 Trivy report",
+  "generatedAt": "2026-07-25T12:04:07Z"
+}

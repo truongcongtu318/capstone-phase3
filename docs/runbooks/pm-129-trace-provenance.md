@@ -71,16 +71,26 @@ merged promotion PR/Argo revision plus Cosign identity and PM-127 SBOM`.
 
 Useful disambiguation options are `--source-pr NUMBER` and
 `--promotion-pr NUMBER`; they do not bypass any validation. The script still
-checks the exact SHA, base branch, merge state, reviewer state, artifact name,
-digest, signature identity/issuer, SBOM properties, and Argo Healthy/Synced
-revision.
+checks the base branch, merge state, reviewer state, artifact name, digest,
+and signature identity/issuer/SBOM properties exactly. For GitOps, it checks
+that the single matching Argo Application is Healthy/Synced and that the
+promotion PR's merge commit is an ancestor of (or equal to) Argo's current
+sync revision — not that the two are byte-equal. ArgoCD tracks `main` HEAD
+with auto-sync + selfHeal, so unrelated commits keep landing after a
+promotion merges; requiring exact equality would fail every trace as soon as
+anything else ships. Ancestry proves the promoted change is included in what
+is currently live without demanding a frozen `main`.
 
 ## Troubleshooting
 
 - `preflight` or `workflow-run`: refresh `gh auth login`; check that the run is
   on `main` and that the token can read Actions artifacts.
 - `pod`/`argo`: refresh the private-cluster tunnel and verify the two
-  `kubectl auth can-i` commands. No write permission is needed.
+  `kubectl auth can-i` commands. No write permission is needed. If `argo`
+  fails specifically on ancestry ("promotion merge SHA is not an ancestor"),
+  the Argo Application has not yet synced past the promotion commit, or is
+  tracking a different branch/fork entirely — wait for the next auto-sync
+  and rerun; do not treat this as a script bug.
 - `approved-artifact`, `promotion-artifact`, or `trivy`: do not substitute a
   newer run or a local scan. The exact run/attempt artifact is part of the
   provenance chain; rerun the trusted workflow if it has expired.

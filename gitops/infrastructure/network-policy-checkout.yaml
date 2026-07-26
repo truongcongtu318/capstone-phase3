@@ -1,0 +1,76 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: checkout-business-policy
+  namespace: techx-tf3
+  annotations:
+    mandate-17.techx.io/service-clusterip-evidence: "2026-07-25:kube-dns=172.20.0.10,cart=172.20.165.232,currency=172.20.98.73,email=172.20.2.10,payment=172.20.105.214,product-catalog=172.20.145.185,shipping=172.20.58.251,flagd=172.20.213.30,otel-gateway=172.20.117.175"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: checkout
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: frontend
+      ports:
+        - { protocol: TCP, port: 8080 }
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+        - ipBlock:
+            cidr: 172.20.0.10/32
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # checkout reaches quote through shipping; there is no direct QUOTE_ADDR
+    # in the production checkout configuration.
+    - to:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - cart
+                  - currency
+                  - email
+                  - payment
+                  - product-catalog
+                  - shipping
+        - ipBlock: { cidr: 172.20.165.232/32 }
+        - ipBlock: { cidr: 172.20.98.73/32 }
+        - ipBlock: { cidr: 172.20.2.10/32 }
+        - ipBlock: { cidr: 172.20.105.214/32 }
+        - ipBlock: { cidr: 172.20.145.185/32 }
+        - ipBlock: { cidr: 172.20.58.251/32 }
+      ports:
+        - { protocol: TCP, port: 8080 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: flagd
+        - ipBlock:
+            cidr: 172.20.213.30/32
+      ports:
+        - { protocol: TCP, port: 8013 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: otel-gateway
+        - ipBlock:
+            cidr: 172.20.117.175/32
+      ports:
+        - { protocol: TCP, port: 4317 }
+    - to:
+        - ipBlock: { cidr: 10.0.0.0/20 }
+        - ipBlock: { cidr: 10.0.16.0/20 }
+        - ipBlock: { cidr: 10.0.32.0/20 }
+      ports:
+        - { protocol: TCP, port: 9096 }
