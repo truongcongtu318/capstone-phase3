@@ -174,3 +174,20 @@ def test_t65_grafana_dockerfile_is_in_immutable_scope_registry():
         "inScope": True,
         "expectedPlatforms": ["linux/amd64", "linux/arm64"],
     }]
+
+
+def test_t66_grafana_cross_compile_and_buildkit_cache_contract():
+    dockerfile = Path(
+        "phase3 - information/techx-corp-platform/src/grafana/Dockerfile"
+    ).read_text()
+    workflow = Path(".github/workflows/build-push-ecr.yml").read_text()
+
+    assert dockerfile.count("FROM --platform=$BUILDPLATFORM") == 1
+    assert 'make build-go \\\n      OS="${TARGETOS}" \\\n      ARCH="${TARGETARCH}"' in dockerfile
+    assert "opensearch-plugin-builder" not in dockerfile
+    assert 'MANIFEST.txt' in dockerfile
+    assert 'COPY --from=opensearch-plugin-builder' not in dockerfile
+    assert "--mount=type=cache,target=/go/pkg/mod" in dockerfile
+    assert "--mount=type=cache,target=/root/.cache/go-build" in dockerfile
+    assert workflow.count('--set "${SERVICE}.cache-from=type=gha,scope=${SERVICE}"') == 3
+    assert workflow.count('--set "${SERVICE}.cache-to=type=gha,mode=max,scope=${SERVICE}"') == 3

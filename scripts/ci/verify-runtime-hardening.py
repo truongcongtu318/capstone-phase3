@@ -9,14 +9,15 @@ import yaml
 
 
 DEFAULT_FIRST_PARTY = (
-    "accounting ad cart checkout currency email fraud-detection frontend "
+    "accounting ad cart checkout currency email fraud-detection frontend grafana "
     "frontend-proxy image-provider llm load-generator payment product-catalog "
     "product-reviews quote recommendation shipping"
 ).split()
 
 DEFAULT_REPOSITORY = "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp"
 FIRST_PARTY_DIGEST_RE = re.compile(
-    r"^197826770971\.dkr\.ecr\.ap-southeast-1\.amazonaws\.com/techx-corp@sha256:[0-9a-f]{64}$"
+    r"^197826770971\.dkr\.ecr\.ap-southeast-1\.amazonaws\.com/techx-corp"
+    r"(?::[A-Za-z0-9_][A-Za-z0-9_.-]{0,127})?@sha256:[0-9a-f]{64}$"
 )
 
 

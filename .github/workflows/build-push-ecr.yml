@@ -469,7 +469,9 @@ jobs:
           echo "Building local linux/amd64 candidate: $SERVICE"
           docker buildx bake -f docker-compose.yml "$SERVICE" \
             --set "${SERVICE}.platform=linux/amd64" \
-            --set "${SERVICE}.output=type=docker"
+            --set "${SERVICE}.output=type=docker" \
+            --set "${SERVICE}.cache-from=type=gha,scope=${SERVICE}" \
+            --set "${SERVICE}.cache-to=type=gha,mode=max,scope=${SERVICE}"
 
       - name: Install Trivy
         if: steps.scope.outputs.mode != 'none'
@@ -531,7 +533,9 @@ jobs:
           set +a
 
           docker buildx bake -f docker-compose.yml --push "$SERVICE" \
-            --set "${SERVICE}.platform=$BUILD_PLATFORMS"
+            --set "${SERVICE}.platform=$BUILD_PLATFORMS" \
+            --set "${SERVICE}.cache-from=type=gha,scope=${SERVICE}" \
+            --set "${SERVICE}.cache-to=type=gha,mode=max,scope=${SERVICE}"
 
       - name: Build and push pre-scanned changed service images only
         if: steps.scope.outputs.mode == 'scoped'
@@ -545,7 +549,9 @@ jobs:
           set +a
 
           docker buildx bake -f docker-compose.yml --push "$SERVICE" \
-            --set "${SERVICE}.platform=$BUILD_PLATFORMS"
+            --set "${SERVICE}.platform=$BUILD_PLATFORMS" \
+            --set "${SERVICE}.cache-from=type=gha,scope=${SERVICE}" \
+            --set "${SERVICE}.cache-to=type=gha,mode=max,scope=${SERVICE}"
 
       - name: Resolve pushed image metadata
         if: steps.scope.outputs.mode != 'none'

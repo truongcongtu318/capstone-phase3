@@ -87,6 +87,128 @@ def test_authoritative_render_is_inventory_clean():
         assert data["summary"]["unresolvedFindingCount"] == 0
 
 
+@pytest.mark.parametrize(
+    "image",
+    [
+        "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp"
+        "@sha256:" + "a" * 64,
+        "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp"
+        ":f5ba80a-30210176908-grafana@sha256:" + "b" * 64,
+    ],
+)
+def test_verifier_accepts_first_party_digest_with_optional_oci_tag(tmp_path, image):
+    rendered = tmp_path / "rendered.yaml"
+    inventory = tmp_path / "inventory.json"
+    rendered.write_text(
+        f"""\
+apiVersion: v1
+kind: Pod
+metadata:
+  name: grafana-image-reference
+  namespace: techx-tf3
+  labels:
+    app.kubernetes.io/name: grafana
+spec:
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: grafana
+      image: {image}
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: 5m
+          memory: 8Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+""",
+        encoding="utf-8",
+    )
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(VERIFY),
+            "--rendered",
+            str(rendered),
+            "--mode",
+            "inventory",
+            "--output",
+            str(inventory),
+        ],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    data = json.loads(inventory.read_text(encoding="utf-8"))
+    assert data["summary"]["unresolvedFindingCount"] == 0
+
+
+def test_verifier_rejects_first_party_tag_without_digest(tmp_path):
+    rendered = tmp_path / "rendered.yaml"
+    inventory = tmp_path / "inventory.json"
+    rendered.write_text(
+        """\
+apiVersion: v1
+kind: Pod
+metadata:
+  name: grafana-tag-only
+  namespace: techx-tf3
+  labels:
+    app.kubernetes.io/name: grafana
+spec:
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: grafana
+      image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:mutable
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: 5m
+          memory: 8Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+""",
+        encoding="utf-8",
+    )
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(VERIFY),
+            "--rendered",
+            str(rendered),
+            "--mode",
+            "inventory",
+            "--output",
+            str(inventory),
+        ],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    data = json.loads(inventory.read_text(encoding="utf-8"))
+    assert data["summary"]["unresolvedFindingCount"] == 1
+    assert data["unresolvedFindings"][0]["rule"] == "require-techx-ecr-sha256-digest"
+
+
 def test_verifier_honors_container_run_as_non_root_override(tmp_path):
     rendered = tmp_path / "rendered.yaml"
     inventory = tmp_path / "inventory.json"

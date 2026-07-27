@@ -41,6 +41,21 @@ def test_native_vap_bindings_remain_deny_and_exclude_only_kube_system():
         ]
 
 
+def test_first_party_vap_accepts_only_digest_qualified_oci_references():
+    documents = named_documents("gitops/policies/native/mandate-05-runtime-policy.yaml")
+    policy = documents["mandate05-native-image-reference"]
+    first_party_expression = policy["spec"]["validations"][1]["expression"]
+    tagged_digest_suffix = (
+        "(:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127})?"
+        "@sha256:[0-9a-f]{64}$"
+    )
+
+    # The same invariant applies to regular, init, and ephemeral containers.
+    assert first_party_expression.count(tagged_digest_suffix) == 3
+    assert "techx-corp(:[A-Za-z0-9_]" in first_party_expression
+    assert "techx-corp:[^@]+$" not in first_party_expression
+
+
 def test_psa_enforcement_and_observability_exception_are_explicit():
     techx = load_documents("gitops/infrastructure/namespace-techx-tf3.yaml")[0]
     techx_labels = techx["metadata"]["labels"]

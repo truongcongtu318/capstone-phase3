@@ -10,6 +10,11 @@ default:
     tag: 58b13f2
 
 grafana:
+  image:
+    registry: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com
+    repository: techx-corp
+    tag: f5ba80a-30210176908-grafana
+    sha: "fe9bdb6513fafc2fbf15b1ec27f408fe94e58bd00c3a0ac8d4848860758623f0"
   # REL-17: Grafana giờ có hostname riêng qua Cloudflare (grafana.arthur-ngo.org).
   # Base chart values.yaml đặt root_url = http://%(domain)s:%(http_port)s/grafana +
   # serve_from_sub_path=true (cho đường truy cập /grafana subpath cũ) → khi vào qua
