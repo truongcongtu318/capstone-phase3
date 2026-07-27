@@ -15,12 +15,14 @@ metadata:
   name: frontend-proxy-hpa
   namespace: techx-tf3
 spec:
-  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: frontend-proxy }
+  scaleTargetRef:
+    { apiVersion: apps/v1, kind: Deployment, name: frontend-proxy }
   minReplicas: 2
   maxReplicas: 8
   metrics:
     - type: Resource
-      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+      resource:
+        { name: cpu, target: { type: Utilization, averageUtilization: 75 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -46,7 +48,8 @@ spec:
   maxReplicas: 8
   metrics:
     - type: Resource
-      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+      resource:
+        { name: cpu, target: { type: Utilization, averageUtilization: 75 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -67,12 +70,14 @@ metadata:
   name: product-catalog-hpa
   namespace: techx-tf3
 spec:
-  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: product-catalog }
+  scaleTargetRef:
+    { apiVersion: apps/v1, kind: Deployment, name: product-catalog }
   minReplicas: 2
   maxReplicas: 8
   metrics:
     - type: Resource
-      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+      resource:
+        { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -98,7 +103,8 @@ spec:
   maxReplicas: 6
   metrics:
     - type: Resource
-      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+      resource:
+        { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -121,12 +127,14 @@ metadata:
 spec:
   # checkout now migrates through checkout-rollout. Target the Rollout scale
   # subresource so HPA retains REL-01's minReplicas=2 during each canary step.
-  scaleTargetRef: { apiVersion: argoproj.io/v1alpha1, kind: Rollout, name: checkout-rollout }
+  scaleTargetRef:
+    { apiVersion: argoproj.io/v1alpha1, kind: Rollout, name: checkout-rollout }
   minReplicas: 2
   maxReplicas: 8
   metrics:
     - type: Resource
-      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+      resource:
+        { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -152,7 +160,8 @@ spec:
   maxReplicas: 6
   metrics:
     - type: Resource
-      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+      resource:
+        { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -173,12 +182,14 @@ metadata:
   name: recommendation-hpa
   namespace: techx-tf3
 spec:
-  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: recommendation }
+  scaleTargetRef:
+    { apiVersion: apps/v1, kind: Deployment, name: recommendation }
   minReplicas: 1
   maxReplicas: 4
   metrics:
     - type: Resource
-      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+      resource:
+        { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -199,12 +210,14 @@ metadata:
   name: product-reviews-hpa
   namespace: techx-tf3
 spec:
-  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: product-reviews }
+  scaleTargetRef:
+    { apiVersion: apps/v1, kind: Deployment, name: product-reviews }
   minReplicas: 2
   maxReplicas: 6
   metrics:
     - type: Resource
-      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+      resource:
+        { name: cpu, target: { type: Utilization, averageUtilization: 75 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -230,7 +243,8 @@ spec:
   maxReplicas: 4
   metrics:
     - type: Resource
-      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+      resource:
+        { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
