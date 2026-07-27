@@ -677,7 +677,7 @@ components:
             matchLabels:
               opentelemetry.io/name: currency
     imageOverride:
-      digest: sha256:f01846d1253f755c96e37b9c321553a9520c3f06ec54780a63048a3966d32fa0
+      digest: sha256:e19420e85851b042061948345f9d9956ba2dd448ec4b9f62e245e5a86b9915ac
     # REL-03: tcpSocket probe (an toan - chi check port mo, khong false-fail vi thieu
     # grpc-health/sai HTTP path). liveness long hon readiness.
     readinessProbe:
