@@ -244,8 +244,11 @@ static_resources:
     - name: frontend
       type: STRICT_DNS
       lb_policy: ROUND_ROBIN
-      # circuit_breakers (max_requests: 4096) được tách sang PM-153 PR riêng
-      # để giữ PM-154 focus vào route classification + rate-limit only.
+      circuit_breakers:
+        thresholds:
+          - max_requests: 4096
+      # circuit_breakers (max_requests: 4096) được thêm cho PM-153
+      # để tăng cường connection pooling và keep-alive.
       load_assignment:
         cluster_name: frontend
         endpoints:
