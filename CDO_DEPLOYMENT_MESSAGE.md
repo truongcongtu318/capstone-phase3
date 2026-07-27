@@ -35,10 +35,13 @@ Dưới đây là các đầu việc chi tiết nhờ anh em CDO hỗ trợ tri�
 * Hệ thống đã tích hợp Caching 2 tầng (Redis Real-time Cache + Postgres).
 * Nhờ anh em kiểm tra kết nối gRPC/HTTP tới Valkey/Redis của cluster, đảm bảo dịch vụ nhận được các biến môi trường kết nối Redis (đã cấu hình mặc định tự động nhận diện, hỗ trợ TLS `rediss://`).
 
-### 3. Cổng điều khiển Sự cố (Actuator) & Telemetry (MANDATE #22):
+### 3. Cổng điều khiển Sự cố (Actuator), Circuit Breaker & Telemetry (MANDATE #22):
 * **Actuator:** Dịch vụ tự động lắng nghe Redis key `product_reviews:fallback_override`. Khi AIOps Detector set key này bằng `true` hoặc `1`, dịch vụ sẽ lập tức bypass hoàn toàn Bedrock và chuyển sang chế độ fallback.
-* **Failure Injection Mode:** Nhận diện thông qua flag `llmRateLimitError` từ flagd để giả lập lỗi kết nối LLM (chế độ phục vụ test replay sự cố).
+* **Circuit Breaker:** Tự động ngắt mạch (`guardrails/circuit_breaker.py`) khi cuộc gọi Bedrock thất bại liên tục nhằm bảo vệ tài nguyên hệ thống.
+* **Error Injection Mode:** Bộ mô phỏng bơm lỗi (`guardrails/error_injection.py`) phục vụ các kịch bản diễn tập sự cố (Replay Sim `aiops_replay_sim.py`) cùng đội AIOps.
+* **LLM Tracing & Tool Validator:** Tích hợp kiểm vết các lệnh LLM (`guardrails/llm_trace.py`) và xác thực tính hợp lệ của các tool call (`guardrails/tool_validator.py`).
 * **Telemetry Metrics:** Xuất Prometheus metric `app_ai_fallback_total` để monitor lỗi kết nối LLM.
+
 
 ### 4. Build lại Docker Image:
 * Đã cập nhật file `requirements.txt` (bổ sung `redis` bên cạnh `boto3` và `tenacity`) và toàn bộ mã nguồn liên quan.
