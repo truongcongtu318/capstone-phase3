@@ -43,14 +43,12 @@ spec:
       expireAfter: 168h
       terminationGracePeriod: 10m
   limits:
-    # Mandate 13 cần thêm đúng 1 elastic spot node để hot path đang Pending có
-    # thể bung thêm capacity trên Spot mà không bật lại on-demand fallback.
-    cpu: "12"
-    memory: 48Gi
-    nodes: 3
+    cpu: "0"
+    memory: 0Gi
+    nodes: 0
   disruption:
-    consolidationPolicy: WhenEmptyOrUnderutilized
-    consolidateAfter: 3m
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: Never
 ---
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
@@ -123,12 +121,12 @@ spec:
       expireAfter: 168h
       terminationGracePeriod: 10m
   limits:
-    cpu: "8"
-    memory: 32Gi
-    nodes: 2
+    cpu: "0"
+    memory: 0Gi
+    nodes: 0
   disruption:
-    consolidationPolicy: WhenEmptyOrUnderutilized
-    consolidateAfter: 3m
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: Never
 ---
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass

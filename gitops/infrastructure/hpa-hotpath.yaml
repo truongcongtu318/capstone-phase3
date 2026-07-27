@@ -22,7 +22,7 @@ spec:
   metrics:
     - type: Resource
       resource:
-        { name: cpu, target: { type: Utilization, averageUtilization: 90 } }
+        { name: cpu, target: { type: Utilization, averageUtilization: 75 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -49,7 +49,7 @@ spec:
   metrics:
     - type: Resource
       resource:
-        { name: cpu, target: { type: Utilization, averageUtilization: 90 } }
+        { name: cpu, target: { type: Utilization, averageUtilization: 75 } }
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
