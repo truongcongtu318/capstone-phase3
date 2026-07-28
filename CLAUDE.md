@@ -43,10 +43,11 @@ tuần nào ở mục Trạng thái bên dưới.
 
 > Cập nhật mục này mỗi tuần (gợi ý: người cầm Auditability tuần đó chịu trách nhiệm cập nhật).
 
-- **Baseline deploy**: *(chưa deploy / đã deploy — cập nhật ngày thực tế khi xong)*
+- **Baseline deploy**: Đã sẵn sàng BigUpdate cho dịch vụ `product-reviews` (AIE1). Tích hợp AWS Bedrock (`nova-lite`, `nova-micro`), Caching 2 tầng (Redis Real-time + Postgres Static Summary Fallback), Actuator `product_reviews:fallback_override`, Circuit Breaker và Telemetry Prometheus.
+- **Yêu cầu triển khai CDO**: Đã soạn thảo quy trình chi tiết tại [CDO_DEPLOYMENT_MESSAGE.md](CDO_DEPLOYMENT_MESSAGE.md) bao gồm DB Migration (`reviews.fidelity_audit`, `reviews.product_summaries`, `is_safe` column/index), Redis config, Docker image build, và IRSA Bedrock permissions.
 - **Backlog ưu tiên**: *(chưa dựng / link file khi có)*
 - **CI/CD**: secret-scanning đã bật (gitleaks pre-commit hook + GitHub Actions gate trên
-  `push`/`PR` vào `main`) — xem [README.md](XBrain-Phase3/Phase3-TF3-Infra-Sentinel/README.md). Branch protection cho `main`
+  `push`/`PR` vào `main`) — xem [README.md](README.md). Branch protection cho `main`
   (require PR + status check `gitleaks`) **đã đề xuất, cần bật thủ công trên GitHub**.
 - **Mandates đang mở**: xem [`phase3 - information/mandates/`](phase3%20-%20information/mandates/) — trống lúc đầu, BTC thả vào khi có hiệu lực.
 
