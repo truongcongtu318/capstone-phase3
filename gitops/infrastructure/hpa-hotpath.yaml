@@ -214,20 +214,10 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: product-reviews-hpa
   namespace: techx-tf3
-  annotations:
-    # PM-0016 P1 (pre-scale runbook): TEMPORARY minReplicas 2->3 for a controlled
-    # load-test window to gather evidence for postmortem 0016. Rationale + measured
-    # numbers in docs/postmortem/0016-...#12: the first pod of a scale event took
-    # 77s to Ready (39s of it waiting for Karpenter to launch a new node); a second
-    # pod, once the node already existed, took only 29s. Running baseline at 3
-    # avoids paying that node-provisioning cost DURING the test window instead of
-    # before it. Revert to minReplicas:2 via a follow-up PR after the test window
-    # closes and evidence is captured — do not leave this as the new baseline
-    # without separate evidence that 2 is insufficient for normal traffic.
 spec:
   scaleTargetRef:
     { apiVersion: apps/v1, kind: Deployment, name: product-reviews }
-  minReplicas: 3
+  minReplicas: 2
   maxReplicas: 6
   metrics:
     - type: Resource

@@ -8,7 +8,13 @@ metadata:
     policies.kyverno.io/severity: high
     pod-policies.kyverno.io/autogen-controllers: Deployment,DaemonSet,StatefulSet,Job,CronJob,ReplicaSet,ReplicationController
 spec:
-  validationFailureAction: Audit
+  # Enforce as of 2026-07-28, after 7A. Every first-party image on every running
+  # pod was verified with cosign first - 21 distinct digests, all signed by the
+  # workflow identity below. Dead ReplicaSets still reference unsigned digests,
+  # so `kubectl rollout undo` into one of those revisions is now refused; the
+  # supported rollback is a git revert, which redeploys a digest from
+  # values-prod.yaml and those are all signed.
+  validationFailureAction: Enforce
   background: true
   webhookTimeoutSeconds: 30
   rules:
