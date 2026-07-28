@@ -12,6 +12,23 @@ Cả hai ClusterPolicy đều `match.any[].resources.namespaces: [techx-tf3]`.
 
 Manifest trong thư mục này đều ghi cứng `namespace: techx-tf3`.
 
+## ⚠️ `techx-tf3` có 3 tầng admission TRƯỚC Kyverno
+
+Đây là chỗ dễ mất thời gian nhất. Pod phải qua được cả 3 tầng dưới thì Kyverno mới được chấm — không thì request bị từ chối vì lý do khác và **kết quả test vô nghĩa**.
+
+| Tầng | Đòi gì | Nếu thiếu |
+|---|---|---|
+| PodSecurity `restricted` | `runAsNonRoot` · `runAsUser` · `seccompProfile` · `allowPrivilegeEscalation: false` · `capabilities.drop: [ALL]` | `violates PodSecurity "restricted"` |
+| `mandate05-native-resource-requirements` | `requests` **và** `limits` cho **cả** cpu lẫn memory | `must explicitly define requests.cpu, requests.memory, limits.cpu, limits.memory` |
+| `mandate05-native-image-reference` | Image có tag hoặc digest · **cấm `:latest`** · `techx-corp` **bắt buộc `@sha256`** | `mandate05-native-image-reference ... denied` |
+
+**Hệ quả với thiết kế test:** hai tình huống không thể dùng để test Kyverno vì VAP chặn trước —
+
+- `techx-corp:<tag>` không digest → VAP bắt
+- bất kỳ `:latest` nào → VAP bắt
+
+Nên `deny-04` cố tình dùng `busybox:1.36` chứ **không** dùng `:latest`.
+
 ## ⚠️ Fixture phải thoả PodSecurity `restricted`
 
 Namespace `techx-tf3` bật `pod-security.kubernetes.io/enforce=restricted`. PodSecurity là **admission plugin dựng sẵn của Kubernetes**, chạy độc lập với Kyverno.
@@ -50,9 +67,9 @@ Muốn chứng minh "object không được tạo" theo đúng nghĩa đen thì 
 | File | Policy | Kỳ vọng | Chứng minh điều gì |
 |---|---|---|---|
 | `deny-01-unsigned-first-party.yaml` | first-party | **DENY** | Image `techx-corp` thật trong ECR nhưng **chưa ký** — `cosign verify` trả `no signatures found` |
-| `deny-02-first-party-bare-tag.yaml` | external | **DENY** | First-party pin bằng tag trần: không có digest thì không còn gì để xác thực |
+| `deny-02-first-party-bare-tag.yaml` | **native VAP**, không phải Kyverno | **DENY** | First-party pin bằng tag trần bị `mandate05-native-image-reference` chặn **trước** khi Kyverno chạy. Giữ lại làm bằng chứng hai tầng **chồng lấn** ở đây chứ không để hở |
 | `deny-03-unapproved-external.yaml` | external | **DENY** | Image công khai ngoài catalog — đây là lỗ hổng nếu chỉ bật mỗi policy first-party |
-| `deny-04-external-bare-tag.yaml` | external | **DENY** | Tag có thể bị trỏ lại ở upstream nên tag **không phải là pin** |
+| `deny-04-external-bare-tag.yaml` | external | **DENY** | Tag có thể bị trỏ lại ở upstream nên tag **không phải là pin**. Dùng `busybox:1.36`, **cố ý không dùng `:latest`** — `:latest` sẽ bị VAP chặn trước và test sai tầng |
 | `deny-05-ephemeral-bypass.yaml` | external | **DENY** | `ephemeralContainers` không được thành đường lách (đúng loại đã bắt được `nicolaka/netshoot` bỏ quên trên pod `fraud-detection`) |
 | `allow-01-valid-first-party.yaml` | first-party | **ACCEPT** | Image đã ký + có SBOM vẫn deploy được — chứng minh policy không chặn bừa |
 | `allow-02-approved-external.yaml` | external | **ACCEPT** | External pin đúng digest trong catalog vẫn chạy được |

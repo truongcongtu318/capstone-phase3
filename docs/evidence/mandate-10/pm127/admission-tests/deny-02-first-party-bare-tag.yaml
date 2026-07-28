@@ -1,10 +1,12 @@
-# EXPECT DENY (allow-approved-external-image-digests): first-party repository but
-# pinned by tag alone. Without a digest there is nothing to verify, so the image
-# falls to the external rule and is denied for not being in the catalogue.
+# EXPECT DENY by mandate05-native-image-reference, NOT by Kyverno. A first-party
+# image pinned by tag alone is refused by the native policy before Kyverno runs,
+# because techx-corp images are required to carry @sha256. Kept as evidence that
+# the two layers overlap here rather than leaving a gap.
 #
-# securityContext satisfies PodSecurity "restricted" so PodSecurity does not
-# reject the pod before Kyverno evaluates it. Without this the request is
-# refused for the wrong reason and proves nothing about image policy.
+# securityContext and resources are present so PodSecurity "restricted" and
+# mandate05-native-resource-requirements both pass. techx-tf3 layers three
+# admission controls ahead of Kyverno; without these the request is rejected
+# before the image policy is ever consulted, which proves nothing.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -23,6 +25,13 @@ spec:
     - name: probe
       image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:01011a2-30186442291-checkout
       command: ["sleep", "300"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 64Mi
       securityContext:
         allowPrivilegeEscalation: false
         capabilities:

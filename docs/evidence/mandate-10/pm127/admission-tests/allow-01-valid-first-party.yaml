@@ -1,11 +1,11 @@
-# EXPECT ACCEPT (verify-first-party-signatures): quote, rebuilt in PR #502 with a
-# Cosign signature and a CycloneDX attestation whose sourceSha points at the
-# commit it was actually built from. Proves the policy admits valid workloads
-# rather than blocking everything.
+# EXPECT ACCEPT. quote, rebuilt in PR #502 with a Cosign signature and a CycloneDX
+# attestation whose sourceSha points at the commit it was actually built from.
+# Proves the policy admits valid workloads rather than blocking everything.
 #
-# securityContext satisfies PodSecurity "restricted" so PodSecurity does not
-# reject the pod before Kyverno evaluates it. Without this the request is
-# refused for the wrong reason and proves nothing about image policy.
+# securityContext and resources are present so PodSecurity "restricted" and
+# mandate05-native-resource-requirements both pass. techx-tf3 layers three
+# admission controls ahead of Kyverno; without these the request is rejected
+# before the image policy is ever consulted, which proves nothing.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -24,6 +24,13 @@ spec:
     - name: probe
       image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:5035d76864dab66825703705d7c7af5ecccb5842750100bc3b4b0f0fe0bfa696
       command: ["sleep", "300"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 64Mi
       securityContext:
         allowPrivilegeEscalation: false
         capabilities:
