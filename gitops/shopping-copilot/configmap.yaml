@@ -55,6 +55,7 @@ data:
   SHIPPING_ADDR: "http://shipping.techx-tf3.svc.cluster.local:8080"
 
   # ── App ──────────────────────────────────────────────────────────
-  # Locked to the SSO-fronted hostname (see cloudflare-access.tf). Not "*".
-  CORS_ALLOWED_ORIGINS: "https://copilot.arthur-ngo.org"
+  # SSO hostname + the public storefront (embedded widget calls /api/copilot/* same-origin
+  # via Envoy, so CORS is not strictly required, but list the storefront for any direct call).
+  CORS_ALLOWED_ORIGINS: "https://copilot.arthur-ngo.org,https://d2tn71186d7ilz.cloudfront.net"
   LOG_LEVEL: "INFO"

@@ -4,7 +4,7 @@ metadata:
   name: frontend-proxy-business-policy
   namespace: techx-tf3
   annotations:
-    mandate-17.techx.io/service-clusterip-evidence: "2026-07-25:kube-dns=172.20.0.10,frontend=172.20.212.8,image-provider=172.20.1.116,flagd=172.20.213.30,otel-gateway=172.20.117.175"
+    mandate-17.techx.io/service-clusterip-evidence: "2026-07-25:kube-dns=172.20.0.10,frontend=172.20.212.8,image-provider=172.20.1.116,flagd=172.20.213.30,otel-gateway=172.20.117.175;2026-07-29:shopping-copilot=172.20.213.70"
 spec:
   podSelector:
     matchLabels:
@@ -75,3 +75,18 @@ spec:
       ports:
         - { protocol: TCP, port: 4317 }
         - { protocol: TCP, port: 4318 }
+    # Shopping Copilot: backs the public /api/copilot route added to Envoy. Without this
+    # rule the route fails closed (this policy is Ingress+Egress, so egress is default-deny)
+    # and the storefront chat widget would only ever get 503s.
+    # Both the podSelector AND the Service ClusterIP are listed: on VPC CNI a podSelector
+    # alone does not cover traffic addressed to a ClusterIP - that exact gap caused the
+    # 20/07 outage (postmortem 0012), which is why every rule above carries an ipBlock too.
+    # NOTE: shopping-copilot uses `app:` (not app.kubernetes.io/component) - its manifests
+    # live in gitops/shopping-copilot/, outside the techx-corp chart's labelling scheme.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: shopping-copilot
+        - ipBlock: { cidr: 172.20.213.70/32 }
+      ports:
+        - { protocol: TCP, port: 8001 }

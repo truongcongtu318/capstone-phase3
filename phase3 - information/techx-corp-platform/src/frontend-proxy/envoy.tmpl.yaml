@@ -73,6 +73,41 @@ static_resources:
                         - match: { prefix: "/api/products/" }
                           name: product_detail_protected
                           route: { cluster: frontend }
+                        # Shopping Copilot (AIO02) — public storefront integration.
+                        # /api/copilot/<x> -> shopping-copilot /api/<x> (chat, confirm, cart).
+                        # PUBLIC + unauthenticated LLM endpoint: per-route local rate limit
+                        # bounds how many requests reach Bedrock, capping worst-case token
+                        # cost from anonymous/bot abuse (app-level user_id limit is spoofable).
+                        # timeout 20s covers the app's 15s hard fallback.
+                        - match: { prefix: "/api/copilot/" }
+                          name: copilot
+                          route:
+                            cluster: shopping-copilot
+                            prefix_rewrite: "/api/"
+                            timeout: 20s
+                          typed_per_filter_config:
+                            envoy.filters.http.local_ratelimit:
+                              "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+                              stat_prefix: copilot_rate_limiter
+                              # ~2 req/s sustained per proxy (burst 120). With >=2 proxies the
+                              # aggregate cap bounds Bedrock spend. Tune via the values below.
+                              token_bucket:
+                                max_tokens: 120
+                                tokens_per_fill: 120
+                                fill_interval: 60s
+                              filter_enabled:
+                                default_value:
+                                  numerator: 100
+                                  denominator: HUNDRED
+                              filter_enforced:
+                                default_value:
+                                  numerator: 100
+                                  denominator: HUNDRED
+                              response_headers_to_add:
+                                - header:
+                                    key: x-techx-rate-limit
+                                    value: copilot
+                                  keep_empty_value: true
                         # PM-154 (load-shedding): browse/homepage catch-all — SHADOW.
                         # Requests above the calibrated per-proxy token bucket increment
                         # counters but are not rejected. Promote enforcement gradually
@@ -251,6 +286,18 @@ static_resources:
                     socket_address:
                       address: ${FRONTEND_HOST}
                       port_value: ${FRONTEND_PORT}
+    - name: shopping-copilot
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: shopping-copilot
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: shopping-copilot
+                      port_value: 8001
     - name: image-provider
       type: STRICT_DNS
       lb_policy: ROUND_ROBIN
