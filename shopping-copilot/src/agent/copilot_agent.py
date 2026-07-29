@@ -11,10 +11,13 @@ import uuid
 import time
 import hashlib
 import logging
+import contextvars
 from typing import Dict, Any, List, Optional
 
 from langchain_aws import ChatBedrockConverse
 from langchain_core.messages import HumanMessage, SystemMessage
+
+from src.telemetry import trace_llm_ctx, get_tracer
 
 from src.guardrails import (
     rate_limiter,
@@ -28,6 +31,19 @@ from src.guardrails import (
     with_fallback,
     MaxIterationsExceeded,
     MAX_TOOL_ITERATIONS,
+)
+from src.guardrails.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerOpen,
+    CircuitBreakerConfig,
+)
+from src.guardrails.retry import retry_with_backoff, RetryConfig
+from src.guardrails.schema_validator import (
+    validate_intent_parser_output,
+    validate_planner_output,
+    validate_synthesis_output,
+    repair_intent_fallback,
+    repair_plan_fallback,
 )
 from src.memory import SessionStore, CacheStore
 from src.tools import all_shopping_tools
@@ -54,19 +70,58 @@ class CopilotAgent:
         self.llm = self._build_llm()
         self._steps: List[Dict[str, Any]] = []
 
+        # ── MANDATE #25: Resilience Components ──
+        # Circuit breaker for Bedrock provider (5 failures → open, 60s recovery timeout, 2 successes to close)
+        self._bedrock_breaker = CircuitBreaker(
+            "bedrock",
+            CircuitBreakerConfig(
+                failure_threshold=5, recovery_timeout=60, success_threshold=2
+            ),
+        )
+        # Retry config for transient failures (max 3 retries, exponential backoff 1-8s)
+        self._retry_config = RetryConfig(
+            max_retries=3, initial_delay_ms=1000, max_delay_ms=8000
+        )
+
+        # ── MANDATE #23: GenAI Cache + Long-term Memory ──
+        from src.memory.genai_cache import get_genai_cache_store
+        from src.memory.longterm_memory import get_longterm_memory_store
+
+        self._genai_cache = get_genai_cache_store()
+        self._longterm_memory = get_longterm_memory_store()
+
     def _build_llm(self):
-        model = os.getenv("BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
-        region = os.getenv("BEDROCK_REGION", "ap-southeast-1")
+        model = os.getenv("BEDROCK_MODEL_ID")
+        region = os.getenv("BEDROCK_REGION")
+        fallback_model = os.getenv("BEDROCK_FALLBACK_MODEL_ID")
+
         try:
-            return ChatBedrockConverse(
+            self.llm = ChatBedrockConverse(
                 model=model,
                 region_name=region,
                 temperature=0.1,
                 max_tokens=2048,
             )
         except Exception as e:
-            logger.error(f"[AGENT] Cannot init Bedrock LLM: {e}")
-            return None
+            logger.error(f"[AGENT] Cannot init Primary Bedrock LLM ({model}): {e}")
+            self.llm = None
+
+        if fallback_model and fallback_model != model:
+            try:
+                self.fallback_llm = ChatBedrockConverse(
+                    model=fallback_model,
+                    region_name=region,
+                    temperature=0.1,
+                    max_tokens=2048,
+                )
+                logger.info(f"[AGENT] Secondary Fallback LLM initialized: {fallback_model}")
+            except Exception as e:
+                logger.warning(f"[AGENT] Cannot init Secondary Fallback LLM ({fallback_model}): {e}")
+                self.fallback_llm = None
+        else:
+            self.fallback_llm = None
+
+        return self.llm
 
     def _time(self, action: str) -> tuple:
         return _now_ms(), action
@@ -80,6 +135,80 @@ class CopilotAgent:
                 "duration_ms": _now_ms() - start,
             }
         )
+
+    async def _call_llm(self, messages: list, **kwargs):
+        ctx = trace_llm_ctx.get()
+        if ctx is None:
+            if self.llm:
+                try:
+                    return await self.llm.ainvoke(messages, **kwargs)
+                except Exception as e:
+                    if hasattr(self, "fallback_llm") and self.fallback_llm:
+                        return await self.fallback_llm.ainvoke(messages, **kwargs)
+                    raise
+            elif hasattr(self, "fallback_llm") and self.fallback_llm:
+                return await self.fallback_llm.ainvoke(messages, **kwargs)
+            else:
+                raise RuntimeError("No LLM available")
+
+        prompt_text = " ".join(m.content for m in messages if hasattr(m, "content"))
+        trace_id = str(uuid.uuid4())
+        t0 = time.time()
+        try:
+            response = await self.llm.ainvoke(messages, **kwargs)
+            latency_ms = int((time.time() - t0) * 1000)
+            get_tracer().record_call(
+                trace_id=trace_id,
+                request_id=ctx["request_id"],
+                layer=ctx["layer"],
+                session_id=ctx.get("session_id", ""),
+                user_id=ctx.get("user_id", ""),
+                prompt_text=prompt_text,
+                response=response,
+                outcome="ok",
+                latency_ms=latency_ms,
+            )
+            return response
+        except Exception as primary_err:
+            if hasattr(self, "fallback_llm") and self.fallback_llm is not None:
+                try:
+                    logger.warning(
+                        f"[AGENT] Primary LLM failed ({primary_err}). Attempting Secondary Fallback Model..."
+                    )
+                    response = await self.fallback_llm.ainvoke(messages, **kwargs)
+                    latency_ms = int((time.time() - t0) * 1000)
+                    get_tracer().record_call(
+                        trace_id=trace_id,
+                        request_id=ctx["request_id"],
+                        layer=ctx["layer"],
+                        session_id=ctx.get("session_id", ""),
+                        user_id=ctx.get("user_id", ""),
+                        prompt_text=prompt_text,
+                        response=response,
+                        outcome="fallback",
+                        error=f"Primary model failed ({primary_err}), used secondary model",
+                        latency_ms=latency_ms,
+                    )
+                    return response
+                except Exception as secondary_err:
+                    logger.error(
+                        f"[AGENT] Secondary Fallback LLM also failed: {secondary_err}"
+                    )
+
+            latency_ms = int((time.time() - t0) * 1000)
+            get_tracer().record_call(
+                trace_id=trace_id,
+                request_id=ctx["request_id"],
+                layer=ctx["layer"],
+                session_id=ctx.get("session_id", ""),
+                user_id=ctx.get("user_id", ""),
+                prompt_text=prompt_text,
+                response=None,
+                error=str(primary_err),
+                outcome="error",
+                latency_ms=latency_ms,
+            )
+            raise primary_err
 
     def _extract_text(self, response: Any) -> str:
         final = response.content if hasattr(response, "content") else str(response)
@@ -95,10 +224,13 @@ class CopilotAgent:
             final = "".join(text_parts)
         return final or ""
 
-    # LAYER 1: Intent Parser
+    # LAYER 1: Intent Parser (with retry, circuit-breaker, schema validation)
     async def _parse_intent_with_llm(self, user_message: str, session: dict) -> dict:
         if not self.llm:
             # Fallback keyword logic if LLM is down
+            logger.warning(
+                "[INTENT] LLM is None, using keyword-based heuristic fallback"
+            )
             lower = user_message.lower()
             if "cart" in lower or "giỏ hàng" in lower:
                 if "add" in lower or "thêm" in lower:
@@ -140,39 +272,65 @@ class CopilotAgent:
         chat_history = self._sessions.get_recent_history_str(
             session.get("session_id", "")
         )
+
+        # ── MANDATE #23: Inject Long-term Memory into Prompt ──
+        user_id = session.get("user_id", "anonymous")
+        longterm_context = self._longterm_memory.get_context_summary(user_id)
+        if longterm_context:
+            chat_history = f"{longterm_context}\n\n{chat_history}"
+
         prompt = INTENT_PARSE_PROMPT.format(
             chat_history=chat_history, context=context_str, user_message=user_message
         )
 
-        # ── Check Cache cho Intent Parser ──
+        # ── Check Cache for Intent Parser ──
         prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
         cache_key = f"intent:{prompt_hash}"
         cached_intent = self._cache.get_raw(cache_key)
         if cached_intent is not None:
-            logger.debug("Cache HIT for Intent Parser")
+            logger.debug("[INTENT] Cache HIT")
             return cached_intent
 
+        # ── MANDATE #25: Resilient LLM call with retry + circuit-breaker + schema validation ──
         try:
-            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
-            text = self._extract_text(response)
-            # clean code block if any
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0]
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0]
+            # Check if circuit breaker is open (fast-fail)
+            if self._bedrock_breaker.is_open:
+                logger.warning(
+                    "[INTENT] Circuit breaker is OPEN for Bedrock, using fallback"
+                )
+                return repair_intent_fallback(user_message)
 
-            parsed_intent = json.loads(text.strip())
+            # Call with retry on transient failures
+            async def _call_intent_parser():
+                response = await self._call_llm([HumanMessage(content=prompt)])
+                return self._extract_text(response)
 
-            # Lưu vào cache trong 10 phút
+            text = await retry_with_backoff(
+                _call_intent_parser, config=self._retry_config
+            )
+
+            # Validate & repair schema
+            validation = validate_intent_parser_output(text)
+            if validation.is_valid:
+                parsed_intent = validation.data
+                # Mark that we used LLM (not fallback)
+                parsed_intent["_model_source"] = "llm"
+            else:
+                logger.warning(
+                    f"[INTENT] Schema validation failed: {validation.error}. Using fallback."
+                )
+                parsed_intent = repair_intent_fallback(text)
+                parsed_intent["_model_source"] = "repaired"
+
+            # Cache for 10 minutes
             self._cache.set_raw(cache_key, parsed_intent, ttl=600)
             return parsed_intent
+
         except Exception as e:
-            logger.error(f"Intent parse failed: {e}")
-            return {
-                "task_type": "search",
-                "target_entity": "product",
-                "product_query": user_message,
-            }
+            logger.error(
+                f"[INTENT] Fatal error in intent parsing: {e}. Using fallback."
+            )
+            return repair_intent_fallback(user_message)
 
     # Structured context resolution — trusts LLM's context_reference & ordinal_index
     def _resolve_context_references(self, intent: dict, session: dict) -> dict:
@@ -311,7 +469,7 @@ class CopilotAgent:
 
         return intent
 
-    # LAYER 2: LLM-driven Planner with Rule-based Fallback
+    # LAYER 2: LLM-driven Planner with Rule-based Fallback (with resilience)
     async def _build_plan_with_llm(
         self, intent: dict, user_id: str, session: dict
     ) -> List[dict]:
@@ -319,7 +477,7 @@ class CopilotAgent:
         if task_type in ["greeting", "unknown", "unsupported_cart_action", "clarify"]:
             return []
 
-        # First, try the deterministic Heuristic Planner
+        # First, try the deterministic Heuristic Planner (always works, no LLM dependency)
         heuristic_plan = self._build_plan_from_intent(intent, user_id)
         if heuristic_plan:
             logger.info(
@@ -328,9 +486,17 @@ class CopilotAgent:
             return heuristic_plan
 
         # Fallback to LLM Planner only if heuristic planner produced no plan
+        # ── MANDATE #25: Resilient LLM plan generation with circuit-breaker + retry + validation ──
         if self.llm:
             try:
                 from src.llm.prompt import LLM_PLANNER_PROMPT
+
+                # Check circuit breaker first (fast-fail if Bedrock is broken)
+                if self._bedrock_breaker.is_open:
+                    logger.warning(
+                        "[PLANNER] Circuit breaker OPEN, skipping LLM, returning empty plan"
+                    )
+                    return []
 
                 ctx_dict = session.get("context", {})
                 ctx_summary = {
@@ -344,18 +510,38 @@ class CopilotAgent:
                     intent_json=json.dumps(intent, ensure_ascii=False),
                     user_id=user_id,
                 )
-                response = await self.llm.ainvoke([HumanMessage(content=prompt)])
-                text = self._extract_text(response).strip()
+
+                # Call with retry + circuit breaker protection
+                async def _call_planner():
+                    response = await self._call_llm([HumanMessage(content=prompt)])
+                    return self._extract_text(response)
+
+                text = await retry_with_backoff(
+                    _call_planner, config=self._retry_config
+                )
+                text = text.strip()
+
+                # Extract JSON (handle markdown blocks)
                 if "```json" in text:
                     text = text.split("```json")[1].split("```")[0]
                 elif "```" in text:
                     text = text.split("```")[1].split("```")[0]
 
-                plan = json.loads(text.strip())
-                if isinstance(plan, list) and len(plan) <= 6:
-                    valid_tools = set(TOOLS_MAP.keys()).union(
-                        {"__fetch_reviews_for_context__"}
+                # ── Schema validation: ensure plan is valid before using ──
+                validation = validate_planner_output(text)
+                if not validation.is_valid:
+                    logger.warning(
+                        f"[PLANNER] Schema validation failed: {validation.error}. Falling back to empty plan."
                     )
+                    return repair_plan_fallback()
+
+                plan = validation.data
+
+                # Validate tool names and structure
+                valid_tools = set(TOOLS_MAP.keys()).union(
+                    {"__fetch_reviews_for_context__"}
+                )
+                if isinstance(plan, list) and len(plan) <= 6:
                     if all(
                         isinstance(step, dict) and step.get("name") in valid_tools
                         for step in plan
@@ -364,8 +550,22 @@ class CopilotAgent:
                             f"[PLANNER] LLM generated plan with {len(plan)} steps"
                         )
                         return plan
+                    else:
+                        logger.warning(
+                            "[PLANNER] Plan contains invalid tool names, using empty plan"
+                        )
+                        return repair_plan_fallback()
+                else:
+                    logger.warning(
+                        "[PLANNER] Plan validation failed (not list or too many steps)"
+                    )
+                    return repair_plan_fallback()
+
             except Exception as e:
-                logger.warning(f"[PLANNER] LLM plan generation failed ({e})")
+                logger.warning(
+                    f"[PLANNER] LLM plan generation failed ({e}), using empty plan"
+                )
+                return repair_plan_fallback()
 
         return []
 
@@ -958,7 +1158,7 @@ REPLY:
 Respond with exactly one word: PASS or FAIL
 """
         try:
-            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            response = await self._call_llm([HumanMessage(content=prompt)])
             text = self._extract_text(response).strip().upper()
             return "FAIL" not in text
         except Exception as e:
@@ -1110,7 +1310,7 @@ Respond with exactly one word: PASS or FAIL
         )
 
         try:
-            response = await self.llm.ainvoke(
+            response = await self._call_llm(
                 [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)]
             )
             reply = self._extract_text(response)
@@ -1191,6 +1391,34 @@ Respond with exactly one word: PASS or FAIL
         self, session_id: str, user_id: str, user_message: str
     ) -> Dict[str, Any]:
         self._steps = []
+        request_id = get_tracer().create_request_id()
+
+        # ── MANDATE #23: GenAI Cache Check (trước rate limiter để tiết kiệm processing) ──
+        cache_hit_result = self._genai_cache.get(user_id, user_message)
+        if cache_hit_result:
+            logger.info(
+                "[CHAT] GenAI Cache HIT | user=%s | session=%s", user_id, session_id
+            )
+            # Restore session state from cache
+            session = self._sessions.get_or_create(session_id, user_id)
+            self._sessions.append_message(session_id, "user", user_message)
+            self._sessions.append_message(
+                session_id, "assistant", cache_hit_result["reply"]
+            )
+            self._sessions.touch(session_id)
+
+            # Return cached response with cache:hit flag
+            return {
+                "status": "ok",
+                "reply": cache_hit_result["reply"],
+                "session_id": session_id,
+                "request_id": request_id,
+                "token": None,
+                "steps": cache_hit_result.get("steps", []),
+                "intent": cache_hit_result.get("intent"),
+                "evidence": cache_hit_result.get("evidence"),
+                "cache": "hit",  # ← MANDATE #23: Cache flag for BTC validation
+            }
 
         s1, a1 = self._time("RateLimiter")
         rate_res = rate_limiter.check_rate_limit(user_id)
@@ -1200,7 +1428,9 @@ Respond with exactly one word: PASS or FAIL
                 "status": "error",
                 "reply": rate_res.blocked_reason,
                 "session_id": session_id,
+                "request_id": request_id,
                 "steps": list(self._steps),
+                "cache": "miss",
             }
         self._end(s1, a1, "PASS", "Rate OK")
 
@@ -1281,6 +1511,7 @@ Respond with exactly one word: PASS or FAIL
                     ),
                     "token": pending["token"],
                     "session_id": session_id,
+                    "request_id": request_id,
                     "steps": [],
                 }
 
@@ -1292,6 +1523,7 @@ Respond with exactly one word: PASS or FAIL
                 "status": "error",
                 "reply": detail,
                 "session_id": session_id,
+                "request_id": request_id,
                 "steps": list(self._steps),
                 "intent": {},
                 "evidence": {},
@@ -1307,6 +1539,7 @@ Respond with exactly one word: PASS or FAIL
         self._sessions.append_message(session_id, "user", user_message)
 
         # L1: Parse Intent
+        trace_llm_ctx.set({"layer": "intent_parser", "request_id": request_id, "session_id": session_id, "user_id": user_id})
         s3, a3 = self._time("IntentParser")
         raw_intent = await self._parse_intent_with_llm(user_message, session)
         intent = self._resolve_context_references(raw_intent, session)
@@ -1324,9 +1557,11 @@ Respond with exactly one word: PASS or FAIL
                 "status": "ok",
                 "reply": reply,
                 "session_id": session_id,
+                "request_id": request_id,
                 "steps": list(self._steps),
                 "intent": intent,
                 "evidence": {},
+                "cache": "miss",
             }
 
         # Short-circuit: task types that never require tool execution.
@@ -1335,6 +1570,7 @@ Respond with exactly one word: PASS or FAIL
         # not an implementation detail (e.g. "cart is empty").
         _NO_TOOL_TASKS = {"greeting", "unknown", "unsupported_cart_action", "clarify"}
         if intent.get("task_type") in _NO_TOOL_TASKS:
+            trace_llm_ctx.set({"layer": "synthesis", "request_id": request_id, "session_id": session_id, "user_id": user_id})
             s_skip, a_skip = self._time("AnswerGenerator")
             reply = await self._generate_grounded_answer(user_message, {}, intent)
             output_filtered = filter_output(reply)
@@ -1351,12 +1587,15 @@ Respond with exactly one word: PASS or FAIL
                 "status": "ok",
                 "reply": reply,
                 "session_id": session_id,
+                "request_id": request_id,
                 "steps": list(self._steps),
                 "intent": intent,
                 "evidence": {},
+                "cache": "miss",
             }
 
         # L2: Planner
+        trace_llm_ctx.set({"layer": "planner", "request_id": request_id, "session_id": session_id, "user_id": user_id})
         s4, a4 = self._time("Planner")
         plan = await self._build_plan_with_llm(intent, user_id, session)
         self._end(s4, a4, "OK", f"Plan steps: {len(plan)}")
@@ -1383,9 +1622,11 @@ Respond with exactly one word: PASS or FAIL
                 "reply": reply,
                 "token": exec_result["token"],
                 "session_id": session_id,
+                "request_id": request_id,
                 "steps": list(self._steps),
                 "intent": intent,
                 "evidence": exec_result.get("evidence", {}),
+                "cache": "miss",
             }
 
         if exec_result.get("status") == "error":
@@ -1395,12 +1636,15 @@ Respond with exactly one word: PASS or FAIL
                 "status": "error",
                 "reply": reply,
                 "session_id": session_id,
+                "request_id": request_id,
                 "steps": list(self._steps),
                 "intent": intent,
                 "evidence": exec_result.get("evidence", {}),
+                "cache": "miss",
             }
 
         # L5 & L6: Answer Gen + Guarding
+        trace_llm_ctx.set({"layer": "synthesis", "request_id": request_id, "session_id": session_id, "user_id": user_id})
         s6, a6 = self._time("AnswerGenerator")
         reply = await self._generate_grounded_answer(
             user_message, exec_result.get("evidence", {}), intent
@@ -1419,6 +1663,7 @@ Respond with exactly one word: PASS or FAIL
             "add_to_cart",
             "view_cart",
         ]:
+            trace_llm_ctx.set({"layer": "faithfulness_guard", "request_id": request_id, "session_id": session_id, "user_id": user_id})
             is_faithful = await self._check_faithfulness(
                 exec_result.get("evidence", {}), reply
             )
@@ -1434,13 +1679,55 @@ Respond with exactly one word: PASS or FAIL
         self._sessions.append_message(session_id, "assistant", reply)
         self._sessions.touch(session_id)
 
+        # ── MANDATE #23: Cache GenAI Response (Post-Guardrail) ──
+        response_data = {
+            "reply": reply,
+            "steps": list(self._steps),
+            "intent": intent,
+            "evidence": exec_result.get("evidence", {}),
+        }
+
+        # Extract entities for cache invalidation
+        entities = []
+        if intent.get("product_id"):
+            entities.append({"type": "product", "id": intent["product_id"]})
+
+        evidence = exec_result.get("evidence", {})
+        if isinstance(evidence, dict):
+            for k, v in evidence.items():
+                if isinstance(v, dict):
+                    if v.get("product_id"):
+                        entities.append({"type": "product", "id": v["product_id"]})
+                    for item in v.get("products", []):
+                        if isinstance(item, dict) and item.get("id"):
+                            entities.append({"type": "product", "id": item["id"]})
+                elif isinstance(v, list):
+                    for item in v:
+                        if isinstance(item, dict) and item.get("id"):
+                            entities.append({"type": "product", "id": item["id"]})
+
+        import re
+        prod_matches = re.findall(r'\b[A-Z0-9]{8,12}\b', user_message)
+        for pm in prod_matches:
+            if pm not in [user_id, session_id]:
+                entities.append({"type": "product", "id": pm})
+
+        self._genai_cache.set(user_id, user_message, response_data, entities)
+
+        # ── MANDATE #23: Extract & Store Long-term Memory ──
+        self._extract_and_store_longterm_memory(
+            user_id, user_message, intent, exec_result
+        )
+
         return {
             "status": "ok",
             "reply": reply,
             "session_id": session_id,
+            "request_id": request_id,
             "steps": list(self._steps),
             "intent": intent,
             "evidence": exec_result.get("evidence", {}),
+            "cache": "miss",  # ← MANDATE #23: Cache flag (this is a fresh response)
         }
 
     async def confirm(
@@ -1487,6 +1774,71 @@ Respond with exactly one word: PASS or FAIL
             return {"status": "error", "reply": f"Lỗi gRPC: {e.details()}"}
         finally:
             channel.close()
+
+    # ── MANDATE #23: Long-term Memory Extraction ──
+    def _extract_and_store_longterm_memory(
+        self, user_id: str, user_message: str, intent: dict, exec_result: dict
+    ) -> None:
+        """
+        Trích xuất và lưu thông tin vào Long-term Memory.
+        Được gọi sau mỗi lần chat thành công.
+        """
+        try:
+            task_type = intent.get("task_type")
+
+            # Update interaction summary
+            topics = []
+            if task_type == "search":
+                query = intent.get("product_query", "")
+                if query:
+                    topics.append(query[:50])  # First 50 chars as topic
+            elif task_type in ["lookup", "get_reviews"]:
+                pname = intent.get("product_name", "")
+                if pname:
+                    topics.append(pname)
+
+            self._longterm_memory.update_interaction_summary(user_id, topics)
+
+            # Extract preferences from constraints
+            constraints = intent.get("constraints", {})
+            if constraints:
+                if constraints.get("price_max"):
+                    self._longterm_memory.add_preference(
+                        user_id,
+                        "budget",
+                        f"under {constraints['price_max']} USD",
+                        confidence=0.7,
+                    )
+                if constraints.get("category"):
+                    self._longterm_memory.add_preference(
+                        user_id, "category", constraints["category"], confidence=0.8
+                    )
+
+            # Extract purchase info from add_to_cart
+            if task_type == "add_to_cart" and exec_result.get("status") != "pending":
+                product_id = intent.get("product_id")
+                product_name = intent.get("product_name", "")
+                if product_id and product_name:
+                    self._longterm_memory.add_purchase(
+                        user_id, product_id, product_name
+                    )
+
+            # Extract product interest from searches
+            if task_type == "search" and exec_result.get("evidence"):
+                evidence = exec_result.get("evidence", {})
+                products = evidence.get("products", [])
+                if products and len(products) > 0:
+                    # User is interested in this category/type
+                    first_product = products[0]
+                    if isinstance(first_product, dict):
+                        categories = first_product.get("categories", [])
+                        if categories:
+                            self._longterm_memory.add_preference(
+                                user_id, "category", categories[0], confidence=0.6
+                            )
+
+        except Exception as e:
+            logger.warning("[LONGTERM] Failed to extract memory: %s", e)
 
     @property
     def sessions(self) -> "SessionStore":
