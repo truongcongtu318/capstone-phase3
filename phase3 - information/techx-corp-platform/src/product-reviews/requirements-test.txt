@@ -1,0 +1,6 @@
+# Test-only dependencies. KHÔNG gộp vào requirements.txt — Dockerfile cài
+# requirements.txt vào image production, pytest không có việc gì ở đó.
+#
+# Pin cứng: các test này là gate CI, không được đổi hành vi vì runner tình cờ có
+# sẵn version khác.
+pytest==8.4.1

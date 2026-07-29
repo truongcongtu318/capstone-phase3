@@ -1,0 +1,36 @@
+# G4 — Helm render với ĐỦ 6 lớp values (đúng thứ tự ArgoCD dùng)
+
+CI (build-push-ecr.yml) chỉ render 3/6 lớp. Đây là bản render thủ công bù vào
+khoảng trống đó — xem CDO-11 (vẫn OPEN).
+
+Thứ tự (gitops/apps/techx-corp.yaml):
+  1. techx-corp-chart/values.yaml
+  2. deploy/values-flagd-sync.yaml
+  3. deploy/values-prod.yaml
+  4. deploy/values-mandate13.yaml
+  5. deploy/values-aio-llm.yaml
+  6. deploy/values-serviceaccounts.yaml
+
+helm lint : 1 chart linted, 0 failed
+helm template : exit 0, 22882 dòng
+
+## Kiểm tra Deployment product-reviews sau render
+  PASS image dạng ECR repository + immutable digest
+  PASS serviceAccountName: product-reviews-bedrock
+  PASS ServiceAccount mang annotation eks.amazonaws.com/role-arn (IRSA Bedrock)
+  PASS secret RDS techx-tf3-postgres-conn
+  PASS secret Valkey techx-tf3-valkey-auth (TLS/auth)
+  PASS port 3551
+  PASS readinessProbe = grpc:3551 (DB-aware, KHÔNG phải tcpSocket)
+  PASS livenessProbe  = tcpSocket:3551
+  PASS strategy maxUnavailable: 0 / maxSurge: 1
+  PASS resources requests + limits
+  PASS topologySpread hostname + zone
+  PASS LLM_PROVIDER=bedrock
+  PASS không có static AWS access key trong manifest
+
+## Không có manifest runtime ngoài phạm vi
+Diff số resource render được so với origin/main:
+  baseline (origin/main) resources: 106
+  candidate (branch này)  resources: 106
+  => KHỚP TUYỆT ĐỐI: PR-B không thay đổi bất kỳ manifest render nào (đúng như kỳ vọng: đây là PR code-only)

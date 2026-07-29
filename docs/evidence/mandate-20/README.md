@@ -21,6 +21,9 @@ Add drill records here after execution:
 
 | File | Purpose |
 |---|---|
+| `production-baseline-gap-analysis.md` | Đối chiếu directive với ADR/runbook hiện tại và liệt kê gap còn thiếu |
+| `production-baseline-template.md` | Mẫu điền baseline production thật cho từng tầng dữ liệu/state trước buổi drill |
+| `production-baseline-YYYYMMDD.md` | Baseline production thật cho mọi data-tier/state trước buổi drill |
 | `rds-pitr-drill-YYYYMMDD.md` | Main RDS restore drill result |
 | `rds-pitr-drill-YYYYMMDD-raw/` | Raw CLI/SQL output and screenshots, if needed |
 
@@ -56,3 +59,12 @@ Mentor/PM witness:
 | EBS legacy | Pending M8/M18 decision | Do not use as M20 proof unless ownership is clarified | Pending/accepted limitation |
 | GitOps/IaC state | Pending state restore target if claimed | Git/state/versioning/Object Lock evidence if claimed | Commit/state/backend evidence |
 | IAM/KMS/delete permission | CDO01 dependency | Delete authority matrix needs review/accepted risk | Security verdict required |
+
+## Current recommendation
+
+Trước khi chạy restore drill, CDO02 nên tạo thêm:
+
+- `production-baseline-YYYYMMDD.md`
+- raw inventory/screenshot tương ứng cho từng tầng dữ liệu/state
+
+Lý do: Mandate 20 chấm trên toàn bộ tầng dữ liệu và trạng thái cụm/hạ tầng, không chỉ riêng RDS PITR drill.

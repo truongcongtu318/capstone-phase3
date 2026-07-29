@@ -46,3 +46,28 @@ CREATE TABLE IF NOT EXISTS reviews.fidelity_audit (
 -- its own grant. The audit path also needs the sequence to INSERT via SERIAL.
 GRANT SELECT, INSERT, UPDATE ON reviews.fidelity_audit TO otelu;
 GRANT USAGE, SELECT ON SEQUENCE reviews.fidelity_audit_id_seq TO otelu;
+
+-- Step 5: Tier-2 static summary store (product-reviews Sprint 3, Release A).
+-- Giữ bản tóm tắt canonical gần nhất đã được judge duyệt, để phục vụ khi Bedrock
+-- lỗi / circuit breaker OPEN / rate-limit / timeout. Additive: image cũ không đọc
+-- bảng này, nên rollback image không cần drop table.
+--
+-- Khoá theo product_id: một sản phẩm giữ đúng MỘT bản tóm tắt canonical. Vì vậy
+-- runtime chỉ persist câu trả lời cho câu hỏi dạng summary (is_summary_request) —
+-- nếu không, câu trả lời hẹp ("có chống nước không?") sẽ ghi đè bản tóm tắt.
+-- review_version = get_review_version() lúc sinh câu trả lời; fallback so giá trị
+-- này với version hiện tại và bỏ qua row đã cũ (không có TTL, freshness theo version).
+-- rating_distribution: giữ chỗ theo contract AIO, LUÔN NULL ở Release A (chưa caller nào ghi).
+CREATE TABLE IF NOT EXISTS reviews.product_summaries (
+    product_id VARCHAR(50) PRIMARY KEY,
+    summary_text TEXT NOT NULL,
+    rating_distribution TEXT,
+    review_version VARCHAR(100),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Step 6: Grant cho `otelu`. Least privilege — runtime chỉ SELECT + upsert
+-- (INSERT ... ON CONFLICT DO UPDATE). KHÔNG cấp DELETE: không có use case xoá ở
+-- Release A, và row cũ đã được vô hiệu hoá bằng review_version chứ không bằng xoá.
+-- PK là product_id (không phải SERIAL) nên không cần grant sequence.
+GRANT SELECT, INSERT, UPDATE ON reviews.product_summaries TO otelu;

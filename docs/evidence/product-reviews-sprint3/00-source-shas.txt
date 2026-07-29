@@ -1,0 +1,32 @@
+# Nguồn đã cố định cho Release A (Tier-2 fallback)
+
+MAIN_BASE_SHA=19d15bef5d3339905760259019cfe2b08343caf9
+AIO_SOURCE_SHA=98f67031f55b6a1716b18a0431f3722a5a43c597
+MERGE_BASE=24e854ad33040a8194f2ed4900ba310c4970051b
+INTEGRATION_BRANCH=feat/product-reviews-sprint3-port
+FROZEN_AT=2026-07-29T05:56:17Z
+
+## Khoảng cách hai nhánh (left=main, right=aio)
+1440	14
+
+## Diff toàn cây (vì sao KHÔNG merge/copy nguyên nhánh)
+ 1314 files changed, 23099 insertions(+), 294793 deletions(-)
+
+## Diff riêng thư mục product-reviews
+ .../src/product-reviews/.env.example               |   7 +-
+ .../src/product-reviews/Dockerfile                 |  19 +-
+ .../src/product-reviews/database.py                | 119 ++---
+ .../src/product-reviews/db_migration_worker.py     |  37 +-
+ .../src/product-reviews/genproto/Dockerfile        |   2 +-
+ .../src/product-reviews/guardrails/fallback.py     |  14 +-
+ .../src/product-reviews/guardrails/routing.py      |   7 +-
+ .../src/product-reviews/migration.sql              |  55 +--
+ .../src/product-reviews/product_reviews_server.py  | 458 +++++++++++++------
+ .../src/product-reviews/test_circuit_breaker.py    |  73 +++
+ .../src/product-reviews/test_database_summary.py   |  73 +++
+ .../src/product-reviews/test_error_injection.py    | 508 +++++++++++++++++++++
+ .../src/product-reviews/test_fallback_tier2.py     | 116 +++++
+ .../src/product-reviews/test_runtime_guardrails.py | 504 ++++++++++++++++++++
+ .../product-reviews/test_summary_persistence.py    | 144 ++++++
+ .../src/product-reviews/test_tool_validator.py     |  73 +++
+ 16 files changed, 1929 insertions(+), 280 deletions(-)

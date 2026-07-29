@@ -210,3 +210,77 @@ def get_review_version(product_id: str) -> str:
     finally:
         if connection is not None:
             db_pool.putconn(connection)
+
+
+def save_product_summary(product_id: str, summary_text: str, rating_distribution: str = None,
+                         review_version: str = None) -> bool:
+    """Upsert bản tóm tắt đã được duyệt vào reviews.product_summaries (Tier-2 fallback store).
+
+    Chỉ được gọi cho canonical summary đã qua judge — xem _should_persist trong
+    product_reviews_server.py. `review_version` là giá trị get_review_version() tại thời
+    điểm sinh câu trả lời; nó là thứ quyết định summary còn dùng được hay đã cũ khi fallback.
+    """
+    connection = None
+    try:
+        connection = get_db_connection()
+        with connection.cursor() as cursor:
+            query = """
+                INSERT INTO reviews.product_summaries
+                    (product_id, summary_text, rating_distribution, review_version, updated_at)
+                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (product_id)
+                DO UPDATE SET
+                    summary_text = EXCLUDED.summary_text,
+                    rating_distribution = EXCLUDED.rating_distribution,
+                    review_version = EXCLUDED.review_version,
+                    updated_at = CURRENT_TIMESTAMP;
+            """
+            cursor.execute(query, (product_id, summary_text, rating_distribution, review_version))
+        connection.commit()
+        logger.info("[DATABASE] Saved static summary for product_id: %s", product_id)
+        return True
+    except Exception as e:
+        if connection is not None:
+            connection.rollback()
+        logger.error("[DATABASE] Error saving product summary for product_id %s: %s", product_id, e)
+        raise e
+    finally:
+        if connection is not None:
+            db_pool.putconn(connection)
+
+
+def fetch_product_summary_from_db(product_id: str) -> dict | None:
+    """Đọc bản tóm tắt tĩnh đã lưu (Tier-2 fallback). None nếu chưa có.
+
+    Trả cả `review_version` — caller PHẢI so nó với get_review_version(product_id) trước
+    khi phục vụ, nếu không sẽ trả tóm tắt đã lỗi thời so với tập review hiện tại.
+    """
+    connection = None
+    try:
+        connection = get_db_connection()
+        with connection.cursor() as cursor:
+            query = """
+                SELECT product_id, summary_text, rating_distribution, review_version, updated_at
+                FROM reviews.product_summaries
+                WHERE product_id = %s
+            """
+            cursor.execute(query, (product_id,))
+            row = cursor.fetchone()
+        connection.commit()
+        if row:
+            return {
+                "product_id": row[0],
+                "summary_text": row[1],
+                "rating_distribution": row[2],
+                "review_version": row[3],
+                "updated_at": row[4],
+            }
+        return None
+    except Exception as e:
+        if connection is not None:
+            connection.rollback()
+        logger.error("[DATABASE] Error fetching product summary for product_id %s: %s", product_id, e)
+        raise e
+    finally:
+        if connection is not None:
+            db_pool.putconn(connection)

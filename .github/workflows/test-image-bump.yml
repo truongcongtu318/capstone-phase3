@@ -6,6 +6,7 @@ name: Test Image Bump PR
       - ".github/workflows/**"
       - ".semgrep/**"
       - ".trivy-secret.yaml"
+      - "gitops/karpenter/**"
       - "scripts/ci/**"
       - "docs/ci-image-override-walkthrough.md"
   workflow_dispatch:

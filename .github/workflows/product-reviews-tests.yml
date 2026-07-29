@@ -1,0 +1,59 @@
+# CDO-03: chạy bộ test của service product-reviews trong CI.
+#
+# build-push-ecr.yml build/scan/sign image nhưng chưa từng chạy test của service này,
+# nên các bất biến reliability (readiness DB-aware, admission control, xử lý PoolError)
+# và semantics Tier-2 không có gate nào bảo vệ. Workflow này là gate đó.
+#
+# Python 3.10 của các workflow khác là để chạy tooling trong scripts/ci. Ở đây phải
+# khớp runtime image (python:3.12-alpine trong Dockerfile của service).
+name: Product Reviews Tests
+
+"on":
+  pull_request:
+    paths:
+      - "phase3 - information/techx-corp-platform/src/product-reviews/**"
+      - ".github/workflows/product-reviews-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "phase3 - information/techx-corp-platform/src/product-reviews/**"
+      - ".github/workflows/product-reviews-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "phase3 - information/techx-corp-platform/src/product-reviews"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check \
+            -r requirements.txt \
+            -r requirements-test.txt
+
+      - name: Check syntax
+        run: |
+          set -euo pipefail
+          python -m compileall -q .
+
+      - name: Run tests
+        run: |
+          set -euo pipefail
+          # Không giới hạn danh sách file: file test mới phải tự động được chạy, nếu
+          # không thì bộ test lại âm thầm rỗng đi như trước.
+          # test_client.py cần một gRPC server đang chạy — nó là công cụ smoke tay,
+          # không phải unit test, nên loại ra.
+          python -m pytest -q --ignore=test_client.py

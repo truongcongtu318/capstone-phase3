@@ -6,7 +6,7 @@
 one wave per PR and retain already promoted waves. Never add all remaining
 services in one PR.
 
-Current candidate: **Wave 1 only**.
+Current state: **Waves 1-8 promoted and verified**.
 
 ## Promotion waves
 
@@ -46,6 +46,8 @@ After Argo sync:
 
 Hold each wave for at least five minutes after all replicas become Ready. Open
 the next PR only after its evidence is attached.
+
+The final rollout is complete through Wave 8.
 
 ## Rollback
 

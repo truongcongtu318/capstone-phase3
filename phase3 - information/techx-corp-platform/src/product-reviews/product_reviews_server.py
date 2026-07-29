@@ -136,7 +136,14 @@ except ImportError:  # pragma: no cover - local unit-test fallback
         )
     )
     health_pb2_grpc = SimpleNamespace(add_HealthServicer_to_server=lambda *args, **kwargs: None)
-from database import fetch_product_reviews, fetch_product_reviews_from_db, fetch_avg_product_review_score_from_db, get_review_version
+from database import (
+    fetch_product_reviews,
+    fetch_product_reviews_from_db,
+    fetch_avg_product_review_score_from_db,
+    fetch_product_summary_from_db,
+    get_review_version,
+    save_product_summary,
+)
 from guardrails.cache import (
     acquire_lock,
     generate_cache_key,
@@ -266,6 +273,47 @@ INACCURATE_SUMMARY_FIXTURES = {
 
 REVIEW_REDACTED_MESSAGE = "[Review removed due to security policy]"
 UNTRUSTED_REDACTED_MESSAGE = "[Untrusted content removed due to security policy]"
+
+
+def resolve_fallback_summary(product_id: str, span=None) -> tuple[str, int]:
+    """Fallback theo tầng khi không gọi được LLM. Trả (text, tier).
+
+    Tier-2 = bản tóm tắt canonical đã duyệt trong reviews.product_summaries, CHỈ khi
+    review_version của nó còn khớp version hiện tại. Lệch version, thiếu version, hoặc
+    DB lỗi → Tier-3 (thông báo tĩnh). Fail closed có chủ đích: trả tóm tắt mô tả một tập
+    review đã đổi thì tệ hơn là thừa nhận AI đang bận.
+
+    Bảng rỗng lúc go-live là bình thường — mọi request rơi Tier-3, đúng bằng hành vi
+    trước khi có Tier-2, rồi tự ấm dần khi các câu hỏi summary được duyệt.
+
+    Đây là đường LỖI nên phải rẻ: khi pool cạn get_db_connection() raise PoolError ngay
+    (REL-05) và ta rơi Tier-3 thay vì kéo dài request đang hỏng.
+    """
+    try:
+        summary_data = fetch_product_summary_from_db(product_id)
+        if summary_data and summary_data.get("summary_text"):
+            stored_version = summary_data.get("review_version")
+            current_version = get_review_version(product_id)
+            if stored_version and current_version and stored_version == current_version:
+                logger.info(
+                    "[FALLBACK] Tier 2 hit product_id=%s version=%s", product_id, stored_version
+                )
+                if span:
+                    span.set_attribute("app.fallback.tier", 2)
+                return summary_data["summary_text"], 2
+            logger.info(
+                "[FALLBACK] Tier 2 skipped (stale summary) product_id=%s stored=%s current=%s",
+                product_id,
+                stored_version,
+                current_version,
+            )
+    except Exception as err:
+        logger.warning("[FALLBACK] Tier 2 lookup failed product_id=%s: %s", product_id, err)
+
+    logger.info("[FALLBACK] Tier 3 product_id=%s", product_id)
+    if span:
+        span.set_attribute("app.fallback.tier", 3)
+    return FALLBACK_SUMMARY_MESSAGE, 3
 
 
 def _sanitize_prompt_value(value):
@@ -900,6 +948,47 @@ def log_fidelity_audit_async(product_id, model, approved, input_tokens, output_t
     )
 
 
+def _save_product_summary_safe(product_id, summary_text, review_version):
+    """Thân của save_product_summary_async — nuốt mọi lỗi.
+
+    Chạy trên db_write_executor nên không có ai await; một exception thoát ra đây chỉ
+    nằm im trong Future và biến mất. Ghi log tường minh thay vì để nó chìm.
+    """
+    try:
+        save_product_summary(
+            product_id=product_id,
+            summary_text=summary_text,
+            review_version=review_version,
+        )
+        logger.info(
+            "[DB_SUMMARY] Persisted canonical summary product_id=%s version=%s",
+            product_id,
+            review_version,
+        )
+    except Exception as err:
+        logger.warning(
+            "[DB_SUMMARY] Persist failed product_id=%s: %s", product_id, err
+        )
+
+
+def save_product_summary_async(product_id, summary_text, review_version):
+    """Ghi Tier-2 summary ngoài đường request.
+
+    Theo đúng pattern log_fidelity_audit_async: ghi đồng bộ trong finally sẽ cộng một
+    round-trip RDS vào p99 của MỌI câu trả lời AI thành công, mà bản ghi này chỉ phục vụ
+    một sự cố trong tương lai — không đáng để nằm trên đường nóng.
+    """
+    try:
+        db_write_executor.submit(
+            _save_product_summary_safe, product_id, summary_text, review_version
+        )
+    except Exception as err:
+        # Executor đã shutdown (đang drain SIGTERM) → bỏ qua, không làm hỏng response.
+        logger.warning(
+            "[DB_SUMMARY] Could not submit persist task product_id=%s: %s", product_id, err
+        )
+
+
 class ProductReviewService(demo_pb2_grpc.ProductReviewServiceServicer):
     def GetProductReviews(self, request, context):
         logger.info(f"Receive GetProductReviews for product id:{request.product_id}")
@@ -927,6 +1016,17 @@ class ProductReviewService(demo_pb2_grpc.ProductReviewServiceServicer):
             with tracer.start_as_current_span("ask_product_ai_assistant_shed") as span:
                 span.set_attribute("app.product.id", request.product_id)
                 span.set_status(Status(StatusCode.ERROR, description="ai_concurrency_limit_reached"))
+                span.set_attribute("app.fallback.tier", 3)
+            # Shed trước đây chỉ để lại log + span, không counter nào — nghĩa là không
+            # dashboard/alert nào thấy được. Đếm ở đây để "source" của app_ai_fallback_total
+            # bao phủ đủ mọi đường trả về FALLBACK_SUMMARY_MESSAGE.
+            #
+            # Cố ý KHÔNG gọi resolve_fallback_summary: shed tồn tại để giải phóng worker
+            # trong ~50ms, thêm một round-trip DB vào đây sẽ phá đúng thứ nó bảo vệ.
+            product_review_svc_metrics["app_ai_fallback_total"].add(
+                1,
+                {"source": "admission_control", "error": "concurrency_limit", "tier": "3"},
+            )
             response = demo_pb2.AskProductAIAssistantResponse()
             response.response = FALLBACK_SUMMARY_MESSAGE
             return response
@@ -1125,23 +1225,25 @@ def get_ai_assistant_response(request_product_id, question, context=None):
                 logger.warning(f"[FALLBACK_OVERRIDE] Key active, bypassing LLM for product_id: {request_product_id}")
                 span.set_attribute("app.fallback.triggered", True)
                 span.set_attribute("app.fallback.source", "redis_override")
+                fallback_text, fallback_tier = resolve_fallback_summary(request_product_id, span)
                 product_review_svc_metrics["app_ai_fallback_total"].add(
                     1,
-                    {"source": "redis_override", "error": "forced"},
+                    {"source": "redis_override", "error": "forced", "tier": str(fallback_tier)},
                 )
                 product_review_svc_metrics["app_ai_assistant_counter"].add(1, {'product.id': request_product_id})
-                return finalize_response(FALLBACK_SUMMARY_MESSAGE, outcome="fallback", fallback_reason="redis_override")
+                return finalize_response(fallback_text, outcome="fallback", fallback_reason="redis_override")
 
             if not circuit_breaker.allow_request():
                 logger.warning(f"[CIRCUIT_BREAKER] Circuit is OPEN, bypassing LLM for product_id: {request_product_id}")
                 span.set_attribute("app.fallback.triggered", True)
                 span.set_attribute("app.fallback.source", "circuit_breaker")
+                fallback_text, fallback_tier = resolve_fallback_summary(request_product_id, span)
                 product_review_svc_metrics["app_ai_fallback_total"].add(
                     1,
-                    {"source": "circuit_breaker", "error": "open"},
+                    {"source": "circuit_breaker", "error": "open", "tier": str(fallback_tier)},
                 )
                 product_review_svc_metrics["app_ai_assistant_counter"].add(1, {'product.id': request_product_id})
-                return finalize_response(FALLBACK_SUMMARY_MESSAGE, outcome="fallback", fallback_reason="circuit_breaker_open")
+                return finalize_response(fallback_text, outcome="fallback", fallback_reason="circuit_breaker_open")
 
             # --- Error Injection Endpoint hook (Task 3) ---
             # Ưu tiên trước x-force-llm-error metadata để AIOps có thể
@@ -1159,26 +1261,38 @@ def get_ai_assistant_response(request_product_id, question, context=None):
                 if injected_err == "circuit_breaker":
                     # Simulate circuit breaker trip via actual CB record_failure
                     circuit_breaker.record_failure()
+                    fallback_text, fallback_tier = resolve_fallback_summary(request_product_id, span)
                     product_review_svc_metrics["app_ai_fallback_total"].add(
-                        1, {"source": "circuit_breaker", "error": "injected"}
+                        1,
+                        {
+                            "source": "circuit_breaker",
+                            "error": "injected",
+                            "tier": str(fallback_tier),
+                        },
                     )
                     product_review_svc_metrics["app_ai_assistant_counter"].add(
                         1, {"product.id": request_product_id}
                     )
                     return finalize_response(
-                        FALLBACK_SUMMARY_MESSAGE,
+                        fallback_text,
                         outcome="fallback",
                         fallback_reason="error_injection_circuit_breaker",
                     )
                 else:
+                    fallback_text, fallback_tier = resolve_fallback_summary(request_product_id, span)
                     product_review_svc_metrics["app_ai_fallback_total"].add(
-                        1, {"source": "error_injection", "error": injected_err}
+                        1,
+                        {
+                            "source": "error_injection",
+                            "error": injected_err,
+                            "tier": str(fallback_tier),
+                        },
                     )
                     product_review_svc_metrics["app_ai_assistant_counter"].add(
                         1, {"product.id": request_product_id}
                     )
                     return finalize_response(
-                        FALLBACK_SUMMARY_MESSAGE,
+                        fallback_text,
                         outcome="fallback",
                         fallback_reason=f"error_injection_{injected_err}",
                     )
@@ -1195,16 +1309,22 @@ def get_ai_assistant_response(request_product_id, question, context=None):
                 logger.warning("[FORCED_ERROR] Metadata x-force-llm-error=429 received, triggering Rate Limit Fallback.")
                 span.set_attribute("app.fallback.triggered", True)
                 span.set_attribute("app.fallback.source", "rate_limit")
-                product_review_svc_metrics["app_ai_fallback_total"].add(1, {"source": "rate_limit", "error": "429"})
+                fallback_text, fallback_tier = resolve_fallback_summary(request_product_id, span)
+                product_review_svc_metrics["app_ai_fallback_total"].add(
+                    1, {"source": "rate_limit", "error": "429", "tier": str(fallback_tier)}
+                )
                 product_review_svc_metrics["app_ai_assistant_counter"].add(1, {'product.id': request_product_id})
-                return finalize_response(FALLBACK_SUMMARY_MESSAGE, outcome="fallback", fallback_reason="forced_429")
+                return finalize_response(fallback_text, outcome="fallback", fallback_reason="forced_429")
             if force_err_code == "timeout":
                 logger.warning("[FORCED_ERROR] Metadata x-force-llm-error=timeout received, triggering Timeout Fallback.")
                 span.set_attribute("app.fallback.triggered", True)
                 span.set_attribute("app.fallback.source", "timeout")
-                product_review_svc_metrics["app_ai_fallback_total"].add(1, {"source": "timeout", "error": "timeout"})
+                fallback_text, fallback_tier = resolve_fallback_summary(request_product_id, span)
+                product_review_svc_metrics["app_ai_fallback_total"].add(
+                    1, {"source": "timeout", "error": "timeout", "tier": str(fallback_tier)}
+                )
                 product_review_svc_metrics["app_ai_assistant_counter"].add(1, {'product.id': request_product_id})
-                return finalize_response(FALLBACK_SUMMARY_MESSAGE, outcome="fallback", fallback_reason="forced_timeout")
+                return finalize_response(fallback_text, outcome="fallback", fallback_reason="forced_timeout")
 
             user_prompt, accurate_prompt, inaccurate_prompt = build_runtime_prompts(request_product_id, safe_question)
             system_prompt = build_system_prompt()
@@ -1397,13 +1517,20 @@ def get_ai_assistant_response(request_product_id, question, context=None):
                             logger.error(f"[MALFORMED_TOOL_ARGS] Invalid tool arguments: {val_err}")
                             span.set_attribute("app.fallback.triggered", True)
                             span.set_attribute("app.fallback.source", "malformed_tool_args")
+                            fallback_text, fallback_tier = resolve_fallback_summary(
+                                request_product_id, span
+                            )
                             product_review_svc_metrics["app_ai_fallback_total"].add(
                                 1,
-                                {"source": "malformed_tool_args", "error": val_err or "invalid_schema"},
+                                {
+                                    "source": "malformed_tool_args",
+                                    "error": val_err or "invalid_schema",
+                                    "tier": str(fallback_tier),
+                                },
                             )
                             product_review_svc_metrics["app_ai_assistant_counter"].add(1, {'product.id': request_product_id})
                             return finalize_response(
-                                FALLBACK_SUMMARY_MESSAGE,
+                                fallback_text,
                                 outcome="fallback",
                                 fallback_reason="malformed_tool_args",
                             )
@@ -1530,6 +1657,29 @@ def get_ai_assistant_response(request_product_id, question, context=None):
                     },
                 }
                 set_cached_response(cache_key, cache_data)
+
+            # Tier-2 store: ghi lại bản tóm tắt canonical để phục vụ khi LLM hỏng.
+            #
+            # Gate is_summary_request là BẮT BUỘC, không phải tinh chỉnh: product_summaries
+            # khoá theo product_id nên mỗi sản phẩm chỉ giữ một row. Nếu persist mọi câu
+            # trả lời approved/deterministic thì câu hỏi hẹp ("có chống nước không?") sẽ ghi
+            # đè bản tóm tắt, và lần fallback sau sẽ trả câu trả lời chống nước cho người
+            # hỏi "tóm tắt review giúp tôi". judge_status một mình không chặn được điều này:
+            # "deterministic" đến từ các router trả lời câu hỏi hẹp, còn "approved" áp cho
+            # mọi câu trả lời grounded khi judge_all_grounded_answers được bật.
+            _should_persist = (
+                result is not None
+                and judge_status in ("approved", "deterministic")
+                and is_summary_request(safe_question)
+                and result not in (
+                    FALLBACK_SUMMARY_MESSAGE,
+                    UNVERIFIED_SUMMARY_MESSAGE,
+                    OUT_OF_SCOPE_MESSAGE,
+                    NO_INFO_MESSAGE,
+                )
+            )
+            if _should_persist:
+                save_product_summary_async(request_product_id, result, review_version)
 
 
 def fetch_product_info(product_id):

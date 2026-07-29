@@ -106,7 +106,7 @@ spec:
           values: ["spot"]
         - key: karpenter.k8s.aws/instance-category
           operator: In
-          values: ["c", "m", "r", "t"]
+          values: ["c", "m"]
         - key: karpenter.k8s.aws/instance-generation
           operator: Gt
           values: ["2"]
@@ -123,9 +123,9 @@ spec:
       expireAfter: 168h
       terminationGracePeriod: 10m
   limits:
-    cpu: "8"
-    memory: 32Gi
-    nodes: 2
+    cpu: "16"
+    memory: 64Gi
+    nodes: 4
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     consolidateAfter: 10m

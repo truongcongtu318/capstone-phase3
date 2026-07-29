@@ -1,6 +1,6 @@
 # T10 — Workload identity hygiene
 
-Status: **Wave 1 candidate**
+Status: **Completed through Wave 8**
 
 ## Scope confirmed from the live cluster
 
@@ -89,7 +89,7 @@ For a component with a `serviceAccount` override, the parent chart:
 4. creates no RBAC.
 
 The migration values file is loaded after production values. It is cumulative
-but contains only waves already approved for production.
+and now contains all waves approved through Wave 8.
 
 ## Definition of done
 
@@ -100,3 +100,4 @@ but contains only waves already approved for production.
 - No business Pod contains a `kube-api-access-*` volume.
 - Existing IRSA and observability identities remain unchanged.
 - Browse, cart and checkout smoke tests pass after each wave.
+- Wave 8 (`flagd`) is the final promoted wave.

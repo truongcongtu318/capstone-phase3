@@ -1,0 +1,117 @@
+# G3 — unit + regression tests
+
+Chạy trong container python:3.12-slim (khớp runtime image; máy dev là NixOS,
+grpc cython không load được libstdc++ nên không dùng venv local làm bằng chứng).
+
+```
+docker run --rm -v "<repo>/src/product-reviews:/app:ro" -w /app python:3.12-slim bash -c \
+  "pip install -r requirements.txt -r requirements-test.txt && python -m pytest -q --ignore=test_client.py"
+```
+
+*** Error compiling './aiops_replay_sim.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/aiops_replay_sim.cpython-312.pyc.132503886294416'
+*** Error compiling './database.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/database.cpython-312.pyc.132503884404400'
+*** Error compiling './db_migration_worker.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/db_migration_worker.cpython-312.pyc.132503886294416'
+*** Error compiling './demo_pb2.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/demo_pb2.cpython-312.pyc.132503884405840'
+*** Error compiling './demo_pb2_grpc.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/demo_pb2_grpc.cpython-312.pyc.132503886294416'
+*** Error compiling './guardrails/__init__.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/__init__.cpython-312.pyc.132503886294416'
+*** Error compiling './guardrails/cache.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/cache.cpython-312.pyc.132503886294416'
+*** Error compiling './guardrails/circuit_breaker.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/circuit_breaker.cpython-312.pyc.132503886312064'
+*** Error compiling './guardrails/error_injection.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/error_injection.cpython-312.pyc.132503886312064'
+*** Error compiling './guardrails/evaluator.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/evaluator.cpython-312.pyc.132503886294416'
+*** Error compiling './guardrails/fallback.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/fallback.cpython-312.pyc.132503886294416'
+*** Error compiling './guardrails/input_filter.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/input_filter.cpython-312.pyc.132503886294416'
+*** Error compiling './guardrails/llm_trace.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/llm_trace.cpython-312.pyc.132503886294416'
+*** Error compiling './guardrails/output_filter.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/output_filter.cpython-312.pyc.132503886294416'
+*** Error compiling './guardrails/routing.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/routing.cpython-312.pyc.132503886294416'
+*** Error compiling './guardrails/tool_validator.py'...
+OSError: [Errno 30] Read-only file system: './guardrails/__pycache__/tool_validator.cpython-312.pyc.132503886294416'
+*** Error compiling './metrics.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/metrics.cpython-312.pyc.132503884405840'
+*** Error compiling './product_reviews_server.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/product_reviews_server.cpython-312.pyc.132503886294416'
+*** Error compiling './test_circuit_breaker.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/test_circuit_breaker.cpython-312.pyc.132503886294416'
+*** Error compiling './test_client.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/test_client.cpython-312.pyc.132503886294416'
+*** Error compiling './test_database_summary.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/test_database_summary.cpython-312.pyc.132503886294416'
+*** Error compiling './test_fallback_tier2.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/test_fallback_tier2.cpython-312.pyc.132503886294416'
+*** Error compiling './test_main_safeguards.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/test_main_safeguards.cpython-312.pyc.132503886294416'
+*** Error compiling './test_summary_persistence.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/test_summary_persistence.cpython-312.pyc.132503884305520'
+*** Error compiling './test_tool_validator.py'...
+OSError: [Errno 30] Read-only file system: './__pycache__/test_tool_validator.cpython-312.pyc.132503884305520'
+
+test_circuit_breaker.py::test_circuit_breaker_initial_state PASSED       [  1%]
+test_circuit_breaker.py::test_circuit_breaker_trip_to_open PASSED        [  3%]
+test_circuit_breaker.py::test_circuit_breaker_cooldown_to_half_open_and_recovery PASSED [  5%]
+test_circuit_breaker.py::test_circuit_breaker_half_open_failure_reopens PASSED [  7%]
+test_database_summary.py::TestDatabaseSummary::test_fetch_product_summary_from_db_returns_dict PASSED [  9%]
+test_database_summary.py::TestDatabaseSummary::test_fetch_product_summary_from_db_returns_none_when_empty PASSED [ 10%]
+test_database_summary.py::TestDatabaseSummary::test_save_product_summary_executes_upsert PASSED [ 12%]
+test_fallback_tier2.py::TestTier2VersionGuard::test_matching_version_serves_tier2 PASSED [ 14%]
+test_fallback_tier2.py::TestTier2VersionGuard::test_null_version_falls_through_to_tier3 PASSED [ 16%]
+test_fallback_tier2.py::TestTier2VersionGuard::test_stale_version_falls_through_to_tier3 PASSED [ 18%]
+test_fallback_tier2.py::TestTier2Availability::test_db_error_returns_tier3 PASSED [ 20%]
+test_fallback_tier2.py::TestTier2Availability::test_missing_row_returns_tier3 PASSED [ 21%]
+test_fallback_tier2.py::TestTier2Availability::test_version_lookup_error_returns_tier3 PASSED [ 23%]
+test_fallback_tier2.py::TestTier2AcrossFallbackTriggers::test_circuit_breaker_open_serves_tier2 PASSED [ 25%]
+test_fallback_tier2.py::TestTier2AcrossFallbackTriggers::test_forced_timeout_serves_tier2 PASSED [ 27%]
+test_fallback_tier2.py::TestTier2AcrossFallbackTriggers::test_injected_circuit_breaker_serves_tier2 PASSED [ 29%]
+test_fallback_tier2.py::TestTier2AcrossFallbackTriggers::test_redis_override_serves_tier2 PASSED [ 30%]
+test_fallback_tier2.py::TestResolveFallbackSummaryUnit::test_empty_summary_text_is_not_served PASSED [ 32%]
+test_fallback_tier2.py::TestResolveFallbackSummaryUnit::test_returns_tier_number_alongside_text PASSED [ 34%]
+test_fallback_tier2.py::TestResolveFallbackSummaryUnit::test_span_records_tier_attribute PASSED [ 36%]
+test_main_safeguards.py::TestDependencyAwareReadiness::test_db_failure_reports_not_serving PASSED [ 38%]
+test_main_safeguards.py::TestDependencyAwareReadiness::test_healthy_db_reports_serving PASSED [ 40%]
+test_main_safeguards.py::TestDependencyAwareReadiness::test_service_itself_is_the_health_servicer PASSED [ 41%]
+test_main_safeguards.py::TestDependencyAwareReadiness::test_shutdown_reports_not_serving_without_touching_db PASSED [ 43%]
+test_main_safeguards.py::TestAiAdmissionControl::test_admission_wait_stays_short PASSED [ 45%]
+test_main_safeguards.py::TestAiAdmissionControl::test_semaphore_exists_with_bounded_capacity PASSED [ 47%]
+test_main_safeguards.py::TestAiAdmissionControl::test_semaphore_released_when_handler_raises PASSED [ 49%]
+test_main_safeguards.py::TestAiAdmissionControl::test_shed_returns_fallback_and_counts_metric PASSED [ 50%]
+test_main_safeguards.py::TestConnectionPoolSafety::test_broken_pool_is_closed_before_rebuild PASSED [ 52%]
+test_main_safeguards.py::TestConnectionPoolSafety::test_pool_exhaustion_raises_without_rebuilding PASSED [ 54%]
+test_main_safeguards.py::TestConnectionPoolSafety::test_pool_sizing_defaults_stay_conservative PASSED [ 56%]
+test_main_safeguards.py::TestFlagdReadsPreserved::test_both_injection_flags_are_still_read PASSED [ 58%]
+test_main_safeguards.py::TestFlagdReadsPreserved::test_check_feature_flag_helper_exists PASSED [ 60%]
+test_summary_persistence.py::TestPersistenceIntentGate::test_narrow_question_approved_is_not_persisted PASSED [ 61%]
+test_summary_persistence.py::TestPersistenceIntentGate::test_narrow_question_deterministic_is_not_persisted PASSED [ 63%]
+test_summary_persistence.py::TestPersistenceIntentGate::test_summary_question_approved_is_persisted PASSED [ 65%]
+test_summary_persistence.py::TestPersistenceIntentGate::test_summary_question_deterministic_is_persisted PASSED [ 67%]
+test_summary_persistence.py::TestPersistenceStatusGate::test_fallback_message_is_not_persisted PASSED [ 69%]
+test_summary_persistence.py::TestPersistenceStatusGate::test_no_info_message_is_not_persisted PASSED [ 70%]
+test_summary_persistence.py::TestPersistenceStatusGate::test_rejected_status_is_not_persisted PASSED [ 72%]
+test_summary_persistence.py::TestPersistenceStatusGate::test_unverified_message_is_not_persisted PASSED [ 74%]
+test_summary_persistence.py::TestPersistenceIsNonFatal::test_async_wrapper_submits_to_db_write_executor PASSED [ 76%]
+test_summary_persistence.py::TestPersistenceIsNonFatal::test_async_wrapper_swallows_submit_errors PASSED [ 78%]
+test_summary_persistence.py::TestPersistenceIsNonFatal::test_executor_failure_does_not_break_a_successful_answer PASSED [ 80%]
+test_summary_persistence.py::TestPersistenceIsNonFatal::test_worker_swallows_db_errors PASSED [ 81%]
+test_tool_validator.py::test_validate_product_id_valid PASSED            [ 83%]
+test_tool_validator.py::test_validate_product_id_invalid_type PASSED     [ 85%]
+test_tool_validator.py::test_validate_product_id_empty PASSED            [ 87%]
+test_tool_validator.py::test_validate_product_id_too_long PASSED         [ 89%]
+test_tool_validator.py::test_validate_product_id_special_chars PASSED    [ 90%]
+test_tool_validator.py::test_validate_product_id_injection_patterns PASSED [ 92%]
+test_tool_validator.py::test_validate_tool_arguments_valid_json PASSED   [ 94%]
+test_tool_validator.py::test_validate_tool_arguments_malformed_json PASSED [ 96%]
+test_tool_validator.py::test_validate_tool_arguments_non_dict_json PASSED [ 98%]
+test_tool_validator.py::test_validate_tool_arguments_invalid_product_id PASSED [100%]
+============================== 55 passed in 2.08s ==============================

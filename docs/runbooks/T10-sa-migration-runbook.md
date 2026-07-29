@@ -34,7 +34,7 @@ Merge only one wave. Argo CD loads:
 phase3 - information/deploy/values-serviceaccounts.yaml
 ```
 
-The file is cumulative. The current PR contains Wave 1 only.
+The file is cumulative. The rollout is complete through Wave 8.
 
 Wait for Argo sync, then verify each newly migrated service:
 
@@ -103,3 +103,10 @@ If any gate fails:
 
 Do not manually patch all Deployments or run an untracked Helm rollback while
 Argo self-heal is active.
+
+Final verified rollout state:
+
+- all 18 business services use dedicated ServiceAccounts;
+- `product-reviews` stays on `product-reviews-bedrock`;
+- `cloudflared` uses its dedicated SA;
+- `flagd` was the last promoted wave.
