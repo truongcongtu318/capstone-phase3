@@ -1,0 +1,149 @@
+# One-off schema migration for the product-reviews AIO02 guardrails upgrade.
+#
+# RUN THIS BEFORE merging the bump-image PR that puts the new product-reviews
+# image on the cluster. The new database.py queries "... AND is_safe = TRUE"; if
+# the column does not exist yet, every review read fails immediately on the new
+# pods.
+#
+# NOT managed by ArgoCD on purpose — this is a one-off operational task, not
+# desired-state. Keep it out of gitops/infrastructure/ so ArgoCD does not adopt,
+# re-run or prune it. Apply by hand, check, then delete:
+#
+#   export AWS_PROFILE=techx-new
+#   # 1. set IMAGE below to the digest from the bump-image PR, then:
+#   kubectl apply -f gitops/jobs/product-reviews-schema-migration.yaml
+#   kubectl -n techx-tf3 wait --for=condition=complete job/product-reviews-schema-migration --timeout=600s
+#   kubectl -n techx-tf3 logs job/product-reviews-schema-migration
+#   # 2. verify (see the plan doc §6 step 2), then:
+#   kubectl -n techx-tf3 delete job product-reviews-schema-migration
+#
+# This runs ONLY the schema step (migration.sql). The batch scan that back-fills
+# is_safe on existing rows is deliberately NOT run here — it does UPDATEs across a
+# table shared with product-catalog/accounting, and it does not block go-live
+# because the new column defaults to TRUE. Run it separately after the rollout is
+# stable, via: python db_migration_worker.py
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: product-reviews-schema-migration
+  namespace: techx-tf3
+  labels:
+    app.kubernetes.io/name: product-reviews-schema-migration
+    app.kubernetes.io/part-of: techx-corp
+spec:
+  backoffLimit: 2
+  # Clean up on its own 1h after finishing, in case the manual delete is forgotten.
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: product-reviews-schema-migration
+    spec:
+      restartPolicy: Never
+      # Same placement as product-reviews so it lands on a node that can reach RDS
+      # through the same node security group.
+      nodeSelector:
+        techx.io/workload: elastic
+      tolerations:
+        - key: techx.io/workload
+          operator: Equal
+          value: elastic
+          effect: NoSchedule
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          # product-reviews image built from the merge of PR #554 (tag
+          # e285dda-30380286201-product-reviews, the same digest PR #556 bumps to).
+          # Digest-pinned to satisfy the PM-101 supply-chain gate — never a floating tag.
+          # This Job only READS migration.sql out of the image; it does not put this
+          # image on the Deployment, so running it does NOT deploy the new code.
+          image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:71b2618623e0375a38288a449a8a12d6bf86d640172b87090e80474c2cb64b3f
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            readOnlyRootFilesystem: true
+          env:
+            - name: DB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: techx-tf3-postgres-conn
+                  key: libpq
+          # Runs migration.sql with autocommit, which CREATE INDEX CONCURRENTLY
+          # requires. Executed inline rather than via db_migration_worker.py so ONLY
+          # the schema step runs — the worker would also start the full batch scan.
+          #
+          # Statements are split and sent ONE AT A TIME. autocommit alone is not
+          # enough: passing several statements in a single execute() makes
+          # PostgreSQL treat the whole string as one implicit transaction, and
+          # CREATE INDEX CONCURRENTLY is rejected inside a transaction block (this
+          # failed exactly that way on the first attempt). `--` comment lines are
+          # stripped before splitting because migration.sql has semicolons inside
+          # its comments, which would otherwise split statements in the wrong place.
+          #
+          # Every statement in migration.sql is IF NOT EXISTS / idempotent, so
+          # re-running after a partial failure is safe.
+          command:
+            - /venv/bin/python
+            - -c
+            - |
+              import os, sys, psycopg2
+              dsn = os.environ["DB_CONNECTION_STRING"]
+              raw = open("/app/migration.sql", encoding="utf-8").read()
+              body = "\n".join(
+                  line for line in raw.splitlines() if not line.strip().startswith("--")
+              )
+              statements = [s.strip() for s in body.split(";") if s.strip()]
+              conn = psycopg2.connect(dsn)
+              conn.autocommit = True
+              try:
+                  with conn.cursor() as cur:
+                      cur.execute("""
+                          SELECT count(*) FROM information_schema.columns
+                          WHERE table_schema='reviews' AND table_name='productreviews'
+                            AND column_name='is_safe'
+                      """)
+                      print("is_safe column present BEFORE:", cur.fetchone()[0], flush=True)
+                  for i, stmt in enumerate(statements, 1):
+                      head = " ".join(stmt.split())[:90]
+                      print(f"[{i}/{len(statements)}] {head}", flush=True)
+                      with conn.cursor() as cur:
+                          cur.execute(stmt)
+                  print("SCHEMA MIGRATION OK", flush=True)
+                  with conn.cursor() as cur:
+                      cur.execute("""
+                          SELECT column_name, data_type, column_default
+                          FROM information_schema.columns
+                          WHERE table_schema='reviews' AND table_name='productreviews'
+                            AND column_name='is_safe'
+                      """)
+                      print("is_safe column:", cur.fetchall(), flush=True)
+                      cur.execute("""
+                          SELECT indexrelid::regclass::text, indisvalid
+                          FROM pg_index
+                          WHERE indexrelid = 'reviews.productreviews_prod_safe_idx'::regclass
+                      """)
+                      print("index:", cur.fetchall(), flush=True)
+                      cur.execute("SELECT to_regclass('reviews.fidelity_audit')")
+                      print("fidelity_audit table:", cur.fetchone(), flush=True)
+                      cur.execute("SELECT count(*) FROM reviews.productreviews WHERE is_safe IS NOT TRUE")
+                      print("rows with is_safe not TRUE (expect 0 right after migration):",
+                            cur.fetchone(), flush=True)
+              except Exception as exc:
+                  print("SCHEMA MIGRATION FAILED:", exc, file=sys.stderr, flush=True)
+                  raise
+              finally:
+                  conn.close()
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

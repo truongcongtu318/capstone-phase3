@@ -16,6 +16,7 @@ spec:
         - ../deploy/values-prod.yaml
         - ../deploy/values-mandate13.yaml
         - ../deploy/values-aio-llm.yaml
+        - ../deploy/values-serviceaccounts.yaml
       parameters:
         - name: default.image.repository
           value: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp

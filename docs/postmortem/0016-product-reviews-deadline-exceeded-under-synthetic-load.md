@@ -14,8 +14,11 @@
 merge → ArgoCD Synced/Healthy, verify qua `kubectl` — xem §11.4). **P4 đã đo bằng dữ liệu thật (§12). P0 +
 P1 đã thực hiện bằng load test có kiểm soát trên production, capacity-arrival gap tái hiện được và fix
 hoạt động đúng thiết kế; phát hiện thêm root cause AI chậm là AWS Bedrock throttle, không phải bug
-product-reviews (§13).** **P3 đầy đủ (tách executor/deployment AI riêng thật) và P5 (deadline review theo
-p99) vẫn CHƯA làm** — incident **chưa đủ điều kiện đóng** theo §8, nhưng phần lớn evidence đã đủ.
+product-reviews (§13).** **Nâng cấp `product-reviews` lên bản AIO02 (cache Redis + circuit breaker) đã
+LIVE 28/07; đo lại đúng kịch bản 500 user: Bedrock throttle KHÔNG còn tái hiện, HPA thậm chí không cần
+scale, lỗi còn ~2.5% và 100% là `503` phân loại thay vì `500` mù (§14).** **P3 đầy đủ (tách
+executor/deployment AI riêng thật), P5 (deadline review theo p99) và capacity-arrival gap vẫn CHƯA xử lý**
+— incident **chưa đủ điều kiện đóng** theo §8, nhưng phần lớn evidence đã đủ.
 
 **Loại thay đổi của tài liệu này:** ban đầu docs-only; §11 bổ sung 28/07/2026 mô tả một PR code đề xuất
 P2 + admission-control nội-process cho P3 (không đổi manifest/HPA/cluster — chỉ app code). PR đã qua một
@@ -728,20 +731,65 @@ Dừng Locust (`/stop`) rồi swarm lại baseline. Revert PR
 3→2, đúng kế hoạch tạm thời đã ghi ở PR #543 (không giữ làm baseline mới nếu không có evidence riêng cho
 việc đó).
 
+## 14. Nâng cấp `product-reviews` theo bản AIO02 + đo lại (28/07/2026, sau §13)
+
+Sau §13, `product-reviews` được nâng cấp lên bản AIO02 (PR #554/#557/#558/#559 — chi tiết port và những
+chỗ cố ý không lấy nguyên bản upstream ở [`docs/product-reviews-guardrails-upgrade-plan.md`](../product-reviews-guardrails-upgrade-plan.md)).
+Bản này thêm **cache LLM bằng Redis**, **circuit breaker**, tool validator, off-topic routing, llm-trace.
+Fix PM-0016 (semaphore) và REL-02 (health phụ thuộc DB) được **re-apply thủ công** vì upstream không có.
+
+Đã migrate schema RDS (cột `is_safe`, index `CONCURRENTLY`, bảng `fidelity_audit`) trước khi deploy —
+zero downtime, `product-catalog`/`accounting` không restart.
+
+### 14.1 Đo lại đúng kịch bản 500 user đã gây sự cố (§13.4)
+
+| Chỉ số | §13 (trước nâng cấp) | 14.1 (sau nâng cấp) |
+|---|---|---|
+| Bedrock `ThrottlingException` | **hàng loạt** (§13.5) | **0** |
+| Semaphore shed (`concurrency limit reached`) | hàng trăm dòng | **0** (không cần tới) |
+| Redis cache hit | không có tính năng | **2664** |
+| HPA scale | 3→4 (có capacity-arrival gap) | **không scale**, giữ 2 replica, CPU 57-76% |
+| Lỗi `product-reviews` | có, kèm 500 mù trước khi vá P2 | 57/2307 ≈ **2.5%**, **100% là 503 phân loại, 0 lỗi 500** |
+| Pod restart | 0 | **0** |
+| DB pool exhausted | — | **0** |
+
+**Điều đã thật sự được giải quyết:** cache Redis hấp thụ gần như toàn bộ tải AI, nên **root cause của
+độ trễ AI 15-25s ở §13.5 (Bedrock rate limit) không còn tái hiện** ở cùng mức tải. Vì AI không còn ngốn
+CPU/thời gian, HPA thậm chí **không cần scale** — tức capacity-arrival gap không bị kích hoạt trong lần
+đo này. Đây là cải thiện thật, đo được, không phải suy luận.
+
+**Điều CHƯA được giải quyết:** ~2.5% request đọc review vẫn vượt deadline 500ms ở ~100 RPS với 2 pod.
+Khác biệt so với sự cố gốc là **cách hỏng**: giờ trả `503 DEPENDENCY_UNAVAILABLE` (widget hiện "không tải
+được") thay vì `500` mù hoặc rơi về danh sách rỗng gây hiểu nhầm "sản phẩm chưa có review". Nguyên nhân
+gốc — pod mới mất ~70-80s để Ready (§12) và AI vẫn dùng chung thread pool với đường đọc (§11.1) — vẫn còn.
+
+### 14.2 Back-fill `is_safe` — đã kiểm tra, là no-op
+
+Bản AIO02 làm `input_filter.py` chặt hơn nhiều (base64/hex, leetspeak, bỏ dấu tiếng Việt). Chạy back-fill
+mù có rủi ro đánh nhầm review hợp lệ thành unsafe → biến mất khỏi storefront (mọi query đều lọc
+`is_safe = TRUE`). Đã chạy **dry-run** trước (`gitops/jobs/product-reviews-is-safe-backfill-dryrun.yaml`):
+
+```text
+total reviews: 50
+scanned: 50
+WOULD MARK UNSAFE: 0
+```
+
+→ 0 false positive, back-fill là no-op thật sự, **không cần chạy**. Cột `is_safe` đã đúng cho cả 50 dòng.
+
 ### Còn thiếu để đóng incident theo §8
 
-- ✅ P0 — evidence pack thật đã lấy (§13): Locust config/kết quả từng stage, Events/HPA đúng cửa sổ, log
-  `product-reviews` xác nhận nguyên nhân (Bedrock throttle) tách biệt khỏi capacity-arrival gap.
-- ✅ P1 — đã áp dụng thật cho lần load test này (§13.2), đã revert sau khi xong (§13.6).
+- ✅ P0 — evidence pack thật đã lấy (§13) + đo lại sau nâng cấp (§14.1).
+- ✅ P1 — đã áp dụng thật cho lần load test §13 (§13.2), đã revert sau khi xong (§13.6).
 - ✅ P4 — đã đo (§12), dữ liệu thật.
-- **P3 đầy đủ** (tách executor/deployment AI riêng thật + canary) — **vẫn CHƯA làm, vẫn là việc quan
-  trọng nhất còn lại**. §11.1 blocker 1 + §13.4/§13.5 giờ có bằng chứng kép: admission control giảm thiệt
-  hại nhưng (a) không đảm bảo cô lập dưới backlog lớn (§11.1), và (b) root cause thật của độ trễ AI là
-  Bedrock rate limit — tách AI ra service/executor riêng sẽ giúp cấu hình concurrency/backoff cho path AI
-  độc lập khỏi path đọc nhanh, không phải chỉ giảm blast radius.
-- **P5** (deadline review) — giờ CÓ số liệu thật để làm: p95/p99 của Stage 2 (200 user, sạch) làm baseline
-  "khoẻ mạnh", so với Stage 3 (500 user, có capacity-arrival gap) để quyết định deadline hợp lý — **chưa
-  làm phép tính chính thức**, cần trích p95/p99 chính xác từ Locust CSV (chưa export) thay vì chỉ nhìn
-  RPS/fail tổng hợp đã ghi ở đây.
-- Nên xin quota tăng cho Bedrock `Converse` API (§13.5) nếu muốn AI assistant chịu được tải tương đương
-  Stage 3 mà không throttle — việc này ngoài phạm vi CDO02/postmortem này (thuộc AIO02).
+- ✅ **Bedrock throttle (§13.5)** — không còn tái hiện ở 500 user nhờ cache Redis (§14.1). **Việc xin tăng
+  quota Bedrock giờ KHÔNG còn gấp** — vẫn nên làm nếu muốn chịu tải cao hơn hoặc khi cache miss nhiều
+  (câu hỏi đa dạng hơn traffic Locust hiện tại, vốn lặp lại nên tỉ lệ hit rất cao). Thuộc AIO02.
+- **P3 đầy đủ** (tách executor/deployment AI riêng + canary) — **vẫn CHƯA làm**. Cache che được vấn đề ở
+  mức tải này nhưng không phải cô lập thật: khi cache miss cao (câu hỏi mới, sau khi TTL 86400s hết, hoặc
+  Redis lỗi), AI vẫn dùng chung thread pool với đường đọc.
+- **P5** (deadline review) — **vẫn CHƯA làm**, và giờ càng đáng làm: §14.1 cho thấy 2.5% đọc review vẫn
+  vượt 500ms ở 2 pod / ~100 RPS. Cần p95/p99 chính xác từ Locust CSV (chưa export) để quyết định giữ 500ms
+  hay nới, thay vì đoán.
+- **Capacity-arrival gap** (§12: pod đầu ~77s tới Ready, 39s chờ Karpenter) — chưa xử lý; hiện chỉ né được
+  bằng pre-scale thủ công (P1).

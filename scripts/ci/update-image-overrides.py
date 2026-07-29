@@ -9,7 +9,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 ALLOWED_SERVICES = {
-    "accounting", "ad", "cart", "checkout", "currency", "email",
+    "accounting", "ad", "aiops-engine", "cart", "checkout", "currency", "email",
     "fraud-detection", "frontend", "frontend-proxy", "image-provider",
     "kafka", "llm", "load-generator", "payment", "product-catalog",
     "product-reviews", "quote", "recommendation", "shipping", "flagd-ui",
@@ -28,6 +28,25 @@ NESTED_SIDECAR_SERVICES = {
 # `grafana.image` map instead of `components.<name>.imageOverride`.
 TOP_LEVEL_IMAGE_SERVICES = {
     "grafana": "grafana",
+}
+
+RAW_MANIFEST_SERVICES = {
+    "aiops-engine": [
+        {
+            "path": "gitops/aiops-engine/deployment.yaml",
+            "kind": "Deployment",
+            "container": "engine",
+            "containers_path": ("spec", "template", "spec", "containers"),
+        },
+        {
+            "path": "gitops/aiops-engine/cronjob.yaml",
+            "kind": "CronJob",
+            "container": "trainer",
+            "containers_path": (
+                "spec", "jobTemplate", "spec", "template", "spec", "containers",
+            ),
+        },
+    ],
 }
 
 ALLOWED_MEDIA_TYPES = {
@@ -161,6 +180,18 @@ def parse_yaml_strict(filepath):
         fail("components missing or non-mapping")
     return doc
 
+def parse_yaml_document_strict(filepath):
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    try:
+        with open(filepath, "r") as f:
+            doc = yaml.load(f)
+    except Exception as e:
+        fail(f"Malformed YAML or duplicate keys in {filepath}: {e}")
+    if not isinstance(doc, dict):
+        fail(f"YAML root must be a mapping in {filepath}")
+    return doc
+
 def find_indent(line):
     return len(line) - len(line.lstrip())
 
@@ -231,6 +262,120 @@ def replace_yaml_scalar_line(line, key, value, force_quote=False):
         value_text = f"'{value_text}'"
     return line[:match.start(2)] + value_text + line[match.end(2):]
 
+def full_tagged_digest_image(registry, repository, tag, digest):
+    return f"{registry}/{repository}:{tag}@{digest}"
+
+def split_tagged_digest_image(image):
+    if "@sha256:" not in image:
+        return None, None
+    before_digest, digest = image.rsplit("@", 1)
+    tag = None
+    if ":" in before_digest.rsplit("/", 1)[-1]:
+        tag = before_digest.rsplit(":", 1)[1]
+    return tag, digest
+
+def nested_get(mapping, path, filepath):
+    current = mapping
+    for key in path:
+        if not isinstance(current, dict) or key not in current:
+            fail(f"RAW_MANIFEST_PATH_MISSING: {filepath}:{'.'.join(path)}")
+        current = current[key]
+    return current
+
+def resolve_raw_manifest_container(root, target):
+    filepath = root / target["path"]
+    if not filepath.exists() or filepath.is_symlink() or not filepath.is_file():
+        fail(f"RAW_MANIFEST_MISSING: {target['path']}")
+
+    doc = parse_yaml_document_strict(filepath)
+    if doc.get("kind") != target["kind"]:
+        fail(f"RAW_MANIFEST_KIND_MISMATCH: {target['path']}")
+
+    containers = nested_get(doc, target["containers_path"], target["path"])
+    if not isinstance(containers, list):
+        fail(f"RAW_MANIFEST_CONTAINERS_MISSING: {target['path']}")
+
+    matches = [
+        item for item in containers
+        if isinstance(item, dict) and item.get("name") == target["container"]
+    ]
+    if len(matches) != 1:
+        fail(
+            "RAW_MANIFEST_CONTAINER_MISSING: "
+            f"{target['path']}:{target['container']}"
+        )
+    container = matches[0]
+    if "image" not in container:
+        fail(f"RAW_MANIFEST_IMAGE_MISSING: {target['path']}:{target['container']}")
+    if not isinstance(container["image"], str):
+        fail(f"RAW_MANIFEST_IMAGE_NON_SCALAR: {target['path']}:{target['container']}")
+    return filepath, container
+
+def validate_raw_manifest_service(root, name):
+    for target in RAW_MANIFEST_SERVICES[name]:
+        resolve_raw_manifest_container(root, target)
+
+def update_raw_manifest_service(root, svc_info, manifest, summary):
+    name = svc_info["name"]
+    new_image = full_tagged_digest_image(
+        manifest["registry"],
+        manifest["repository"],
+        svc_info["tag"],
+        svc_info["digest"],
+    )
+
+    for target in RAW_MANIFEST_SERVICES[name]:
+        filepath, container = resolve_raw_manifest_container(root, target)
+        raw_bytes = filepath.read_bytes()
+        raw_text = raw_bytes.decode("utf-8")
+        lines = raw_text.splitlines(keepends=True)
+        line_idx = container.lc.data["image"][0]
+        old_image = container["image"]
+        old_tag, old_digest = split_tagged_digest_image(old_image)
+
+        if old_image == new_image:
+            summary["unchanged"].append(f"{name}:{target['container']}")
+            continue
+
+        lines[line_idx] = replace_yaml_scalar_line(
+            lines[line_idx], "image", new_image
+        )
+        new_text = "".join(lines)
+
+        verify_doc = YAML(typ="safe").load(new_text)
+        verify_containers = nested_get(
+            verify_doc, target["containers_path"], target["path"]
+        )
+        matches = [
+            item for item in verify_containers
+            if isinstance(item, dict) and item.get("name") == target["container"]
+        ]
+        if len(matches) != 1 or matches[0].get("image") != new_image:
+            fail(
+                "RAW_MANIFEST_SEMANTIC_VERIFY_FAILED: "
+                f"{target['path']}:{target['container']}"
+            )
+
+        fd, temp_path = tempfile.mkstemp(
+            dir=str(filepath.parent), prefix=f"{filepath.name}-", suffix=".tmp"
+        )
+        with os.fdopen(fd, "wb") as f:
+            f.write(new_text.encode("utf-8"))
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(temp_path, filepath.stat().st_mode)
+        os.replace(temp_path, filepath)
+
+        summary["updated"].append({
+            "service": name,
+            "target": f"{target['path']}:{target['container']}",
+            "oldDigest": old_digest,
+            "newDigest": svc_info["digest"],
+            "tagKeyExisted": old_tag is not None,
+            "oldTag": old_tag,
+            "newTag": svc_info["tag"],
+        })
+
 def update_top_level_image_service(doc, lines, edits, svc_info, summary):
     name = svc_info["name"]
     target = resolve_top_level_image_node(doc, name)
@@ -298,6 +443,7 @@ def main():
     parser.add_argument('--expected-platforms', required=True)
     parser.add_argument('--expected-services', required=True)
     parser.add_argument('--excluded-service', action='append', default=[])
+    parser.add_argument('--raw-manifest-root', default='.')
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest)
@@ -317,12 +463,19 @@ def main():
         
     validate_manifest(manifest, args)
     
+    raw_manifest_root = Path(args.raw_manifest_root)
+    if not raw_manifest_root.exists() or not raw_manifest_root.is_dir():
+        fail("raw manifest root missing or non-directory")
+
     doc = parse_yaml_strict(values_path)
     components = doc['components']
     
     for svc_info in manifest["services"]:
         name = svc_info["name"]
         if name in args.excluded_service:
+            continue
+        if name in RAW_MANIFEST_SERVICES:
+            validate_raw_manifest_service(raw_manifest_root, name)
             continue
         target = (
             resolve_top_level_image_node(doc, name)
@@ -365,6 +518,10 @@ def main():
             
         new_digest = svc_info["digest"]
         new_tag = svc_info["tag"]
+
+        if name in RAW_MANIFEST_SERVICES:
+            update_raw_manifest_service(raw_manifest_root, svc_info, manifest, summary)
+            continue
 
         if name in TOP_LEVEL_IMAGE_SERVICES:
             svc_info_with_metadata = dict(svc_info)
@@ -504,7 +661,7 @@ def main():
     if raw_bytes == new_bytes:
         summary["noChanges"] = True
         
-    summary["updated"].sort(key=lambda x: x["service"])
+    summary["updated"].sort(key=lambda x: (x["service"], x.get("target", "")))
     summary["unchanged"].sort()
     summary["skipped"].sort(key=lambda x: x["service"])
 

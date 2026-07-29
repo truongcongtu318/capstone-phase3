@@ -152,9 +152,8 @@ def test_service_account_schema_declares_boolean_automount():
     )
     service_account = schema["definitions"]["ServiceAccountConfig"]
     assert service_account["additionalProperties"] is False
-    assert service_account["properties"]["automountServiceAccountToken"] == {
-        "type": "boolean"
-    }
+    automount = service_account["properties"]["automountServiceAccountToken"]
+    assert automount["type"] == "boolean"
 
 
 def test_global_values_enable_namespaced_grafana_rbac_and_token_hardening():
@@ -374,6 +373,28 @@ def test_pm149_diff_does_not_touch_flagd_or_unrelated_infrastructure():
     }
     if changed & pm176_paths:
         pm149_content.discard("phase3 - information/techx-corp-chart/values.yaml")
+    # T10 intentionally reuses the component-scoped ServiceAccount contract
+    # introduced by PM-149. Do not classify those shared chart edits as a new
+    # PM-149 content PR; T10 has its own focused regression contract.
+    t10_paths = {
+        "docs/T10-serviceaccount-thiet-ke.md",
+        "docs/T10-serviceaccount-migration-plan.md",
+        "docs/runbooks/T10-sa-migration-runbook.md",
+        "gitops/apps/techx-corp.yaml",
+        "gitops/infrastructure/cloudflared.yaml",
+        "phase3 - information/deploy/values-serviceaccounts.yaml",
+        "scripts/verify-sa-migration.sh",
+        "scripts/ci/test_t10_serviceaccount_migration.py",
+    }
+    if changed & t10_paths:
+        pm149_content.difference_update(
+            {
+                "phase3 - information/techx-corp-chart/values.yaml",
+                "phase3 - information/techx-corp-chart/values.schema.json",
+                "phase3 - information/techx-corp-chart/templates/serviceaccount.yaml",
+                "phase3 - information/techx-corp-chart/templates/_objects.tpl",
+            }
+        )
     if not (changed & pm149_content):
         pytest.skip("No PM-149 content files changed; scope guard not applicable to this PR")
     assert changed <= allowed

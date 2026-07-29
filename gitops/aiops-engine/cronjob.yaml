@@ -1,8 +1,8 @@
 # CronJob huấn luyện lại mô hình anomaly, 02:00 thứ Hai giờ VN (19:00 CN UTC).
 #
-# LƯU Ý DRIFT: image ở đây là IF-v25 trong khi engine chạy IF-v63 — lệch 38 bản.
-# Giữ nguyên ở Phase 1 (nguyên tắc khớp live state). Nâng version là việc Phase 3,
-# và phải hỏi AIO02 trước xem train_anomaly_model_eks.py ở IF-v63 còn tương thích.
+# Dùng cùng ảnh first-party đã ký/SBOM-attest với Deployment để không còn phụ thuộc
+# allowlist external image. activeDeadlineSeconds tăng lên 3h vì hai lần chạy gần
+# nhất bị kill ở mốc 1h trước khi hoàn tất training.
 #
 # AWS_ACCESS_KEY_ID/SECRET cũng là static key — gỡ ở Phase 2 cùng lúc với Deployment.
 apiVersion: batch/v1
@@ -18,7 +18,7 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      activeDeadlineSeconds: 3600
+      activeDeadlineSeconds: 10800
       template:
         spec:
           restartPolicy: OnFailure
@@ -28,17 +28,14 @@ spec:
           terminationGracePeriodSeconds: 30
           securityContext:
             runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
-            fsGroup: 1000
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
             seccompProfile:
               type: RuntimeDefault
           containers:
           - name: trainer
-            # Digest-pinned; resolved from ECR for tag IF-v25. Without this the
-            # weekly job would be rejected at admission once the external policy
-            # enforces, and a cron failure is easy to miss for days.
-            image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v25@sha256:2600f9b0c332da4032f603cd4cb7086fefceb01f7206cbc7666282dbd02d9e74
+            image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:94bad5a-30384952378-aiops-engine@sha256:7eb0b5120232a10266be897de53279dc6d5041f812829fd7a9e732ebd0726954
             imagePullPolicy: Always
             command:
             - python
@@ -70,7 +67,7 @@ spec:
             securityContext:
               allowPrivilegeEscalation: false
               runAsNonRoot: true
-              runAsUser: 1000
+              runAsUser: 10001
               capabilities:
                 drop:
                 - ALL

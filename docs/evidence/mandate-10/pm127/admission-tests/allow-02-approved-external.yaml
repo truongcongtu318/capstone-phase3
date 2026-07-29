@@ -1,5 +1,9 @@
-# EXPECT ACCEPT (allow-approved-external-image-digests): exactly the catalogue
-# entry, byte for byte.
+# EXPECT ACCEPT. Exactly the catalogue entry, byte for byte.
+#
+# securityContext and resources are present so PodSecurity "restricted" and
+# mandate05-native-resource-requirements both pass. techx-tf3 layers three
+# admission controls ahead of Kyverno; without these the request is rejected
+# before the image policy is ever consulted, which proves nothing.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -9,7 +13,23 @@ metadata:
     pm127-admission-test: "true"
 spec:
   restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: probe
       image: busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
       command: ["sleep", "300"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 64Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]

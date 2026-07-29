@@ -1,9 +1,0 @@
-# Trivy ignore list cho ảnh aiops-engine — chỉ dùng cho false positive CÓ TÀI LIỆU.
-#
-# Cổng chặn trong build-push-aiops.yml đã chạy với --ignore-unfixed, nghĩa là CVE nền
-# Debian chưa có bản vá thì vốn đã không chặn build. File này chỉ dành cho trường hợp
-# Trivy báo một CVE CÓ bản vá nhưng nó là false positive thật (ví dụ thư viện vendored
-# trong build tooling, không nằm trên đường chạy).
-#
-# Mỗi mục PHẢI kèm: mã CVE, đường dẫn file bị báo, và một câu vì sao nó không khai thác
-# được. Không thêm mục nào chỉ để cho build xanh.

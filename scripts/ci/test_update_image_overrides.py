@@ -3,6 +3,7 @@ import json
 import shutil
 import tempfile
 import subprocess
+import sys
 import pytest
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from pathlib import Path
 def run_updater(values, manifest, expected_mode="scoped", extra_args=[]):
     summary = os.path.join(os.path.dirname(values), "summary.json")
     cmd = [
-        "python3", "scripts/ci/update-image-overrides.py",
+        sys.executable, "scripts/ci/update-image-overrides.py",
         "--values", values,
         "--manifest", manifest,
         "--summary-output", summary,
@@ -26,6 +27,18 @@ def run_updater(values, manifest, expected_mode="scoped", extra_args=[]):
         "--expected-services", "ad",
     ] + extra_args
     return subprocess.run(cmd, capture_output=True, text=True)
+
+def run_aiops_updater(values, manifest, manifest_root):
+    return run_updater(
+        values,
+        manifest,
+        extra_args=[
+            "--expected-services",
+            "aiops-engine",
+            "--raw-manifest-root",
+            str(manifest_root),
+        ],
+    )
 
 def write_json(path, data):
     with open(path, "w") as f:
@@ -267,6 +280,145 @@ def test_t29_excluded_service(tmp_path):
     assert res.returncode == 0
     txt = Path(v).read_text()
     assert "digest: sha256:old" in txt # unchanged
+
+
+def test_aiops_is_valid_build_evidence_but_excluded_from_helm_values(tmp_path):
+    data = valid_manifest_base()
+    data["services"][0]["name"] = "aiops-engine"
+    data["services"][0]["tag"] = "1234567-aiops-engine"
+    v, m = setup_env(tmp_path, manifest_data=data)
+
+    res = run_updater(
+        v,
+        m,
+        extra_args=[
+            "--excluded-service",
+            "aiops-engine",
+            "--expected-services",
+            "aiops-engine",
+        ],
+    )
+
+    assert res.returncode == 0
+    assert "digest: sha256:old" in Path(v).read_text()
+    summary = json.loads((tmp_path / "summary.json").read_text())
+    assert summary["skipped"] == [
+        {
+            "service": "aiops-engine",
+            "reason": "excluded-from-production-values",
+        }
+    ]
+
+
+def aiops_manifest(digest="sha256:5555555555555555555555555555555555555555555555555555555555555555"):
+    data = valid_manifest_base()
+    data["services"] = [
+        {
+            "name": "aiops-engine",
+            "tag": "1234567-aiops-engine",
+            "digest": digest,
+            "manifestMediaType": "application/vnd.oci.image.index.v1+json",
+        }
+    ]
+    return data
+
+
+def write_aiops_raw_manifests(root, image):
+    aiops_dir = root / "gitops" / "aiops-engine"
+    aiops_dir.mkdir(parents=True)
+    (aiops_dir / "deployment.yaml").write_text(
+        "apiVersion: apps/v1\n"
+        "kind: Deployment\n"
+        "metadata:\n"
+        "  name: aiops-engine\n"
+        "spec:\n"
+        "  template:\n"
+        "    spec:\n"
+        "      containers:\n"
+        "      - name: engine\n"
+        f"        image: {image}\n"
+        "      - name: sidecar\n"
+        "        image: busybox\n"
+    )
+    (aiops_dir / "cronjob.yaml").write_text(
+        "apiVersion: batch/v1\n"
+        "kind: CronJob\n"
+        "metadata:\n"
+        "  name: aiops-anomaly-training\n"
+        "spec:\n"
+        "  jobTemplate:\n"
+        "    spec:\n"
+        "      template:\n"
+        "        spec:\n"
+        "          containers:\n"
+        "          - name: trainer\n"
+        f"            image: {image}\n"
+    )
+
+
+def test_aiops_updates_raw_deployment_and_cronjob_only(tmp_path):
+    old_image = (
+        "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:"
+        "old-aiops@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    new_image = (
+        "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:"
+        "1234567-aiops-engine@sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    )
+    values_data = "components:\n  ad:\n    imageOverride:\n      digest: sha256:old\n"
+    v, m = setup_env(tmp_path, manifest_data=aiops_manifest(), values_data=values_data)
+    write_aiops_raw_manifests(tmp_path, old_image)
+
+    res = run_aiops_updater(v, m, tmp_path)
+
+    assert res.returncode == 0, res.stderr
+    assert Path(v).read_text() == values_data
+    assert f"image: {new_image}" in (tmp_path / "gitops/aiops-engine/deployment.yaml").read_text()
+    assert f"image: {new_image}" in (tmp_path / "gitops/aiops-engine/cronjob.yaml").read_text()
+    assert "image: busybox" in (tmp_path / "gitops/aiops-engine/deployment.yaml").read_text()
+
+    summary = json.loads((tmp_path / "summary.json").read_text())
+    assert summary["updated"] == [
+        {
+            "service": "aiops-engine",
+            "target": "gitops/aiops-engine/cronjob.yaml:trainer",
+            "oldDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "newDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+            "tagKeyExisted": True,
+            "oldTag": "old-aiops",
+            "newTag": "1234567-aiops-engine",
+        },
+        {
+            "service": "aiops-engine",
+            "target": "gitops/aiops-engine/deployment.yaml:engine",
+            "oldDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "newDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+            "tagKeyExisted": True,
+            "oldTag": "old-aiops",
+            "newTag": "1234567-aiops-engine",
+        },
+    ]
+
+
+def test_aiops_raw_manifest_missing_container_fails_without_partial_write(tmp_path):
+    old_image = (
+        "197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:"
+        "old-aiops@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    )
+    values_data = "components:\n  ad:\n    imageOverride:\n      digest: sha256:old\n"
+    v, m = setup_env(tmp_path, manifest_data=aiops_manifest(), values_data=values_data)
+    write_aiops_raw_manifests(tmp_path, old_image)
+    cronjob = tmp_path / "gitops/aiops-engine/cronjob.yaml"
+    cronjob.write_text(cronjob.read_text().replace("name: trainer", "name: wrong"))
+    before_deployment = (tmp_path / "gitops/aiops-engine/deployment.yaml").read_text()
+
+    res = run_aiops_updater(v, m, tmp_path)
+
+    assert res.returncode != 0
+    assert "RAW_MANIFEST_CONTAINER_MISSING" in res.stderr
+    assert (tmp_path / "gitops/aiops-engine/deployment.yaml").read_text() == before_deployment
+    assert Path(v).read_text() == values_data
+
 
 def test_t30_noop(tmp_path):
     v_data = "components:\n  ad:\n    imageOverride:\n      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000\n"

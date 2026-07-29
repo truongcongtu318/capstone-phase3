@@ -11,6 +11,16 @@
 #     --from-literal=token="$(terraform output -raw cloudflare_tunnel_token)"
 #
 # See docs/runbooks/cloudflare-zero-trust-access.md for the full sequence.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudflared
+  namespace: techx-tf3
+  labels:
+    app.kubernetes.io/name: cloudflared
+    app.kubernetes.io/part-of: techx-corp
+automountServiceAccountToken: false
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,6 +32,11 @@ metadata:
 spec:
   replicas: 2
   revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: cloudflared
@@ -30,6 +45,8 @@ spec:
       labels:
         app.kubernetes.io/name: cloudflared
     spec:
+      serviceAccountName: cloudflared
+      automountServiceAccountToken: false
       containers:
         - name: cloudflared
           # Digest-pinned so the reference cannot follow an upstream retag.

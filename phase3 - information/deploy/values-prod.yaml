@@ -891,8 +891,8 @@ components:
               opentelemetry.io/name: product-reviews
     replicas: 2        # đứng sau tính năng AI tóm tắt review
     imageOverride: # CDO02 fix database.py + product_reviews_server.py - xem comment imageOverride đầu components:
-      digest: sha256:f7acf6a1c7ba3d26a56d3844d386c5a83916d3085db71976c13efce211930a7a
-      tag: bd49c9f-30366821052-product-reviews
+      digest: sha256:35f413f43f8840039383f4fe64440e7f06415c6e5fb70591480451ee84d54067
+      tag: 177d7d1-30382089768-product-reviews
     resources:
       requests:
         cpu: 150m

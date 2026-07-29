@@ -3,18 +3,17 @@ import json
 import logging
 import os
 import re
-from config import AWS_REGION, BEDROCK_MODEL_ID, BEDROCK_KB_ID
+from config import AWS_REGION, BEDROCK_AWS_REGION, BEDROCK_MODEL_ID, BEDROCK_KB_ID
 
 logger = logging.getLogger("AIOpsEngine.LLMDiagnostician")
 
 class LLMDiagnostician:
     def __init__(self):
         self.region = AWS_REGION
+        self.bedrock_region = BEDROCK_AWS_REGION
         self.model_id = BEDROCK_MODEL_ID
         self.kb_id = BEDROCK_KB_ID
-        # Bedrock Nova models are typically available in us-east-1, default to us-east-1 if AWS_REGION is ap-southeast-1
-        bedrock_region = os.getenv("BEDROCK_AWS_REGION", "us-east-1" if self.region == "ap-southeast-1" else self.region)
-        self.bedrock_client = boto3.client("bedrock-runtime", region_name=bedrock_region)
+        self.bedrock_client = boto3.client("bedrock-runtime", region_name=self.bedrock_region)
         
         # Nạp chỉ số vector index của playbooks nếu tồn tại phục vụ RAG cục bộ
         self.vector_index_path = os.path.join(os.path.dirname(__file__), "playbooks_vector_index.json")
@@ -125,7 +124,7 @@ class LLMDiagnostician:
         """Kéo tri thức trực tiếp từ Cloud-native Amazon Bedrock Knowledge Base."""
         try:
             logger.info(f"Querying AWS Bedrock Knowledge Base (ID: {self.kb_id})...")
-            runtime_client = boto3.client("bedrock-agent-runtime", region_name=self.region)
+            runtime_client = boto3.client("bedrock-agent-runtime", region_name=self.bedrock_region)
             response = runtime_client.retrieve(
                 knowledgeBaseId=self.kb_id,
                 retrievalQuery={

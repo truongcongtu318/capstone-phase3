@@ -67,7 +67,8 @@
           "type": "string"
         },
         "automountServiceAccountToken": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Whether to automount the SA token into pods. Set false for workloads that do not call the Kubernetes API."
         }
       },
       "required": [

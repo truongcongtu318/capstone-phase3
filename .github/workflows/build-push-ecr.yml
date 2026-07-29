@@ -27,6 +27,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "aiops-engine/**"
       - "phase3 - information/techx-corp-platform/**"
 
 concurrency:
@@ -39,7 +40,7 @@ env:
   ECR_REPOSITORY: techx-corp
   TRIVY_SEVERITIES: HIGH,CRITICAL
   ALL_SERVICES: >-
-    accounting ad cart checkout currency email fraud-detection frontend
+    accounting ad aiops-engine cart checkout currency email fraud-detection frontend
     frontend-proxy grafana image-provider kafka llm load-generator payment
     product-catalog product-reviews quote recommendation shipping flagd-ui
 
@@ -163,7 +164,8 @@ jobs:
              [ -n "$EVENT_BEFORE" ] &&
              [ "$EVENT_BEFORE" != 0000000000000000000000000000000000000000 ]; then
             CHANGED="$(git diff --name-only "$EVENT_BEFORE" "$SOURCE_SHA" -- \
-              "phase3 - information/techx-corp-platform")"
+              "phase3 - information/techx-corp-platform" \
+              "aiops-engine")"
             PREFIX="phase3 - information/techx-corp-platform/src/"
             PLATFORM_ROOT="phase3 - information/techx-corp-platform"
             SERVICES=""
@@ -171,6 +173,8 @@ jobs:
             while IFS= read -r file; do
               [ -n "$file" ] || continue
               case "$file" in
+                "aiops-engine"|"aiops-engine/"*)
+                  SERVICES="$SERVICES aiops-engine" ;;
                 "$PREFIX"*)
                   service="${file#"$PREFIX"}"
                   service="${service%%/*}"
@@ -182,10 +186,14 @@ jobs:
                 "$PLATFORM_ROOT/docker-compose.yml")
                   COMPOSE_DIFF="$(git diff --unified=3 "$EVENT_BEFORE" "$SOURCE_SHA" -- "$file")"
                   HUNK_COUNT="$(grep -c '^@@' <<< "$COMPOSE_DIFF" || true)"
-                  if [ "$HUNK_COUNT" -ne 1 ] || ! grep -Fq "# Grafana" <<< "$COMPOSE_DIFF"; then
+                  if [ "$HUNK_COUNT" -ne 1 ]; then
                     FULL=true
-                  else
+                  elif grep -Fq "# AIOps engine" <<< "$COMPOSE_DIFF"; then
+                    SERVICES="$SERVICES aiops-engine"
+                  elif grep -Fq "# Grafana" <<< "$COMPOSE_DIFF"; then
                     SERVICES="$SERVICES grafana"
+                  else
+                    FULL=true
                   fi ;;
                 "$PLATFORM_ROOT/.env")
                   ENV_LINES="$(git diff --unified=0 "$EVENT_BEFORE" "$SOURCE_SHA" -- "$file" |
@@ -230,7 +238,7 @@ jobs:
     needs: prepare
     if: needs.prepare.outputs.mode != 'none'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: ${{ matrix.service == 'aiops-engine' && 90 || 60 }}
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -380,7 +388,9 @@ jobs:
             git -C "$GITHUB_WORKSPACE" diff --name-only \
               "$EVENT_BEFORE" \
               "$SOURCE_SHA" \
-              -- "phase3 - information/techx-corp-platform"
+              -- \
+              "phase3 - information/techx-corp-platform" \
+              "aiops-engine"
           )"
 
           PREFIX="phase3 - information/techx-corp-platform/src/"
@@ -392,6 +402,9 @@ jobs:
             [ -z "$file" ] && continue
 
             case "$file" in
+              "aiops-engine"|"aiops-engine/"*)
+                SERVICES="$SERVICES aiops-engine"
+                ;;
               "$PREFIX"*)
                 service="$(printf '%s' "$file" | sed "s|^$PREFIX||" | cut -d/ -f1)"
                 if grep -Fqw -- "$service" <<< "$ALL_SERVICES"; then
@@ -403,10 +416,14 @@ jobs:
               "$PLATFORM_ROOT/docker-compose.yml")
                 COMPOSE_DIFF="$(git -C "$GITHUB_WORKSPACE" diff --unified=3 "$EVENT_BEFORE" "$SOURCE_SHA" -- "$file")"
                 HUNK_COUNT="$(grep -c '^@@' <<< "$COMPOSE_DIFF" || true)"
-                if [ "$HUNK_COUNT" -ne 1 ] || ! grep -Fq "# Grafana" <<< "$COMPOSE_DIFF"; then
+                if [ "$HUNK_COUNT" -ne 1 ]; then
                   FULL=true
-                else
+                elif grep -Fq "# AIOps engine" <<< "$COMPOSE_DIFF"; then
+                  SERVICES="$SERVICES aiops-engine"
+                elif grep -Fq "# Grafana" <<< "$COMPOSE_DIFF"; then
                   SERVICES="$SERVICES grafana"
+                else
+                  FULL=true
                 fi
                 ;;
               "$PLATFORM_ROOT/.env")
@@ -495,7 +512,11 @@ jobs:
           set +a
 
           echo "Building local linux/amd64 candidate: $SERVICE"
-          docker buildx bake -f docker-compose.yml "$SERVICE" \
+          BAKE_ALLOW=()
+          if [ "$SERVICE" = aiops-engine ]; then
+            BAKE_ALLOW+=(--allow "fs.read=$GITHUB_WORKSPACE/aiops-engine")
+          fi
+          docker buildx bake "${BAKE_ALLOW[@]}" -f docker-compose.yml "$SERVICE" \
             --set "${SERVICE}.platform=linux/amd64" \
             --set "${SERVICE}.output=type=docker" \
             --set "${SERVICE}.cache-from=type=gha,scope=${SERVICE}" \
@@ -560,7 +581,11 @@ jobs:
           . ./.env.override
           set +a
 
-          docker buildx bake -f docker-compose.yml --push "$SERVICE" \
+          BAKE_ALLOW=()
+          if [ "$SERVICE" = aiops-engine ]; then
+            BAKE_ALLOW+=(--allow "fs.read=$GITHUB_WORKSPACE/aiops-engine")
+          fi
+          docker buildx bake "${BAKE_ALLOW[@]}" -f docker-compose.yml --push "$SERVICE" \
             --set "${SERVICE}.platform=$BUILD_PLATFORMS" \
             --set "${SERVICE}.cache-from=type=gha,scope=${SERVICE}" \
             --set "${SERVICE}.cache-to=type=gha,mode=max,scope=${SERVICE}"
@@ -576,7 +601,11 @@ jobs:
           . ./.env.override
           set +a
 
-          docker buildx bake -f docker-compose.yml --push "$SERVICE" \
+          BAKE_ALLOW=()
+          if [ "$SERVICE" = aiops-engine ]; then
+            BAKE_ALLOW+=(--allow "fs.read=$GITHUB_WORKSPACE/aiops-engine")
+          fi
+          docker buildx bake "${BAKE_ALLOW[@]}" -f docker-compose.yml --push "$SERVICE" \
             --set "${SERVICE}.platform=$BUILD_PLATFORMS" \
             --set "${SERVICE}.cache-from=type=gha,scope=${SERVICE}" \
             --set "${SERVICE}.cache-to=type=gha,mode=max,scope=${SERVICE}"
@@ -1280,12 +1309,25 @@ jobs:
             exit 0
           fi
 
-          if [ "${#changed_files[@]}" -ne 1 ] || \
-             [ "${changed_files[0]}" != "phase3 - information/deploy/values-prod.yaml" ]; then
-            printf 'FAIL: unexpected changed files:\n' >&2
-            printf '  %s\n' "${changed_files[@]}" >&2
-            exit 1
-          fi
+          allowed_files=(
+            "phase3 - information/deploy/values-prod.yaml"
+            "gitops/aiops-engine/deployment.yaml"
+            "gitops/aiops-engine/cronjob.yaml"
+          )
+
+          for changed in "${changed_files[@]}"; do
+            allowed=false
+            for allowed_file in "${allowed_files[@]}"; do
+              if [ "$changed" = "$allowed_file" ]; then
+                allowed=true
+                break
+              fi
+            done
+            if [ "$allowed" != true ]; then
+              printf 'FAIL: unexpected changed file: %s\n' "$changed" >&2
+              exit 1
+            fi
+          done
 
           if git diff -- "phase3 - information/deploy/values-prod.yaml" |
              grep -Fq 'default.image.tag'; then
@@ -1316,7 +1358,8 @@ jobs:
             --rendered /tmp/techx-rendered.yaml \
             --manifest approved-images.json \
             --registry "$ECR_REGISTRY" \
-            --repository "$ECR_REPOSITORY"
+            --repository "$ECR_REPOSITORY" \
+            --excluded-service aiops-engine
 
       - name: Push image-bump branch and create pull request
         if: env.no_changes != 'true'
@@ -1338,7 +1381,10 @@ jobs:
           git config user.email "techx-image-bump[bot]@users.noreply.github.com"
 
           git switch -c "$BRANCH_NAME"
-          git add -- "phase3 - information/deploy/values-prod.yaml"
+          git add -- \
+            "phase3 - information/deploy/values-prod.yaml" \
+            "gitops/aiops-engine/deployment.yaml" \
+            "gitops/aiops-engine/cronjob.yaml"
           git diff --cached --check
           git commit -m "chore(deploy): bump images from ${SOURCE_SHORT_SHA}"
 
@@ -1398,8 +1444,9 @@ jobs:
             echo "- [x] Approved digests were signed and verified with keyless Cosign."
             echo "- [x] Only services approved by the source workflow were changed."
             echo "- [x] \`default.image.tag\` was not changed."
-            echo "- [x] Helm dependency build, lint, and production rendering passed."
-            echo "- [x] Rendered workload images match the exact approved repository@digest references."
+            echo "- [x] Helm dependency build, lint, and production rendering passed for chart-managed services."
+            echo "- [x] Rendered chart workload images match the exact approved repository@digest references."
+            echo "- [x] Raw AIOps manifests, when present, were updated by fixed file/container mapping only."
             echo
             echo "## Review requirement"
             echo "This PR does not deploy directly. Merge manually after review and required checks pass."

@@ -1,0 +1,112 @@
+# DRY RUN for the is_safe back-fill. Reports what db_migration_worker.py WOULD
+# mark unsafe, without writing anything.
+#
+# Why this exists: the AIO02 upgrade made guardrails/input_filter.py considerably
+# more aggressive (base64/hex decoding, leetspeak folding, Vietnamese accent
+# stripping, control-character handling). Running the real back-fill blind could
+# flag legitimate product reviews as unsafe, and every read query filters on
+# `is_safe = TRUE` — a false positive silently removes a real review from the
+# storefront. So: measure first, then decide.
+#
+# Not managed by ArgoCD (gitops/jobs/ is not in any Application's path). Apply by
+# hand, read the logs, then delete:
+#
+#   export AWS_PROFILE=<profile with EKS write>
+#   kubectl apply -f gitops/jobs/product-reviews-is-safe-backfill-dryrun.yaml
+#   kubectl -n techx-tf3 wait --for=condition=complete job/product-reviews-is-safe-backfill-dryrun --timeout=900s
+#   kubectl -n techx-tf3 logs job/product-reviews-is-safe-backfill-dryrun
+#   kubectl -n techx-tf3 delete job product-reviews-is-safe-backfill-dryrun
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: product-reviews-is-safe-backfill-dryrun
+  namespace: techx-tf3
+  labels:
+    app.kubernetes.io/name: product-reviews-is-safe-backfill-dryrun
+    app.kubernetes.io/part-of: techx-corp
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: product-reviews-is-safe-backfill-dryrun
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        techx.io/workload: elastic
+      tolerations:
+        - key: techx.io/workload
+          operator: Equal
+          value: elastic
+          effect: NoSchedule
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: dryrun
+          image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:35f413f43f8840039383f4fe64440e7f06415c6e5fb70591480451ee84d54067
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            readOnlyRootFilesystem: true
+          env:
+            - name: DB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: techx-tf3-postgres-conn
+                  key: libpq
+            # Same as db_migration_worker.py: keep the Bedrock Guardrail layer out of
+            # a bulk scan (cost + latency). Regex layer only, which is what the
+            # real back-fill would use too.
+            - name: BEDROCK_GUARDRAIL_ID
+              value: ""
+          command:
+            - /venv/bin/python
+            - -c
+            - |
+              import os, sys, psycopg2
+              sys.path.insert(0, "/app")
+              from guardrails.input_filter import check_input
+
+              conn = psycopg2.connect(os.environ["DB_CONNECTION_STRING"])
+              conn.autocommit = True
+              total = 0
+              flagged = []
+              with conn.cursor() as cur:
+                  cur.execute("SELECT count(*) FROM reviews.productreviews")
+                  print("total reviews:", cur.fetchone()[0], flush=True)
+                  cur.execute(
+                      "SELECT id, product_id, username, description "
+                      "FROM reviews.productreviews ORDER BY id"
+                  )
+                  for row_id, product_id, username, description in cur.fetchall():
+                      total += 1
+                      res = check_input(description or "")
+                      if not res.is_safe:
+                          flagged.append((row_id, product_id, username,
+                                          res.blocked_reason, (description or "")[:110]))
+              print(f"scanned: {total}", flush=True)
+              print(f"WOULD MARK UNSAFE: {len(flagged)}", flush=True)
+              print("", flush=True)
+              for row_id, pid, user, reason, text in flagged:
+                  print(f"  id={row_id} product={pid} user={user}", flush=True)
+                  print(f"    reason: {reason}", flush=True)
+                  print(f"    text:   {text!r}", flush=True)
+              if not flagged:
+                  print("  (none — the back-fill would be a no-op, safe to run)", flush=True)
+              print("", flush=True)
+              print("DRY RUN COMPLETE — nothing was written.", flush=True)
+              conn.close()
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

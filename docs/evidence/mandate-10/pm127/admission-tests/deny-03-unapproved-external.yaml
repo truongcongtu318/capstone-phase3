@@ -1,7 +1,11 @@
-# EXPECT DENY (allow-approved-external-image-digests): a public image that is
-# digest-pinned but absent from the reviewed catalogue. Without this policy any
-# public image could run in techx-tf3, which is the hole that makes the claim
-# "the cluster only runs signed images" false.
+# EXPECT DENY by allow-approved-external-image-digests. Digest-pinned and not
+# :latest, so the native policies admit it and Kyverno is the only thing left to
+# reject it. Without this policy any public image could run in techx-tf3.
+#
+# securityContext and resources are present so PodSecurity "restricted" and
+# mandate05-native-resource-requirements both pass. techx-tf3 layers three
+# admission controls ahead of Kyverno; without these the request is rejected
+# before the image policy is ever consulted, which proves nothing.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -11,7 +15,23 @@ metadata:
     pm127-admission-test: "true"
 spec:
   restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: probe
       image: nginx@sha256:9f5d1a0b6c8ad4a0d6f1e2a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7
       command: ["sleep", "300"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 64Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]

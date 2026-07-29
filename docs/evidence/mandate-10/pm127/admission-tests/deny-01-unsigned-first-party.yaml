@@ -1,6 +1,12 @@
-# EXPECT DENY (verify-first-party-signatures): a real techx-corp digest that was
-# never signed. cosign verify returns "no signatures found", so admission must
-# refuse it. This is the case Directive #10 asks to demonstrate.
+# EXPECT DENY by verify-first-party-signatures. A real techx-corp digest that was
+# never signed - cosign verify returns "no signatures found". Digest-pinned, so
+# it clears the native image-reference policy and Kyverno is what rejects it.
+# This is the case Directive #10 asks to demonstrate.
+#
+# securityContext and resources are present so PodSecurity "restricted" and
+# mandate05-native-resource-requirements both pass. techx-tf3 layers three
+# admission controls ahead of Kyverno; without these the request is rejected
+# before the image policy is ever consulted, which proves nothing.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -10,7 +16,23 @@ metadata:
     pm127-admission-test: "true"
 spec:
   restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: probe
       image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp@sha256:5eb7fe61735c9176dd4d02b401b156c71151d13007824ab2e2c6dcfd81eec860
       command: ["sleep", "300"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 64Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]

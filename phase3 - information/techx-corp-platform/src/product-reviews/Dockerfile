@@ -30,6 +30,12 @@ COPY ./src/product-reviews/product_reviews_server.py product_reviews_server.py
 COPY ./src/product-reviews/database.py database.py
 COPY ./src/product-reviews/metrics.py metrics.py
 COPY ./src/product-reviews/guardrails guardrails
+# Schema migration tooling. NOT part of the entrypoint — it only runs when invoked
+# explicitly (a one-off Job overriding the command). Shipped in the image because
+# RDS is private and reachable only from inside the VPC, so the migration has to be
+# run from a pod; adds no credential exposure the pod does not already have.
+COPY ./src/product-reviews/db_migration_worker.py db_migration_worker.py
+COPY ./src/product-reviews/migration.sql migration.sql
 RUN addgroup -S -g 65532 nonroot \
     && adduser -S -u 65532 -G nonroot nonroot \
     && chown -R 65532:65532 /app

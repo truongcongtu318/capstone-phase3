@@ -30,6 +30,10 @@ OPENSEARCH_URL = os.getenv("OPENSEARCH_URL", "http://opensearch.techx-tf3.svc.cl
 
 # AWS Bedrock Configuration
 AWS_REGION = os.getenv("AWS_REGION", "ap-southeast-1")
+BEDROCK_AWS_REGION = os.getenv(
+    "BEDROCK_AWS_REGION",
+    "us-east-1" if AWS_REGION == "ap-southeast-1" else AWS_REGION,
+)
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "amazon.nova-micro-v1:0")
 BEDROCK_KB_ID = os.getenv("BEDROCK_KB_ID", None)
 S3_BUCKET_NAME = os.getenv("AIOPS_S3_BUCKET", "tf3-aiops-models-197826770971")

@@ -16,6 +16,10 @@ import re
 import os
 import logging
 import unicodedata
+import base64
+import codecs
+import hashlib
+from urllib.parse import unquote
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
 
@@ -38,7 +42,89 @@ def _normalize_text(text: str) -> str:
     Chuẩn hoá Unicode NFC và lowercase.
     Đảm bảo dấu tiếng Việt (ã, ắ, ổ...) luôn ở dạng nhất quán.
     """
-    return unicodedata.normalize("NFC", text.lower())
+    normalized = unicodedata.normalize("NFKC", text.lower())
+    # Encoded attacks may insert NUL/control bytes between words (for example
+    # ``show\x00me``). Treat controls as separators so existing phrase rules
+    # still inspect the decoded intent.
+    return "".join(" " if unicodedata.category(char) == "Cc" else char for char in normalized)
+
+
+def _strip_vietnamese_accents(text: str) -> str:
+    """Return a lowercase, accent-insensitive form used only for security matching."""
+    stripped = "".join(
+        character
+        for character in unicodedata.normalize("NFKD", text)
+        if not unicodedata.combining(character)
+    )
+    return stripped.replace("đ", "d")
+
+
+def _decode_base64_tokens(text: str) -> List[str]:
+    decoded: List[str] = []
+    for token in re.findall(r"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{16,}={0,2}(?![A-Za-z0-9+/=])", text):
+        try:
+            padding = "=" * ((4 - len(token) % 4) % 4)
+            value = base64.b64decode(token + padding, validate=True).decode("utf-8", errors="ignore")
+        except Exception:
+            continue
+        if value.strip():
+            decoded.append(value)
+    return decoded
+
+
+def _decode_hex_tokens(text: str) -> List[str]:
+    decoded: List[str] = []
+    for token in re.findall(r"\b[0-9a-fA-F]{16,}\b", text):
+        if len(token) % 2:
+            continue
+        try:
+            value = bytes.fromhex(token).decode("utf-8", errors="ignore")
+        except ValueError:
+            continue
+        if value.strip():
+            decoded.append(value)
+    return decoded
+
+
+def _analysis_variants(text: str) -> List[str]:
+    """Generate bounded canonical forms for common prompt-injection evasions."""
+    normalized = _normalize_text(text)
+    url_decoded = _normalize_text(unquote(normalized))
+    leet = normalized.translate(str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t"}))
+    joined_letters = re.sub(
+        r"(?:\b[a-z0-9]\b[\s]*){5,}",
+        lambda match: re.sub(r"\s+", "", match.group(0)),
+        normalized,
+    )
+    variants = [
+        text,
+        normalized,
+        url_decoded,
+        leet,
+        joined_letters,
+        normalized[::-1],
+        codecs.decode(normalized, "rot_13"),
+    ]
+    caesar_minus_three = "".join(
+        chr((ord(char) - ord("a") - 3) % 26 + ord("a")) if "a" <= char <= "z" else char
+        for char in normalized
+    )
+    variants.append(caesar_minus_three)
+    # Base64 is case-sensitive; decode the original text before normalization.
+    variants.extend(_decode_base64_tokens(text))
+    variants.extend(_decode_hex_tokens(normalized))
+    normalized_variants = []
+    for item in variants:
+        if not item:
+            continue
+        canonical = _normalize_text(item)
+        normalized_variants.append(canonical)
+        normalized_variants.append(_strip_vietnamese_accents(canonical))
+    return list(dict.fromkeys(normalized_variants))
+
+
+def _input_fingerprint(text: str) -> str:
+    return hashlib.sha256((text or "").encode("utf-8")).hexdigest()[:16]
 
 
 # ─── Định nghĩa các Pattern tấn công theo danh mục ───
@@ -177,19 +263,49 @@ ATTACK_PATTERNS: List[Tuple[re.Pattern, str]] = [
      "SYSTEM_OVERRIDE"),
     (re.compile(r"(please\s+)?stop\s+being\s+(a\s+)?(shopping|helpful)", re.IGNORECASE),
      "SYSTEM_OVERRIDE"),
+    (re.compile(r"(ignore|forget|disregard).{0,40}(instructions?|rules?|system)", re.IGNORECASE),
+     "SYSTEM_OVERRIDE"),
+    (re.compile(r"(from\s+now\s+on|starting\s+now).{0,80}(answer|respond).{0,80}(freely|without\s+limits?|without\s+restrictions?)", re.IGNORECASE),
+     "SYSTEM_OVERRIDE"),
+    (re.compile(r"(tu\s+bay\s+gio|bat\s+dau\s+tu\s+gio).{0,80}(tra\s+loi|phan\s+hoi).{0,80}(khong\s+gioi\s+han|tu\s+do|bo\s+het\s+gioi\s+han)", re.IGNORECASE),
+     "SYSTEM_OVERRIDE"),
+    (re.compile(r"(bo\s+qua|quen|ghi\s+de).{0,80}(huong\s+dan|chi\s+dan|quy\s+tac|noi\s+bo|he\s+thong)", re.IGNORECASE),
+     "SYSTEM_OVERRIDE"),
+    (re.compile(r"(no|without)\s+(content\s+)?(policy|policies|restrictions?|limits?)", re.IGNORECASE),
+     "JAILBREAK"),
+    (re.compile(r"(reveal|show|print|return|output).{0,40}(system\s+prompt|api\s+key|secrets?)", re.IGNORECASE),
+     "PROMPT_DISCLOSURE"),
+    (re.compile(r"(tell|show|reveal|print|display|return|output).{0,80}(exact\s+words?|system|internal).{0,40}(configuration|prompt|instructions?|rules?)", re.IGNORECASE),
+     "PROMPT_DISCLOSURE"),
+    (re.compile(r"(system|internal).{0,30}(configuration|prompt|instructions?|rules?).{0,60}(exact\s+words?|verbatim|full\s+text)", re.IGNORECASE),
+     "PROMPT_DISCLOSURE"),
+    (re.compile(r"(pretend\s+to\s+be|act\s+as|roleplay\s+as|respond\s+like|trained\s+to\s+respond\s+like).{0,80}(admin|administrator|database\s+admin|system\s+administrator|hacker)", re.IGNORECASE),
+     "JAILBREAK"),
+    (re.compile(r"(gia\s+lam|dong\s+vai|hay\s+lam|hanh\s+xu\s+nhu).{0,80}(admin|quan\s+tri|quan\s+tri\s+vien|hacker)", re.IGNORECASE),
+     "JAILBREAK"),
+    (re.compile(r"(give|show|reveal|get|extract|leak|list|return).{0,80}(connection\s+string|database\s+credentials?|api\s+keys?|secrets?|user\s+emails?|passwords?)", re.IGNORECASE),
+     "PII_EXTRACTION"),
+    (re.compile(r"(cho|lay|tiet\s+lo|ro\s+ri|hien\s+thi|dua).{0,80}(api\s*key|key\s+api|khoa\s+api|bi\s+mat|connection\s+string|chuoi\s+ket\s+noi|mat\s+khau)", re.IGNORECASE),
+     "PII_EXTRACTION"),
+    (re.compile(r"(run|execute).{0,40}(query|shell|command|code)|code\s+interpreter|__import__\s*\(|os\.system\s*\(|/etc/passwd", re.IGNORECASE),
+     "ENCODING_EVASION"),
+    (re.compile(r"(fetch|retrieve|open|call).{0,40}(https?://)?(localhost|127\.0\.0\.1|internal|metadata|169\.254\.169\.254|admin/secrets?)", re.IGNORECASE),
+     "UNAUTHORIZED_ACTION"),
+    (re.compile(r"(decode|decrypt|giai\s+ma)\s+(and\s+)?(follow|execute|run|lam\s+theo|thuc\s+thi)\s*:?", re.IGNORECASE),
+     "ENCODING_EVASION"),
 ]
 
 # ── Thông báo từ chối thân thiện cho từng loại ──
 BLOCK_MESSAGES = {
-    "SYSTEM_OVERRIDE": "Yêu cầu này không được phép vì có chứa nội dung cố gắng thay đổi hành vi của hệ thống.",
-    "PROMPT_DISCLOSURE": "Tôi không thể chia sẻ thông tin cấu hình nội bộ của hệ thống.",
-    "JAILBREAK": "Yêu cầu này không được phép vì có chứa nội dung giả mạo danh tính hệ thống.",
-    "DELIMITER_INJECTION": "Yêu cầu này không được phép vì có chứa ký tự điều khiển đáng ngờ.",
-    "PII_EXTRACTION": "Tôi không thể cung cấp thông tin nhạy cảm của khách hàng hoặc hệ thống.",
-    "OFF_TOPIC": "Tôi chỉ hỗ trợ mua sắm. Vui lòng đặt câu hỏi liên quan đến sản phẩm hoặc đơn hàng.",
-    "UNAUTHORIZED_ACTION": "Tôi là trợ lý ảo và không có quyền thực hiện thanh toán hay chốt đơn. Vui lòng tự thực hiện quy trình checkout trên trang web.",
-    "ENCODING_EVASION": "Yêu cầu này không được phép vì có chứa nội dung được mã hoá đáng ngờ.",
-    "BEDROCK_GUARDRAIL": "Yêu cầu này đã bị hệ thống bảo mật phát hiện là không phù hợp.",
+    "SYSTEM_OVERRIDE": "This request is not allowed because it contains content that attempts to modify system behavior.",
+    "PROMPT_DISCLOSURE": "I cannot share internal system configuration information.",
+    "JAILBREAK": "This request is not allowed because it contains content that attempts to impersonate the system.",
+    "DELIMITER_INJECTION": "This request is not allowed because it contains suspicious control characters.",
+    "PII_EXTRACTION": "I cannot provide sensitive customer or system information.",
+    "OFF_TOPIC": "I only assist with product reviews. Please ask questions related to it",
+    "UNAUTHORIZED_ACTION": "I am a virtual assistant and cannot process payments or complete orders. Please complete the checkout process on the website directly.",
+    "ENCODING_EVASION": "This request is not allowed because it contains suspicious encoded content.",
+    "BEDROCK_GUARDRAIL": "This request has been flagged by the security system as inappropriate.",
 }
 
 
@@ -206,22 +322,22 @@ def check_input(user_message: str) -> InputFilterResult:
     if not user_message or not user_message.strip():
         return InputFilterResult(
             is_safe=False,
-            blocked_reason="Tin nhắn trống, vui lòng nhập nội dung.",
+            blocked_reason="Message is empty. Please enter your request.",
             original_input=user_message or "",
             blocked_tier="REGEX",
         )
 
     # Chuẩn hoá Unicode NFC cho tiếng Việt
-    normalized = _normalize_text(user_message)
+    variants = _analysis_variants(user_message)
 
-    # Quét qua từng pattern (dùng cả bản gốc và bản normalized)
+    # Quét qua từng pattern trên các canonical forms có giới hạn.
     for pattern, attack_type in ATTACK_PATTERNS:
-        if pattern.search(user_message) or pattern.search(normalized):
-            reason = BLOCK_MESSAGES.get(attack_type, "Yêu cầu bị từ chối vì lý do bảo mật.")
+        if any(pattern.search(variant) for variant in variants):
+            reason = BLOCK_MESSAGES.get(attack_type, "Request denied for security reasons.")
 
             logger.warning(
                 f"[INPUT_FILTER] BLOCKED | tier=REGEX | type={attack_type} | "
-                f"input_preview={user_message[:80]!r}"
+                f"input_sha256={_input_fingerprint(user_message)} | input_length={len(user_message)}"
             )
 
             return InputFilterResult(
@@ -231,7 +347,14 @@ def check_input(user_message: str) -> InputFilterResult:
                 blocked_tier="REGEX",
             )
 
-    # Tất cả pattern đều không khớp → tin nhắn sạch (tầng Regex)
+    # Nếu có BEDROCK_GUARDRAIL_ID, chạy Tầng 2: Bedrock Guardrails
+    guardrail_id = os.getenv("BEDROCK_GUARDRAIL_ID", "")
+    if guardrail_id:
+        bedrock_result = check_input_bedrock(user_message)
+        if not bedrock_result.is_safe:
+            return bedrock_result
+
+    # Tất cả pattern đều không khớp → tin nhắn sạch
     return InputFilterResult(
         is_safe=True,
         blocked_reason="",
@@ -244,22 +367,44 @@ def check_input(user_message: str) -> InputFilterResult:
 # Tầng 2: AWS Bedrock Guardrails (Semantic Check)
 # ═══════════════════════════════════════════════════
 
-# Config — set từ biến môi trường hoặc sau khi tạo guardrail trên AWS
-_BEDROCK_GUARDRAIL_ID = os.getenv("BEDROCK_GUARDRAIL_ID", "")
-_BEDROCK_GUARDRAIL_VERSION = os.getenv("BEDROCK_GUARDRAIL_VERSION", "DRAFT")
-_BEDROCK_GUARDRAIL_REGION = os.getenv("BEDROCK_GUARDRAIL_REGION") or os.getenv("BEDROCK_REGION") or "ap-southeast-1"
+def get_guardrail_id():
+    return os.getenv("BEDROCK_GUARDRAIL_ID", "")
+
+def get_guardrail_version():
+    return os.getenv("BEDROCK_GUARDRAIL_VERSION", "DRAFT")
+
+def get_guardrail_region():
+    return (
+        os.getenv("BEDROCK_GUARDRAIL_REGION")
+        or os.getenv("BEDROCK_REGION")
+        or os.getenv("AWS_DEFAULT_REGION")
+        or os.getenv("AWS_REGION")
+        or "ap-southeast-1"
+    )
 
 # Lazy init client — tránh import lỗi khi boto3 chưa cài
 _bedrock_client = None
+_bedrock_client_region = None
 
 
 def _get_bedrock_client():
     """Lazy init boto3 bedrock-runtime client."""
-    global _bedrock_client
-    if _bedrock_client is None:
+    global _bedrock_client, _bedrock_client_region
+    region = get_guardrail_region()
+    if _bedrock_client is None or _bedrock_client_region != region:
         try:
             import boto3
-            _bedrock_client = boto3.client("bedrock-runtime", region_name=_BEDROCK_GUARDRAIL_REGION)
+            from botocore.config import Config
+            _bedrock_client = boto3.client(
+                "bedrock-runtime",
+                region_name=region,
+                config=Config(
+                    connect_timeout=2.0,
+                    read_timeout=3.0,
+                    retries={"max_attempts": 1, "mode": "standard"},
+                ),
+            )
+            _bedrock_client_region = region
         except Exception as e:
             logger.error(f"[INPUT_FILTER] Không thể khởi tạo Bedrock client: {e}")
             return None
@@ -278,8 +423,9 @@ def check_input_bedrock(user_message: str) -> InputFilterResult:
 
     Nếu BEDROCK_GUARDRAIL_ID chưa được cấu hình → bỏ qua (cho phép đi tiếp).
     """
+    guardrail_id = get_guardrail_id()
     # Nếu chưa cấu hình guardrail ID → skip tầng này
-    if not _BEDROCK_GUARDRAIL_ID:
+    if not guardrail_id:
         logger.debug("[INPUT_FILTER] Bedrock Guardrails chưa cấu hình — skip tầng 2")
         return InputFilterResult(
             is_safe=True,
@@ -301,8 +447,8 @@ def check_input_bedrock(user_message: str) -> InputFilterResult:
 
     try:
         response = client.apply_guardrail(
-            guardrailIdentifier=_BEDROCK_GUARDRAIL_ID,
-            guardrailVersion=_BEDROCK_GUARDRAIL_VERSION,
+            guardrailIdentifier=guardrail_id,
+            guardrailVersion=get_guardrail_version(),
             source="INPUT",
             content=[{"text": {"text": user_message}}],
         )
@@ -317,7 +463,8 @@ def check_input_bedrock(user_message: str) -> InputFilterResult:
 
             logger.warning(
                 f"[INPUT_FILTER] BLOCKED | tier=BEDROCK | action={action} | "
-                f"reason={bedrock_reason[:100]!r} | input_preview={user_message[:80]!r}"
+                f"reason={bedrock_reason[:100]!r} | input_sha256={_input_fingerprint(user_message)} | "
+                f"input_length={len(user_message)}"
             )
 
             return InputFilterResult(

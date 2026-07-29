@@ -117,6 +117,17 @@ def test_t60_shell_git_safety():
     assert "git rebase" not in build_raw
 
 
+def test_t60a_aiops_raw_manifest_bump_is_scoped_by_exact_files():
+    build_raw = Path(".github/workflows/build-push-ecr.yml").read_text()
+    assert "--excluded-service aiops-engine" not in build_raw.split(
+        "python3 scripts/ci/update-image-overrides.py", 1
+    )[1].split("python3 scripts/ci/verify-rendered-images.py", 1)[0]
+    assert '"gitops/aiops-engine/deployment.yaml"' in build_raw
+    assert '"gitops/aiops-engine/cronjob.yaml"' in build_raw
+    assert "Raw AIOps manifests, when present" in build_raw
+    assert "allowed_files=(" in build_raw
+
+
 def test_t61_preserves_all_security_evidence_gates_per_service():
     build_raw = Path(".github/workflows/build-push-ecr.yml").read_text()
     required_markers = [
@@ -138,7 +149,10 @@ def test_t61_preserves_all_security_evidence_gates_per_service():
         assert marker in build_raw
 
     assert "SERVICE: ${{ matrix.service }}" in build_raw
-    assert 'docker buildx bake -f docker-compose.yml --push "$SERVICE"' in build_raw
+    assert (
+        'docker buildx bake "${BAKE_ALLOW[@]}" '
+        '-f docker-compose.yml --push "$SERVICE"'
+    ) in build_raw
     assert '"${SERVICES[@]}"' not in build_raw
     assert '--set "*.platform=' not in build_raw
 

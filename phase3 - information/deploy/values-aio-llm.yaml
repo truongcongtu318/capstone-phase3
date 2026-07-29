@@ -31,6 +31,29 @@ components:
             name: techx-tf3-postgres-conn
             key: libpq
 
+      # AIO02 guardrails upgrade: LLM response cache + circuit-breaker state live in
+      # Redis. Reuses the EXISTING ElastiCache Valkey (Mandate #8) that cart already
+      # uses — no new billable resource. Keys are namespaced `product_reviews:*` so
+      # they cannot collide with cart's.
+      #
+      # Failure mode is safe by design: guardrails/cache.py and circuit_breaker.py
+      # wrap every Redis call in try/except with a 1s socket timeout, and the circuit
+      # breaker falls back to in-memory state. Verified in code that NEITHER
+      # GetProductReviews NOR GetAverageProductReviewScore touches Redis — only the
+      # AI-assistant path does — so a Valkey outage cannot affect the two RPCs that
+      # carry the frontend's 500ms PRODUCT_REVIEWS_DEADLINE_MS.
+      - name: REDIS_HOST
+        value: master.techx-tf3-valkey.pkeslh.apse1.cache.amazonaws.com
+      - name: REDIS_PORT
+        value: "6379"
+      - name: REDIS_USE_TLS
+        value: "true"
+      - name: REDIS_AUTH_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: techx-tf3-valkey-auth
+            key: auth_token
+
       # Nếu cần rollback sang OpenAI/LiteLLM, thêm lại các biến sau:
       # - name: LLM_BASE_URL
       #   value: https://api.openai.com/v1

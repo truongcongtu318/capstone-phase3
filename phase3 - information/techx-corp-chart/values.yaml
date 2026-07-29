@@ -1799,6 +1799,15 @@ otelLogsRetention:
 
 opensearch:
   enabled: true
+  # T10: OpenSearch chart 3.6.0 only accepts a custom serviceAccountName when
+  # rbac.create=true, which would also create an unnecessary RoleBinding.
+  # Keep RBAC disabled and make the no-token behavior explicit. Cloudflared is
+  # moved off `default`, so this data workload no longer shares identity with
+  # the public edge. A dedicated OpenSearch SA requires an upstream chart fix
+  # or a separately reviewed chart-vendoring change.
+  rbac:
+    create: false
+    automountServiceAccountToken: false
   # PM-127: opensearch subchart has no image.digest field and computes opensearch.majorVersion
   # via semver(image.tag). Pin majorVersion explicitly so we can embed the digest in the tag;
   # rendered image = opensearchproject/opensearch:3.6.0@sha256:... which matches the exact-digest

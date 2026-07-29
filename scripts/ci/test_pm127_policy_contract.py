@@ -75,6 +75,45 @@ def test_external_policy_catalog_is_exactly_the_reviewed_catalog():
         assert loop["preconditions"]["all"][0]["value"] is False
 
 
+def test_aiops_engine_and_trainer_use_first_party_images():
+    deployment = load("gitops/aiops-engine/deployment.yaml")
+    cronjob = load("gitops/aiops-engine/cronjob.yaml")
+    catalog = load("docs/evidence/mandate-10/external-image-allowlist.yaml")
+
+    engine_image = deployment["spec"]["template"]["spec"]["containers"][0]["image"]
+    trainer_image = (
+        cronjob["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]["image"]
+    )
+    catalog_images = {entry["image"] for entry in catalog["images"]}
+
+    assert engine_image.startswith(FIRST_PARTY + ":")
+    assert "@sha256:" in engine_image
+    assert engine_image not in catalog_images
+    assert trainer_image.startswith(FIRST_PARTY + ":")
+    assert "@sha256:" in trainer_image
+    assert trainer_image not in catalog_images
+    assert not any(
+        "tf-2-ai-engine" in entry["image"] for entry in catalog["images"]
+    )
+    assert not any(
+        "tf-2-ai-engine:IF-v63" in entry["image"] for entry in catalog["images"]
+    )
+
+
+def test_aiops_trainer_runtime_matches_first_party_image_user_and_timeout():
+    cronjob = load("gitops/aiops-engine/cronjob.yaml")
+    job_spec = cronjob["spec"]["jobTemplate"]["spec"]
+    pod_spec = job_spec["template"]["spec"]
+    trainer = pod_spec["containers"][0]
+
+    assert job_spec["activeDeadlineSeconds"] >= 10800
+    assert pod_spec["securityContext"]["runAsUser"] == 10001
+    assert pod_spec["securityContext"]["runAsGroup"] == 10001
+    assert pod_spec["securityContext"]["fsGroup"] == 10001
+    assert trainer["securityContext"]["runAsUser"] == 10001
+    assert trainer["command"] == ["python", "train_anomaly_model_eks.py"]
+
+
 def test_policy_application_is_gitops_ordered_after_controller():
     controller = load("gitops/apps/kyverno-app.yaml")
     policies = load("gitops/apps/kyverno-policies-app.yaml")

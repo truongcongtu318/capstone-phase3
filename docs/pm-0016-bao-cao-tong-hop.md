@@ -1,6 +1,6 @@
 # PM-0016 — Báo cáo tổng hợp: Product Reviews lỗi dưới tải, đã fix gì / còn gì / phần liên quan AIO02
 
-**Ngày:** 28/07/2026 · **Người tổng hợp:** CDO02 (qua Claude Code) · **Đối tượng đọc:** team CDO02 + AIO02
+**Ngày:** 28/07/2026 · **Người tổng hợp:** CDO01 (qua Claude Code) · **Đối tượng đọc:** team CDO01 + CDO02 + AIO02
 
 **Tài liệu gốc đầy đủ (kỹ thuật, log/số liệu chi tiết):**
 [`docs/postmortem/0016-product-reviews-deadline-exceeded-under-synthetic-load.md`](postmortem/0016-product-reviews-deadline-exceeded-under-synthetic-load.md)
@@ -47,9 +47,9 @@ load test, đã revert).
 
 | # | Vấn đề | Vì sao chưa fix được | Ai xử lý |
 |---|---|---|---|
-| 1 | **Pod mới mất 70-80s để sẵn sàng khi scale** | Đây là giới hạn hạ tầng (Kubernetes/Karpenter phải dựng node mới từ đầu), không phải bug code. Cách né duy nhất hiện tại là **pre-scale thủ công trước khi biết trước sẽ có tải** (đã áp dụng tạm cho lần test vừa rồi, không phải giải pháp thường trực). | CDO02 — cần việc riêng (P3 kiến trúc / cân nhắc capacity buffer) |
-| 2 | **AI và đọc review vẫn dùng chung 1 nhóm luồng xử lý** | Fix ở mục 2.2 chỉ giới hạn *thời gian* AI chiếm tài nguyên sau khi đã được nhận vào, KHÔNG ngăn được việc request đọc review phải xếp hàng phía sau một loạt request AI đã nộp trước đó nếu backlog đủ lớn. Cách fix triệt để là **tách hẳn AI ra một service/luồng xử lý riêng** (đã lên kế hoạch, chưa làm — việc lớn, cần đổi routing + canary). | CDO02 |
-| 3 | **Deadline 500ms chưa được xem lại theo số liệu thật** | Cần đo p95/p99 thật trước khi quyết định có nên đổi deadline không (tránh đổi mù dẫn tới che giấu vấn đề thay vì giải quyết). | CDO02 |
+| 1 | **Pod mới mất 70-80s để sẵn sàng khi scale** | Đây là giới hạn hạ tầng (Kubernetes/Karpenter phải dựng node mới từ đầu), không phải bug code. Cách né duy nhất hiện tại là **pre-scale thủ công trước khi biết trước sẽ có tải** (đã áp dụng tạm cho lần test vừa rồi, không phải giải pháp thường trực). | Trụ Reliability (CDO02) — cần việc riêng (P3 kiến trúc / capacity buffer) |
+| 2 | **AI và đọc review vẫn dùng chung 1 nhóm luồng xử lý** | Fix ở mục 2.2 chỉ giới hạn *thời gian* AI chiếm tài nguyên sau khi đã được nhận vào, KHÔNG ngăn được việc request đọc review phải xếp hàng phía sau một loạt request AI đã nộp trước đó nếu backlog đủ lớn. Cách fix triệt để là **tách hẳn AI ra một service/luồng xử lý riêng** (đã lên kế hoạch, chưa làm — việc lớn, cần đổi routing + canary). | Trụ Reliability (CDO02) |
+| 3 | **Deadline 500ms chưa được xem lại theo số liệu thật** | Cần đo p95/p99 thật trước khi quyết định có nên đổi deadline không (tránh đổi mù dẫn tới che giấu vấn đề thay vì giải quyết). | Trụ Reliability (CDO02) |
 
 ---
 
@@ -72,19 +72,38 @@ model, không phải lỗi code bên mình). Code đã có sẵn cơ chế retry
 dùng thay vì lỗi thẳng), nên **người dùng không thấy lỗi cứng**, nhưng trải nghiệm AI chậm/kém dưới tải là
 thật.
 
-**Cần AIO02 xác nhận/xử lý:**
-- Kiểm tra quota/giới hạn TPS hiện tại của model `amazon.nova-lite-v1:0` (và judge `amazon.nova-micro-v1:0`)
-  đang cấp cho tài khoản/region đang dùng.
-- Cân nhắc xin tăng quota nếu muốn AI assistant chịu được tải tương đương ~500 user đồng thời mà không
-  throttle.
-- Nếu quota không tăng được, cân nhắc retry/backoff strategy phù hợp hơn ở phía code (hiện đang dùng
-  `tenacity`, max 4 lần retry) — việc này CDO02 có thể hỗ trợ sửa code nếu AIO02 quyết định thông số mới.
+### ✅ CẬP NHẬT 28/07 (chiều): vấn đề Bedrock throttle đã được giải quyết gián tiếp
+
+Sau khi viết mục 4 ở trên, `product-reviews` đã được nâng cấp lên **bản chuẩn của AIO02**
+(repo `DangThao195/AIO02_TF3_Phase3`) — bản này có sẵn **cache LLM bằng Redis** và **circuit breaker**.
+Đã deploy lên production và **đo lại đúng kịch bản 500 user**:
+
+| | Trước nâng cấp | Sau nâng cấp |
+|---|---|---|
+| Bedrock `ThrottlingException` | **hàng loạt** | **0** |
+| Redis cache hit | không có | **2664** |
+| AI assistant response time | 15-25 giây | **0.15 giây** (cache hit) |
+| HPA phải scale thêm pod | có | **không cần** |
+
+**Kết luận:** cache hấp thụ gần hết tải AI nên Bedrock hầu như không bị gọi lặp lại → **không còn
+throttle ở mức tải này**. Việc **xin tăng quota Bedrock không còn gấp**.
+
+**Vẫn nên để AIO02 nắm (không gấp):** cache chỉ hiệu quả khi câu hỏi lặp lại. Traffic test hiện tại
+(Locust) dùng vài câu hỏi cố định nên tỉ lệ cache hit rất cao. Với người dùng thật hỏi đa dạng hơn, hoặc
+khi TTL cache (24h) hết, hoặc khi Redis lỗi → Bedrock sẽ bị gọi thật và **throttle có thể quay lại**. Nên:
+- Vẫn kiểm tra quota TPS hiện tại của `amazon.nova-lite-v1:0` / `amazon.nova-micro-v1:0` để biết trần thật.
+- Theo dõi tỉ lệ cache hit/miss thực tế khi có traffic người dùng thật.
 
 ---
 
-## 5. Tóm tắt trạng thái
+## 5. Tóm tắt trạng thái (cập nhật 28/07 chiều)
 
-- **Đã fix:** lỗi hiển thị sai (mục quan trọng nhất của postmortem gốc) + giảm rủi ro nghẽn tài nguyên.
-- **Chưa fix — CDO02 xử lý tiếp:** tách AI ra service riêng (P3 đầy đủ), xem lại deadline (P5).
-- **Chưa fix — cần AIO02:** AWS Bedrock throttle dưới tải cao.
-- Incident **chưa đóng chính thức** — xem tiêu chí đóng đầy đủ ở tài liệu gốc §8.
+- **Đã fix:** lỗi hiển thị sai (mục quan trọng nhất của postmortem gốc) + **Bedrock throttle không còn tái
+  hiện** nhờ cache Redis từ bản nâng cấp AIO02.
+- **Chưa fix — thuộc trụ Reliability (CDO02), CDO01/CDO02 cần thống nhất ai nhận:**
+  - Tách AI ra service riêng (P3 đầy đủ) — cache che được vấn đề ở mức tải hiện tại nhưng không phải cô
+    lập thật; khi cache miss cao thì AI vẫn dùng chung tài nguyên với đường đọc review.
+  - Xem lại deadline 500ms (P5) — đo lại thấy vẫn còn ~2.5% request đọc review vượt deadline ở 500 user.
+  - Capacity-arrival gap: pod mới vẫn mất ~70-80s để sẵn sàng khi scale (39s trong đó là chờ dựng node).
+- **Cần AIO02 (không gấp nữa):** theo dõi quota Bedrock cho trường hợp cache miss cao — xem mục 4 cập nhật.
+- Incident **chưa đóng chính thức** — xem tiêu chí đóng đầy đủ ở tài liệu gốc §8/§14.

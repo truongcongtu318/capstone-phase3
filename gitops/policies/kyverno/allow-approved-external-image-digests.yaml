@@ -48,8 +48,6 @@ spec:
                     value:
                       - busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
                       - 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/shopping-copilot@sha256:347bad1eccdd0fd5e20ea2b868359f71ed8da186e5b8f42d90329d2abd49e062
-                      - 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v25@sha256:2600f9b0c332da4032f603cd4cb7086fefceb01f7206cbc7666282dbd02d9e74
-                      - 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v63@sha256:eea1d559d4314d6a840a7de2dd8b0ebb673348bf4732917023cf20f426cab66c
                       - cloudflare/cloudflared:2026.7.1@sha256:188bb03589a32affed3cf4d0590565ffe67b78866e6b5582574afab2b705bafe
                       - ghcr.io/open-feature/flagd@sha256:e6cca86b29629a06806aa7954b4a9b5f291c30839c6ae4f815dc4ddcee4a0746
                       - jaegertracing/jaeger@sha256:6266573208d665ce5c17483bce0a75d0806480d92c84766d288d0aee885ce708
@@ -76,8 +74,6 @@ spec:
                     value:
                       - busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
                       - 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/shopping-copilot@sha256:347bad1eccdd0fd5e20ea2b868359f71ed8da186e5b8f42d90329d2abd49e062
-                      - 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v25@sha256:2600f9b0c332da4032f603cd4cb7086fefceb01f7206cbc7666282dbd02d9e74
-                      - 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v63@sha256:eea1d559d4314d6a840a7de2dd8b0ebb673348bf4732917023cf20f426cab66c
                       - cloudflare/cloudflared:2026.7.1@sha256:188bb03589a32affed3cf4d0590565ffe67b78866e6b5582574afab2b705bafe
                       - ghcr.io/open-feature/flagd@sha256:e6cca86b29629a06806aa7954b4a9b5f291c30839c6ae4f815dc4ddcee4a0746
                       - jaegertracing/jaeger@sha256:6266573208d665ce5c17483bce0a75d0806480d92c84766d288d0aee885ce708
@@ -104,8 +100,6 @@ spec:
                     value:
                       - busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
                       - 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/shopping-copilot@sha256:347bad1eccdd0fd5e20ea2b868359f71ed8da186e5b8f42d90329d2abd49e062
-                      - 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v25@sha256:2600f9b0c332da4032f603cd4cb7086fefceb01f7206cbc7666282dbd02d9e74
-                      - 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v63@sha256:eea1d559d4314d6a840a7de2dd8b0ebb673348bf4732917023cf20f426cab66c
                       - cloudflare/cloudflared:2026.7.1@sha256:188bb03589a32affed3cf4d0590565ffe67b78866e6b5582574afab2b705bafe
                       - ghcr.io/open-feature/flagd@sha256:e6cca86b29629a06806aa7954b4a9b5f291c30839c6ae4f815dc4ddcee4a0746
                       - jaegertracing/jaeger@sha256:6266573208d665ce5c17483bce0a75d0806480d92c84766d288d0aee885ce708

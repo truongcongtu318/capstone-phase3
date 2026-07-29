@@ -8,7 +8,7 @@ images:
     source: reviewed-registry-resolution
     reviewCadence: monthly
     lastReviewed: 2026-07-22
-  # The three AIO02 entries below run in techx-tf3, so the policy judges them,
+  # The AIO02 entries below run in techx-tf3, so the policy judges them,
   # but AIO02 owns their release cycle. They sit here rather than under the
   # first-party policy because that one requires a CycloneDX attestation and
   # build-push-copilot.yml signs without producing one. A version bump that
@@ -18,18 +18,6 @@ images:
     component: shopping-copilot
     owner: AIO02
     source: pinned-by-aio02-ci
-    reviewCadence: per-release
-    lastReviewed: 2026-07-28
-  - image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v25@sha256:2600f9b0c332da4032f603cd4cb7086fefceb01f7206cbc7666282dbd02d9e74
-    component: aiops-anomaly-training
-    owner: AIO02
-    source: resolved-from-ecr
-    reviewCadence: per-release
-    lastReviewed: 2026-07-28
-  - image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v63@sha256:eea1d559d4314d6a840a7de2dd8b0ebb673348bf4732917023cf20f426cab66c
-    component: aiops-engine
-    owner: AIO02
-    source: resolved-from-running-pods
     reviewCadence: per-release
     lastReviewed: 2026-07-28
   # Upstream Grafana is gone: PM-176 replaced it with a first-party image that

@@ -4,7 +4,7 @@
 # CHƯA sửa ở Phase 1, có chủ đích:
 #   - AWS_ACCESS_KEY_ID/SECRET vẫn lấy từ secret (static key của aio2-admin-team).
 #     Gỡ ở Phase 2 SAU khi IRSA role tf3-aiops-engine-irsa dựng xong trong Terraform.
-#   - image dùng tag chứ chưa digest-pin; imagePullPolicy vẫn Always.
+#   - imagePullPolicy vẫn Always để giữ nguyên runtime behavior đã adopt.
 #   - annotation kubectl.kubernetes.io/restartedAt nằm trong pod template: xoá nó
 #     sẽ đổi pod-template-hash và làm pod restart. Giữ nguyên.
 apiVersion: apps/v1
@@ -48,10 +48,9 @@ spec:
           type: RuntimeDefault
       containers:
       - name: engine
-        # Digest-pinned so the tag cannot be repointed underneath a running
-        # release. This is the digest the pod already resolved IF-v63 to, read
-        # from its imageID, so the workload comes back on the same bytes.
-        image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v63@sha256:eea1d559d4314d6a840a7de2dd8b0ebb673348bf4732917023cf20f426cab66c
+        # First-party signed/SBOM-attested image from build-push-ecr run
+        # 30384952378, source 94bad5a0cc8b4e69e585c2010de3367d08657241.
+        image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:94bad5a-30384952378-aiops-engine@sha256:7eb0b5120232a10266be897de53279dc6d5041f812829fd7a9e732ebd0726954
         imagePullPolicy: Always
         ports:
         - name: http-metrics
