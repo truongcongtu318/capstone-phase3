@@ -127,15 +127,31 @@ class CopilotAgent:
     def _time(self, action: str) -> tuple:
         return _now_ms(), action
 
+    def _emit_trace(self, step: str, detail: str, status: str = "RUNNING", duration_ms: Optional[int] = None):
+        trace_obj = {
+            "step": step,
+            "detail": detail,
+            "status": status,
+            "timestamp": time.strftime("%H:%M:%S") + f".{int(time.time() * 1000) % 1000:03d}"
+        }
+        if duration_ms is not None:
+            trace_obj["duration_ms"] = duration_ms
+        if hasattr(self, "_on_trace_callback") and self._on_trace_callback:
+            try:
+                self._on_trace_callback(trace_obj)
+            except Exception:
+                pass
+
     def _end(self, start: int, action: str, status: str, detail: str):
-        self._steps.append(
-            {
-                "action": action,
-                "status": status,
-                "detail": detail,
-                "duration_ms": _now_ms() - start,
-            }
-        )
+        dur = _now_ms() - start
+        step_info = {
+            "action": action,
+            "status": status,
+            "detail": detail,
+            "duration_ms": dur,
+        }
+        self._steps.append(step_info)
+        self._emit_trace(action.lower(), detail, status=status, duration_ms=dur)
 
     async def _call_llm(self, messages: list, **kwargs):
         ctx = trace_llm_ctx.get()
@@ -1389,12 +1405,14 @@ Respond with exactly one word: PASS or FAIL
 
     @with_fallback
     async def chat(
-        self, session_id: str, user_id: str, user_message: str
+        self, session_id: str, user_id: str, user_message: str, on_trace: Optional[Any] = None
     ) -> Dict[str, Any]:
         self._steps = []
+        self._on_trace_callback = on_trace
         request_id = get_tracer().create_request_id()
 
         # ── MANDATE #23: GenAI Cache Check (trước rate limiter để tiết kiệm processing) ──
+        self._emit_trace("cache_lookup", "Tra cứu Tier 1 Exact Match (Valkey) & Tier 2 Titan Semantic Vector Embeddings...")
         cache_hit_result = self._genai_cache.get(user_id, user_message)
         if cache_hit_result:
             logger.info(
@@ -1540,6 +1558,7 @@ Respond with exactly one word: PASS or FAIL
         self._sessions.append_message(session_id, "user", user_message)
 
         # L1: Parse Intent
+        self._emit_trace("intent_parser", "Phân tích ý định câu hỏi (Intent Parsing)...")
         trace_llm_ctx.set({"layer": "intent_parser", "request_id": request_id, "session_id": session_id, "user_id": user_id})
         s3, a3 = self._time("IntentParser")
         raw_intent = await self._parse_intent_with_llm(user_message, session)
@@ -1571,6 +1590,7 @@ Respond with exactly one word: PASS or FAIL
         # not an implementation detail (e.g. "cart is empty").
         _NO_TOOL_TASKS = {"greeting", "unknown", "unsupported_cart_action", "clarify"}
         if intent.get("task_type") in _NO_TOOL_TASKS:
+            self._emit_trace("synthesis", "Sinh câu trả lời trực tiếp...")
             trace_llm_ctx.set({"layer": "synthesis", "request_id": request_id, "session_id": session_id, "user_id": user_id})
             s_skip, a_skip = self._time("AnswerGenerator")
             reply = await self._generate_grounded_answer(user_message, {}, intent)
@@ -1596,6 +1616,7 @@ Respond with exactly one word: PASS or FAIL
             }
 
         # L2: Planner
+        self._emit_trace("planning", "Lập kế hoạch thực thi (Heuristic / LLM Plan)...")
         trace_llm_ctx.set({"layer": "planner", "request_id": request_id, "session_id": session_id, "user_id": user_id})
         s4, a4 = self._time("Planner")
         plan = await self._build_plan_with_llm(intent, user_id, session)
@@ -1605,6 +1626,7 @@ Respond with exactly one word: PASS or FAIL
         session.setdefault("context", {})["_current_intent"] = intent
 
         # L3 & L4: Execute and Aggregate
+        self._emit_trace("tool_call", f"Thực thi {len(plan)} bước dịch vụ (Tool Calls)...")
         s5, a5 = self._time("Executor")
         exec_result = await self._execute_and_aggregate(plan, user_id, session)
         self._end(s5, a5, "OK", f"Execution status: {exec_result.get('status')}")
@@ -1645,6 +1667,7 @@ Respond with exactly one word: PASS or FAIL
             }
 
         # L5 & L6: Answer Gen + Guarding
+        self._emit_trace("synthesis", "Tổng hợp câu trả lời & Kiểm tra Guardrails...")
         trace_llm_ctx.set({"layer": "synthesis", "request_id": request_id, "session_id": session_id, "user_id": user_id})
         s6, a6 = self._time("AnswerGenerator")
         reply = await self._generate_grounded_answer(

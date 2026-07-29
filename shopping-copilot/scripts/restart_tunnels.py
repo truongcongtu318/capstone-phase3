@@ -21,6 +21,10 @@ RDS_PORT     = int(os.getenv("RDS_REMOTE_PORT", "5432"))
 RDS_LOCAL    = int(os.getenv("RDS_LOCAL_PORT", "5433"))
 PROFILE      = os.getenv("AWS_PROFILE", "default")
 
+VALKEY_HOST  = os.getenv("VALKEY_HOST", "master.techx-tf3-valkey.pkeslh.apse1.cache.amazonaws.com")
+VALKEY_PORT  = int(os.getenv("VALKEY_REMOTE_PORT", "6379"))
+VALKEY_LOCAL = int(os.getenv("VALKEY_LOCAL_PORT", "6379"))
+
 SERVICES = [
     ("deployment/product-catalog", 3550, 8080),
     ("deployment/cart",            7070, 8080),
@@ -74,6 +78,16 @@ def launch_ssm_rds(bastion_id, env):
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
 
 
+def launch_ssm_valkey(bastion_id, env):
+    return subprocess.Popen([
+        "aws", "ssm", "start-session",
+        "--target", bastion_id,
+        "--document-name", "AWS-StartPortForwardingSessionToRemoteHost",
+        "--parameters", f"host={VALKEY_HOST},portNumber={VALKEY_PORT},localPortNumber={VALKEY_LOCAL}",
+        "--region", REGION,
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+
+
 def launch_port_forward(res, local_port, remote_port, env):
     return subprocess.Popen(
         ["kubectl", "port-forward", res, f"{local_port}:{remote_port}", "-n", NAMESPACE],
@@ -101,8 +115,13 @@ def main():
     ssm_rds = launch_ssm_rds(bastion_id, env)
     print(f"    PID: {ssm_rds.pid}")
 
+    # ── SSM Valkey Tunnel (6379) ──────────────────────────────
+    print(f"\n[4] Launching SSM Valkey Cache Tunnel -> localhost:{VALKEY_LOCAL} ...")
+    ssm_valkey = launch_ssm_valkey(bastion_id, env)
+    print(f"    PID: {ssm_valkey.pid}")
+
     # ── Update kubeconfig ────────────────────────────────────
-    print("\n[4] Updating kubeconfig -> https://localhost:8443 ...")
+    print("\n[5] Updating kubeconfig -> https://localhost:8443 ...")
     subprocess.run(
         ["aws", "eks", "update-kubeconfig", "--name", CLUSTER_NAME, "--region", REGION],
         check=False, capture_output=True,
@@ -116,7 +135,7 @@ def main():
     time.sleep(2)
 
     # ── kubectl port-forwards ────────────────────────────────
-    print("\n[5] Launching kubectl port-forwards ...")
+    print("\n[6] Launching kubectl port-forwards ...")
     pf_procs = {}
     for res, local_port, remote_port in SERVICES:
         p = launch_port_forward(res, local_port, remote_port, env)
@@ -126,8 +145,8 @@ def main():
     time.sleep(6)
 
     # ── Port connectivity check ──────────────────────────────
-    print("\n[6] Port connectivity check:")
-    for port in [7070, 7001, 9090, 3550, 8081, RDS_LOCAL]:
+    print("\n[7] Port connectivity check:")
+    for port in [7070, 7001, 9090, 3550, 8081, RDS_LOCAL, VALKEY_LOCAL]:
         status = "LISTENING" if check_port(port) else "FAILED"
         icon = "OK" if status == "LISTENING" else "!!"
         print(f"    [{icon}] localhost:{port:5d} -> {status}")
@@ -139,6 +158,7 @@ def main():
     procs_meta = {
         "ssm_eks": ("ssm_eks", None),
         "ssm_rds": ("ssm_rds", None),
+        "ssm_valkey": ("ssm_valkey", None),
     }
     for res, lp, rp in SERVICES:
         procs_meta[f"{res}:{lp}"] = ("pf", (res, lp, rp))
@@ -146,6 +166,7 @@ def main():
     active_procs = {
         "ssm_eks": ssm_eks,
         "ssm_rds": ssm_rds,
+        "ssm_valkey": ssm_valkey,
     }
     for (res, lp, rp), p in pf_procs.items():
         active_procs[f"{res}:{lp}"] = p
@@ -161,6 +182,8 @@ def main():
                         new_p = launch_ssm_eks(bastion_id, eks_endpoint, env)
                     elif ptype == "ssm_rds":
                         new_p = launch_ssm_rds(bastion_id, env)
+                    elif ptype == "ssm_valkey":
+                        new_p = launch_ssm_valkey(bastion_id, env)
                     elif ptype == "pf":
                         res, lp, rp = pmeta
                         new_p = launch_port_forward(res, lp, rp, env)
