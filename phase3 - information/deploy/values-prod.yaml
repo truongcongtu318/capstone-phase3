@@ -1442,8 +1442,8 @@ components:
       failureThreshold: 3
     replicas: 2        # cổng vào DUY NHẤT (Envoy) — SPOF của toàn hệ thống
     imageOverride: # mandate-01: gỡ route Envoy - xem comment imageOverride đầu components:
-      digest: sha256:3067e404dceb58eb4eb4c50fe13c7206866867c7cf83987196c116e1390ef269
-      tag: ae6ac7f-30341306942-frontend-proxy
+      digest: sha256:82c1ce0b6eea1feb6057f172c8baf28a264d7a13773dada7b39336c38f3ba2fa
+      tag: 52fa3f7-30423315981-frontend-proxy
     # Mandate #19 staged promotion knobs. Keep shadow (enforced=0) for the first
     # rollout, then change only BROWSE_RATE_LIMIT_ENFORCED_PERCENT in reviewed
     # stages 5 -> 25 -> 50 -> 100 after every gate passes. The global fallback
