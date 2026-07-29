@@ -1,32 +1,22 @@
 #!/usr/bin/env bash
-# Build product-reviews app image multi-arch (amd64+arm64) từ source và push
-# lên Docker Hub: nghiadaulau/techx-corp:1.0-product-reviews  (PUBLIC).
+# Build 17 app image multi-arch (amd64+arm64) từ source de-branded và push
+# lên Docker Hub: nghiadaulau/techx-corp:1.0-<service>  (PUBLIC).
 # Prereq: docker + buildx + QEMU; đã: docker login -u nghiadaulau
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE/../techx-corp-platform"
 [ -f .env.override ] || { echo "missing .env.override"; exit 1; }
+echo ">> IMAGE_NAME: $(grep IMAGE_NAME .env.override)"
 
-# Đọc cấu hình từ .env.override hoặc mặc định
-IMAGE_NAME=$(grep -E "^IMAGE_NAME=" .env.override | cut -d'=' -f2 | tr -d '"' | tr -d "'")
-DEMO_VERSION=$(grep -E "^DEMO_VERSION=" .env.override | cut -d'=' -f2 | tr -d '"' | tr -d "'")
-
-IMAGE_NAME=${IMAGE_NAME:-nghiadaulau/techx-corp}
-DEMO_VERSION=${DEMO_VERSION:-1.0}
-
-TARGET_IMAGE="${IMAGE_NAME}:${DEMO_VERSION}-product-reviews"
-
-echo ">> TARGET_IMAGE: ${TARGET_IMAGE}"
+# (khuyến nghị) smoke build 1 service Go trước để bắt lỗi rebrand sớm - single arch, không push
+echo ">> smoke build checkout (single-arch, no push)"
+docker compose build checkout
 
 # builder multi-arch (one-time)
-docker buildx create --name techx-corp-builder --bootstrap --use --driver docker-container || true
+make create-multiplatform-builder || true
 
-# build + push multi-arch cho duy nhất product-reviews
-echo ">> Build and push multi-arch image (amd64+arm64) for product-reviews"
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  -t "${TARGET_IMAGE}" \
-  -f src/product-reviews/Dockerfile \
-  --push .
+# build + push toàn bộ multi-arch
+echo ">> multi-arch build + push ALL (amd64+arm64)"
+make build-multiplatform-and-push
 
-echo "done -> ${TARGET_IMAGE}"
+echo "done -> https://hub.docker.com/r/nghiadaulau/techx-corp/tags  (nhớ set repo = Public)"

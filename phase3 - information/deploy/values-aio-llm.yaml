@@ -1,11 +1,6 @@
 # AIO: cắm LLM thật thay mock (envOverrides = upsert, không xoá env khác).
 # Secret llm-api-key tạo trước: kubectl -n techx-<aio> create secret generic llm-api-key --from-literal=key=<REAL_KEY>
-serviceAccount:
-  annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::012619468490:role/techx-corp-tf3-product-reviews-bedrock"
-
 components:
-
   product-reviews:
     envOverrides:
       # Lựa chọn LLM Provider: 'openai' hoặc 'bedrock'
