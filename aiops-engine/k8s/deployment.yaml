@@ -31,7 +31,7 @@ spec:
           capabilities:
             drop:
             - ALL
-        image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v63
+        image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/tf-2-ai-engine:IF-v64
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
