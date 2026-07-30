@@ -246,9 +246,6 @@ class SessionStore:
     def clear_pending(self, session_id: str) -> None:
         """Xóa trạng thái pending sau khi user xác nhận hoặc huỷ."""
         session = self._vget(session_id)
-    def clear_pending(self, session_id: str) -> None:
-        """Xóa trạng thái pending sau khi user xác nhận hoặc huỷ."""
-        session = self._vget(session_id)
         if session:
             session["pending_confirmation"] = {}
             self._vset(session_id, session)

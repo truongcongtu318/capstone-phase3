@@ -1,0 +1,93 @@
+2026-07-31 02:07:18,502 | INFO | botocore.credentials | Found credentials in shared credentials file: ~/.aws/credentials
+2026-07-31 02:07:36,889 | INFO | main | [API_STREAM] /api/chat/stream | session=cb888a55-365b-4f21-b128-1da717e05eca | user=test_user_015 | msg=sản phẩm đắt thứ 2 trong cửa hàng
+2026-07-31 02:07:39,628 | INFO | memory.store | [STORE] Valkey connected: rediss://:5dZhhRiPLXDDLuQFv4OaZs2z5IPUIx4T@localhost:6379/1?ssl_cert_reqs=none
+2026-07-31 02:07:39,638 | INFO | botocore.credentials | Found credentials in shared credentials file: ~/.aws/credentials
+2026-07-31 02:07:39,723 | INFO | agent.copilot_agent | [AGENT] Primary LLM initialized: apac.amazon.nova-pro-v1:0
+2026-07-31 02:07:39,727 | INFO | agent.copilot_agent | [AGENT] Secondary Fallback LLM initialized: apac.amazon.nova-lite-v1:0
+2026-07-31 02:07:42,168 | INFO | memory.genai_cache | [GENAI_CACHE] Valkey connected: rediss://:5dZhhRiPLXDDLuQFv4OaZs2z5IPUIx4T@localhost:6379/1?ssl_cert_reqs=none
+2026-07-31 02:07:44,558 | INFO | memory.longterm | [LONGTERM] Valkey connected: rediss://:5dZhhRiPLXDDLuQFv4OaZs2z5IPUIx4T@localhost:6379/1?ssl_cert_reqs=none
+2026-07-31 02:07:44,558 | INFO | main | [MAIN] CopilotAgent initialized
+2026-07-31 02:07:44,608 | INFO | memory.genai_cache | [TITAN_EMBED] Bedrock runtime client initialized | region=us-east-1 | model=amazon.titan-embed-text-v2:0
+2026-07-31 02:07:48,118 | INFO | memory.store | [SESSION] Created new session | id=cb888a55-365b-4f21-b128-1da717e05eca | user=test_user_015 | backend=valkey
+2026-07-31 02:07:49,817 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:07:51,122 | INFO | agent.copilot_agent | [PLANNER] Using heuristic plan with 1 steps for rank
+2026-07-31 02:07:51,173 | INFO | src.database.connect | Initializing PostgreSQL pool — postgresql://otelu:****@localhost:5433/otel min=2 max=10
+2026-07-31 02:07:55,929 | INFO | src.database.connect | PostgreSQL pool ready
+2026-07-31 02:07:56,219 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:07:57,295 | INFO | agent.copilot_agent | === DEBUG RAW REPLY ===
+Sản phẩm đắt thứ 2 trong cửa hàng là **Starsense Explorer Refractor Telescope** với giá **$349.95**.
+
+Bạn có muốn biết thêm chi tiết về sản phẩm này hay tìm sản phẩm khác?
+=======================
+2026-07-31 02:07:57,296 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:07:57,640 | INFO | agent.copilot_agent | [DEBUG_FAITHFULNESS] Is faithful: True
+2026-07-31 02:07:58,483 | INFO | memory.genai_cache | [GENAI_CACHE] SET user=test_user_015 | entities=0 | schema_v=6
+2026-07-31 02:07:59,191 | INFO | memory.genai_cache | [GENAI_CACHE] SET global_pool | origin_user=test_user_015 | entities=0
+2026-07-31 02:07:59,290 | INFO | memory.longterm | [LONGTERM] Created new memory | user=test_user_015
+2026-07-31 02:08:08,720 | INFO | main | [API_STREAM] /api/chat/stream | session=cb888a55-365b-4f21-b128-1da717e05eca | user=test_user_015 | msg=thêm sản phẩm này vào giỏ hàng
+2026-07-31 02:08:10,476 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:08:11,562 | INFO | agent.copilot_agent | [CONTEXT] Resolved 'this' from focus_product: Starsense Explorer Refractor Telescope
+2026-07-31 02:08:11,562 | INFO | agent.copilot_agent | [CONTEXT] Resolved 'this' to: Starsense Explorer Refractor Telescope [pinned as focus]
+2026-07-31 02:08:11,563 | INFO | agent.copilot_agent | [PLANNER] Using heuristic plan with 1 steps for add_to_cart
+2026-07-31 02:08:11,564 | INFO | guardrails.confirmation | [CONFIRMATION] PENDING | action=AddItem | user=test_user_015 | params={'product_id': '66VCHSJNUP', 'quantity': 1}
+2026-07-31 02:08:11,902 | INFO | memory.store | [SESSION] Pending set | id=cb888a55-365b-4f21-b128-1da717e05eca | action=AddItem
+2026-07-31 02:08:14,233 | INFO | main | [API] /api/confirm | session=cb888a55-365b-4f21-b128-1da717e05eca
+2026-07-31 02:08:14,347 | INFO | memory.store | [SESSION] Pending cleared | id=cb888a55-365b-4f21-b128-1da717e05eca
+2026-07-31 02:08:20,878 | INFO | main | [API_STREAM] /api/chat/stream | session=cb888a55-365b-4f21-b128-1da717e05eca | user=test_user_015 | msg=xem giỏ hàng
+2026-07-31 02:08:22,565 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:08:23,570 | INFO | agent.copilot_agent | [PLANNER] Using heuristic plan with 1 steps for view_cart
+2026-07-31 02:08:24,000 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:08:24,845 | INFO | agent.copilot_agent | === DEBUG RAW REPLY ===
+**Starsense Explorer Refractor Telescope** - 1 chiếc - **$349.95**
+
+Bạn có thể thêm sản phẩm khác vào giỏ hàng hoặc xem thêm chi tiết trên trang web chính.
+=======================
+2026-07-31 02:08:25,738 | INFO | memory.genai_cache | [GENAI_CACHE] SET user=test_user_015 | entities=0 | schema_v=6
+2026-07-31 02:08:42,783 | INFO | main | [API_STREAM] /api/chat/stream | session=cb888a55-365b-4f21-b128-1da717e05eca | user=test_user_015 | msg=liệt kê chi tiết các bài đánh giá của sản phẩm này
+2026-07-31 02:08:47,938 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:08:48,879 | INFO | agent.copilot_agent | [CONTEXT] Resolved 'this' from focus_product: Starsense Explorer Refractor Telescope
+2026-07-31 02:08:48,879 | INFO | agent.copilot_agent | [CONTEXT] Resolved 'this' to: Starsense Explorer Refractor Telescope [pinned as focus]
+2026-07-31 02:08:48,879 | INFO | agent.copilot_agent | [PLANNER] Using heuristic plan with 2 steps for get_reviews
+2026-07-31 02:08:48,940 | INFO | botocore.credentials | Found credentials in shared credentials file: ~/.aws/credentials
+2026-07-31 02:08:55,785 | INFO | botocore.credentials | Found credentials in shared credentials file: ~/.aws/credentials
+2026-07-31 02:08:57,825 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:09:02,834 | INFO | agent.copilot_agent | === DEBUG RAW REPLY ===
+Dưới đây là các bài đánh giá chi tiết cho **Starsense Explorer Refractor Telescope**:
+
+1. **tech_astro**: 5.0 sao - "Ứng dụng StarSense thật cách mạng! Nó làm cho việc tìm kiếm các vật thể thiên văn trở nên dễ dàng vô cùng. Kính thiên văn này là một sự thay đổi lớn đối với người mới bắt đầu."
+2. **app_user**: 4.5 sao - "Công nghệ tuyệt vời, tích hợp điện thoại thông minh hoạt động hoàn hảo. Tôi chưa bao giờ có nhiều niềm vui khi khám phá bầu trời đêm. Đáng giá từng xu."
+3. **innovator_john**: 4.0 sao - "Thiết lập rất dễ dàng, và các hướng dẫn trong ứng dụng rất hữu ích. Hình ảnh rất rõ nét và sắc nét. Chỉ có một chút phàn nàn về việc tiêu hao pin trên điện thoại."
+4. **clear_skies**: 5.0 sao - "Cuối cùng, một kính thiên văn giúp loại bỏ phần đoán đoán khi ngắm sao. Vị trí theo thời gian thực rất chính xác. Được đề xuất mạnh mẽ cho bất kỳ ai mới đến với kính thiên văn."
+5. **gadget_geek**: 4.5 sao - "Sản phẩm tuyệt vời, ứng dụng thực sự hướng dẫn bạn. Nó giống như có một nhà thiên văn học cá nhân bên cạnh bạn. Chất lượng quang học cũng rất tốt."
+
+Điểm đánh giá trung bình: 4.6 sao
+
+Bạn có thể muốn xem thêm các sản phẩm khác hoặc so sánh với các mẫu khác?
+=======================
+2026-07-31 02:09:02,836 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:09:03,706 | INFO | agent.copilot_agent | [DEBUG_FAITHFULNESS] Is faithful: True
+2026-07-31 02:09:05,212 | INFO | memory.genai_cache | [GENAI_CACHE] SET user=test_user_015 | entities=2 | schema_v=6
+2026-07-31 02:09:06,163 | INFO | memory.genai_cache | [GENAI_CACHE] SET global_pool | origin_user=test_user_015 | entities=2
+2026-07-31 02:09:15,838 | INFO | main | [API_STREAM] /api/chat/stream | session=cb888a55-365b-4f21-b128-1da717e05eca | user=test_user_015 | msg=thêm sản phẩm này vào giỏ hàng
+2026-07-31 02:09:17,837 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:09:18,836 | INFO | agent.copilot_agent | [CONTEXT] Resolved 'this' from focus_product: Starsense Explorer Refractor Telescope
+2026-07-31 02:09:18,836 | INFO | agent.copilot_agent | [CONTEXT] Resolved 'this' to: Starsense Explorer Refractor Telescope [pinned as focus]
+2026-07-31 02:09:18,836 | INFO | agent.copilot_agent | [PLANNER] Using heuristic plan with 1 steps for add_to_cart
+2026-07-31 02:09:18,838 | INFO | guardrails.confirmation | [CONFIRMATION] PENDING | action=AddItem | user=test_user_015 | params={'product_id': '66VCHSJNUP', 'quantity': 1}
+2026-07-31 02:09:19,102 | INFO | memory.store | [SESSION] Pending set | id=cb888a55-365b-4f21-b128-1da717e05eca | action=AddItem
+2026-07-31 02:09:21,506 | INFO | main | [API] /api/confirm | session=cb888a55-365b-4f21-b128-1da717e05eca
+2026-07-31 02:09:21,763 | INFO | memory.store | [SESSION] Pending cleared | id=cb888a55-365b-4f21-b128-1da717e05eca
+2026-07-31 02:09:29,517 | INFO | main | [API_STREAM] /api/chat/stream | session=cb888a55-365b-4f21-b128-1da717e05eca | user=test_user_015 | msg=xem giỏ hàng lần nữa
+2026-07-31 02:09:31,514 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:09:32,468 | INFO | agent.copilot_agent | [PLANNER] Using heuristic plan with 1 steps for view_cart
+2026-07-31 02:09:32,887 | INFO | langchain_aws.chat_models.bedrock_converse | Using Bedrock Converse API to generate response
+2026-07-31 02:09:33,918 | INFO | agent.copilot_agent | === DEBUG RAW REPLY ===
+Dưới đây là nội dung giỏ hàng của bạn:
+
+**Starsense Explorer Refractor Telescope** - 2 chiếc - **$349.95**
+
+Tổng giá trị giỏ hàng: **$699.9**
+
+Bạn có thể thêm sản phẩm khác vào giỏ hàng hoặc tiếp tục mua sắm.
+=======================
+2026-07-31 02:09:34,931 | INFO | memory.genai_cache | [GENAI_CACHE] SET user=test_user_015 | entities=0 | schema_v=6

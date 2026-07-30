@@ -51,6 +51,7 @@ from src.tools.catalog_tool import (
     get_all_products,
     get_categories,
     get_top_rated_products,
+    get_product_by_price_rank,
 )
 from src.llm.prompt import SYSTEM_PROMPT, INTENT_PARSE_PROMPT, EVIDENCE_SYNTHESIS_PROMPT
 
@@ -359,7 +360,7 @@ class CopilotAgent:
             return repair_intent_fallback(user_message)
 
     # Structured context resolution — trusts LLM's context_reference & ordinal_index
-    def _resolve_context_references(self, intent: dict, session: dict) -> dict:
+    def _resolve_context_references(self, intent: dict, session: dict, user_message: str = "") -> dict:
         context = session.get("context", {})
         last_results = context.get("last_search_results", [])
         ref = intent.get("context_reference", "none")
@@ -379,17 +380,72 @@ class CopilotAgent:
         ref = intent.get("context_reference", "none")
         ordinal = intent.get("ordinal_index")
 
-        # Override ref to 'both' if user explicitly says 'cả hai' / 'cả 2' / 'ca hai'
-        raw_msg = ""
-        msgs = session.get("messages", [])
-        if msgs:
-            raw_msg = (msgs[-1].get("content") or "").lower()
+        # Use the directly-passed user_message (current turn) for keyword matching.
+        # Do NOT read from session["messages"][-1] — that session snapshot was fetched
+        # BEFORE append_message() saved the new message, so it contains the PREVIOUS turn.
+        if user_message:
+            raw_msg = user_message.lower()
+        else:
+            # Fallback: read from stale snapshot (only used when called without user_message)
+            msgs = session.get("messages", [])
+            raw_msg = (msgs[-1].get("content") or "").lower() if msgs else ""
+
+        # ── Deterministic Intent Normalization ──
+        # Helper sets
+        _cart_words = {"giỏ hàng", "gio hang", "giỏ", "cart"}
+        _add_words  = {"thêm", "them", "đưa", "dua", "add", "put", "mua", "bỏ vào", "bo vao"}
+        _view_words = {
+            "xem giỏ", "xem gio", "kiểm tra giỏ", "kiem tra gio",
+            "giỏ hàng có gì", "gio hang co gi",
+            "view cart", "show cart", "check cart",
+        }
+
+        _has_cart  = any(kw in raw_msg for kw in _cart_words)
+        _has_add   = any(kw in raw_msg for kw in _add_words)
+        _has_view  = any(kw in raw_msg for kw in _view_words)
+        # "xem giỏ hàng" or "muốn xem" + cart word
+        _is_view_cart = _has_view or (
+            any(kw in raw_msg for kw in ["xem", "show", "hiển thị"]) and _has_cart
+            and not _has_add
+        )
+
+        # 1. Add to cart override (must have cart word AND add-action word, not a view-cart)
+        if _has_cart and _has_add and not _is_view_cart:
+            intent["task_type"] = "add_to_cart"
+            intent["target_entity"] = "cart"
+
+        # 2. View cart override
+        elif _is_view_cart:
+            intent["task_type"] = "view_cart"
+            intent["target_entity"] = "cart"
+
+        # 3. Deterministic Price Ranking Intent Normalization
+        elif any(kw in raw_msg for kw in ["đắt thứ", "rẻ thứ", "đắt nhất", "rẻ nhất", "cheapest", "most expensive"]):
+            intent["task_type"] = "rank"
+            intent["target_entity"] = "product"
+            if any(kw in raw_msg for kw in ["rẻ", "cheapest", "thấp"]):
+                intent["ranking_direction"] = "asc"
+            else:
+                intent["ranking_direction"] = "desc"
+
+            if not intent.get("ordinal_index"):
+                if any(kw in raw_msg for kw in ["thứ 2", "thứ hai", "2nd"]):
+                    intent["ordinal_index"] = 2
+                elif any(kw in raw_msg for kw in ["thứ 3", "thứ ba", "3rd"]):
+                    intent["ordinal_index"] = 3
+                elif any(kw in raw_msg for kw in ["thứ 4", "thứ tư", "4th"]):
+                    intent["ordinal_index"] = 4
+                elif any(kw in raw_msg for kw in ["thứ 5", "thứ năm", "5th"]):
+                    intent["ordinal_index"] = 5
+
         if any(kw in raw_msg for kw in ["cả hai", "cả 2", "ca hai"]):
             ref = "both"
             intent["context_reference"] = "both"
 
-        # ── "both"/"cả hai"/"these" — resolve the two most recent products ──
-        if ref in ["both", "these", "those"]:
+        # ── "both" — resolve the two most recent products ──
+        # Only treat 'these'/'those' as 'both' if there is NO single focus product (last_product_id) in context.
+        # If last_product_id exists, 'these'/'this' refers to that single focus product.
+        if ref == "both" or (ref in ["these", "those"] and not context.get("last_product_id")):
             # Priority: check _multi_search_tops accumulated from compare search steps
             # (each search in a compare plan deposits its top-1 here, so both products survive)
             multi_tops = context.get("_multi_search_tops", [])
@@ -412,7 +468,8 @@ class CopilotAgent:
             return intent
 
         # ── Ordinal reference ("thứ nhất"/"first"/"2nd"...) ──
-        if ordinal and isinstance(ordinal, int) and ordinal >= 1:
+        # Skip for task_type=rank: planner will use get_product_by_price_rank with SQL OFFSET instead
+        if ordinal and isinstance(ordinal, int) and ordinal >= 1 and intent.get("task_type") != "rank":
             if ordinal <= len(last_results):
                 product = last_results[ordinal - 1]
                 intent["product_name"] = product.get("name", "")
@@ -433,11 +490,13 @@ class CopilotAgent:
             )
             return intent
 
-        # ── Pronoun reference ("it"/"that"/"đó"/"cái đó") ──
+        # ── Pronoun reference ("it"/"that"/"this"/"these"/"đó"/"nó"/"cái này"/"cái đó") ──
         if ref in [
             "this",
             "that",
             "it",
+            "these",
+            "those",
             "previous",
             "last",
             "đó",
@@ -446,7 +505,16 @@ class CopilotAgent:
             "cái đó",
         ]:
             resolved = False
-            # Prefer fuzzy-matching an explicit product_name against last results.
+            # 1. Priority: focus_product_id (explicitly pinned by user in a previous turn)
+            if context.get("focus_product_id") and not resolved:
+                intent["product_id"] = context["focus_product_id"]
+                intent["product_name"] = context.get("focus_product_name", "")
+                resolved = True
+                logger.info(
+                    f"[CONTEXT] Resolved '{ref}' from focus_product: {intent.get('product_name')}"
+                )
+
+            # 2. Fuzzy-match an explicit product_name the LLM extracted against last results.
             raw_pname = intent.get("product_name")
             if isinstance(raw_pname, list):
                 raw_pname = " ".join(str(x) for x in raw_pname)
@@ -460,6 +528,7 @@ class CopilotAgent:
                         resolved = True
                         break
 
+            # 3. Fallback: last_product_id from most recent search/lookup
             if not resolved and context.get("last_product_id"):
                 intent["product_id"] = context["last_product_id"]
                 intent["product_name"] = context.get("last_product_name", "")
@@ -468,8 +537,13 @@ class CopilotAgent:
             if resolved:
                 if intent.get("task_type") not in _action_tasks:
                     intent["task_type"] = "lookup"
+                # Pin this product as focus so it's remembered across the next 2-3 turns
+                context["focus_product_id"] = intent["product_id"]
+                context["focus_product_name"] = intent.get("product_name", "")
+                if not context.get("focus_product_id"):
+                    pass  # focus_product_id was already set above
                 logger.info(
-                    f"[CONTEXT] Resolved '{ref}' to: {intent.get('product_name')}"
+                    f"[CONTEXT] Resolved '{ref}' to: {intent.get('product_name')} [pinned as focus]"
                 )
                 return intent
 
@@ -696,8 +770,19 @@ class CopilotAgent:
                         }
                     )
             elif task_type == "rank":
-                # Price ranking (cheapest / most expensive) -> fetch all products for exact price ordering
-                plan.append({"name": "get_all_products", "args": {}})
+                # Price ranking: use exact SQL OFFSET query when ordinal is given, else fetch all
+                ordinal_n = intent.get("ordinal_index")
+                direction = intent.get("ranking_direction")
+                if not direction:
+                    sort_val = str(intent.get("constraints", {}).get("sort", "")).lower()
+                    direction = "asc" if "asc" in sort_val else "desc"
+                if ordinal_n and isinstance(ordinal_n, int) and ordinal_n >= 1:
+                    plan.append({
+                        "name": "get_product_by_price_rank",
+                        "args": {"rank": ordinal_n, "order": direction},
+                    })
+                else:
+                    plan.append({"name": "get_all_products", "args": {}})
             elif task_type == "compare":
                 # Multi-entity compare: split by any connector word
                 pq = intent.get("product_query", "")
@@ -1050,6 +1135,18 @@ class CopilotAgent:
                         ctx["last_product_name"] = prods[0]["name"]
                         ctx["last_search_ids"] = [p["id"] for p in prods]
                         ctx["last_search_results"] = prods
+                        # Clear focus_product only when this is a NEW explicit search (no pronoun ref in current intent),
+                        # so "này/đó" references after a search correctly stay focused on the explicit product.
+                        current_intent = ctx.get("_current_intent", {})
+                        ref_in_intent = current_intent.get("context_reference", "none")
+                        is_pronoun_ref = ref_in_intent in [
+                            "this", "that", "it", "these", "those",
+                            "previous", "last", "đó", "nó", "cái này", "cái đó"
+                        ]
+                        if not is_pronoun_ref:
+                            # New explicit product search → clear old focus so new product becomes focus
+                            ctx.pop("focus_product_id", None)
+                            ctx.pop("focus_product_name", None)
                         # FIX A: Accumulate top-1 from each search step into
                         # _multi_search_tops so "both"/"cả hai" in the NEXT
                         # turn can resolve to both compared products even after
@@ -1068,6 +1165,19 @@ class CopilotAgent:
                     if prods:
                         ctx["last_search_ids"] = [p["id"] for p in prods]
                         ctx["last_search_results"] = prods
+                elif (
+                    tc_name == "get_product_by_price_rank"
+                    and res_json.get("status") == "success"
+                    and res_json.get("product")
+                ):
+                    prod = res_json["product"]
+                    ctx["last_product_id"] = prod.get("id")
+                    ctx["last_product_name"] = prod.get("name")
+                    # Also set as focus so subsequent 'này/đó' references bind to ranked product
+                    ctx["focus_product_id"] = prod.get("id")
+                    ctx["focus_product_name"] = prod.get("name")
+                    ctx["last_search_results"] = [prod]
+                    ctx["last_search_ids"] = [prod.get("id")]
 
                 if res_json.get("status") == "pending":
                     # Get intent from session context (stored before execution)
@@ -1610,7 +1720,7 @@ Respond with exactly one word: PASS or FAIL
         trace_llm_ctx.set({"layer": "intent_parser", "request_id": request_id, "session_id": session_id, "user_id": user_id})
         s3, a3 = self._time("IntentParser")
         raw_intent = await self._parse_intent_with_llm(user_message, session)
-        intent = self._resolve_context_references(raw_intent, session)
+        intent = self._resolve_context_references(raw_intent, session, user_message=user_message)
         self._end(
             s3,
             a3,
