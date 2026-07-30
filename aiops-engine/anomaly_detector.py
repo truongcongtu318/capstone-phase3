@@ -198,16 +198,39 @@ class AnomalyDetector:
             remediated = SIMULATION_STATE["remediated"]
             if scenario in ["inc1", "inc2", "inc3", "inc4", "inc5", "inc6", "inc7", "inc8", "incnew"] and not remediated:
                 logger.info(f"[SIMULATION] Anomaly check for {service}: anomalous due to scenario {scenario}")
-                return {"is_anomalous": True, "score": -0.5, "service": service, "details": f"Scenario {scenario} active"}
+                return {
+                    "is_anomalous": True,
+                    "prediction": -1,
+                    "score": -0.5,
+                    "confidence": "HIGH",
+                    "fallback": False,
+                    "service": service,
+                    "details": f"Scenario {scenario} active"
+                }
             logger.info(f"[SIMULATION] Anomaly check for {service}: healthy")
-            return {"is_anomalous": False, "score": 0.5, "service": service, "details": "Healthy"}
+            return {
+                "is_anomalous": False,
+                "prediction": 1,
+                "score": 0.5,
+                "confidence": "HIGH",
+                "fallback": False,
+                "service": service,
+                "details": "Healthy"
+            }
 
         df_features = self.extract_features_realtime(service)
         if df_features.empty or len(df_features) < 1:
             logger.warning(f"No realtime feature data extracted for {service}. Fallback Z-score check.")
-            # Fallback Z-Score nếu thiếu dữ liệu ngữ cảnh
             is_anomalous = self.check_infra_anomaly(service, [])
-            return {"is_anomalous": is_anomalous, "score": -0.1 if is_anomalous else 0.1, "service": service, "details": "Fallback Z-Score"}
+            return {
+                "is_anomalous": is_anomalous,
+                "prediction": -1 if is_anomalous else 1,
+                "score": -0.1 if is_anomalous else 0.1,
+                "confidence": "MEDIUM" if is_anomalous else "HIGH",
+                "fallback": True,
+                "service": service,
+                "details": "Fallback Z-Score"
+            }
 
         # 2. Sử dụng Isolation Forest
         feature_cols = [
@@ -226,15 +249,32 @@ class AnomalyDetector:
 
         if service in self.models:
             model = self.models[service]
-            pred = model.predict(X)[0] # -1: bất thường, 1: bình thường
-            score = model.decision_function(X)[0]
+            pred = int(model.predict(X)[0]) # -1: bất thường, 1: bình thường
+            score = float(model.decision_function(X)[0])
             is_anomalous = bool(pred == -1)
+            confidence = "HIGH" if score < -0.3 else ("MEDIUM" if score < -0.1 else "borderline")
             logger.info(f"[IsolationForest] Service {service}: pred={pred}, score={score:.4f}, is_anomalous={is_anomalous}")
-            return {"is_anomalous": is_anomalous, "score": float(score), "service": service, "details": "IsolationForest ML"}
+            return {
+                "is_anomalous": is_anomalous,
+                "prediction": pred,
+                "score": score,
+                "confidence": confidence,
+                "fallback": False,
+                "service": service,
+                "details": "IsolationForest ML"
+            }
         else:
             logger.warning(f"No Isolation Forest model loaded for service {service}. Falling back to Z-score.")
             is_anomalous = self.check_infra_anomaly(service, [])
-            return {"is_anomalous": is_anomalous, "score": -0.1 if is_anomalous else 0.1, "service": service, "details": "Fallback Z-Score"}
+            return {
+                "is_anomalous": is_anomalous,
+                "prediction": -1 if is_anomalous else 1,
+                "score": -0.1 if is_anomalous else 0.1,
+                "confidence": "MEDIUM" if is_anomalous else "HIGH",
+                "fallback": True,
+                "service": service,
+                "details": "Fallback Z-Score"
+            }
 
     def check_infra_anomaly(self, service: str, metrics: list) -> bool:
         """
