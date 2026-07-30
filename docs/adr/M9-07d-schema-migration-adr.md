@@ -120,8 +120,8 @@ BEGIN
           AND table_name   = 'products'
           AND column_name  = 'categories_arr'
     ) THEN
-        SET lock_timeout     = '1s';
-        SET statement_timeout = '30s';
+        SET LOCAL lock_timeout      = '1s';
+        SET LOCAL statement_timeout = '30s';
         ALTER TABLE catalog.products
             ADD COLUMN categories_arr text[];
         RAISE NOTICE 'Added categories_arr column';
@@ -159,8 +159,9 @@ BEGIN
           AND table_name   = 'orderitem'
           AND column_name  = 'created_at'
     ) THEN
-        SET lock_timeout      = '1s';
-        SET statement_timeout = '30s';
+        -- SET LOCAL áp dụng trong transaction hiện tại của DO block
+        SET LOCAL lock_timeout      = '1s';
+        SET LOCAL statement_timeout = '30s';
         ALTER TABLE accounting.orderitem
             ADD COLUMN created_at timestamptz;
         RAISE NOTICE 'Added created_at column (nullable)';
@@ -173,40 +174,38 @@ END $$;
 ### 3.3 `accounting.orderitem` — BACKFILL (W1)
 
 ```sql
--- Step 3: BACKFILL theo lô (KHÔNG dùng một UPDATE lớn)
+-- Step 3: BACKFILL theo lô dùng PK (order_id, product_id) — KHÔNG dùng ctid
+-- ctid không ổn định sau autovacuum, có thể update sai row.
 -- Chạy từ application script hoặc migration job với pause giữa batch.
--- Thay thế :batch_size = 5000 và :watermark = timestamp bắt đầu backfill.
 
--- Run lặp đến khi rows_updated = 0:
 DO $$
 DECLARE
     rows_updated INT;
     batch_limit  INT := 5000;
-    -- M9-07d: Backfill watermark = timestamp bắt đầu job này
-    -- Tất cả row cũ hơn watermark được gán giá trị này (xem §4 semantics)
+    -- M9-07d: Backfill watermark = timestamp W1 window bắt đầu.
+    -- Tất cả row cũ được gán giá trị này (xem §4 semantics)
     backfill_watermark TIMESTAMPTZ := '2026-08-11 03:00:00+00'; -- W1 date, chốt trước
 BEGIN
     LOOP
-        WITH batch AS (
-            SELECT ctid
+        -- Dùng PK (order_id, product_id) để identify batch — ổn định qua vacuum
+        UPDATE accounting.orderitem
+        SET created_at = backfill_watermark
+        WHERE (order_id, product_id) IN (
+            SELECT order_id, product_id
             FROM accounting.orderitem
             WHERE created_at IS NULL
             LIMIT batch_limit
             FOR UPDATE SKIP LOCKED
-        )
-        UPDATE accounting.orderitem o
-        SET created_at = backfill_watermark
-        FROM batch
-        WHERE o.ctid = batch.ctid;
+        );
 
         GET DIAGNOSTICS rows_updated = ROW_COUNT;
-        
+
         EXIT WHEN rows_updated = 0;
-        
+
         RAISE NOTICE 'Backfilled % rows, sleeping 100ms', rows_updated;
         PERFORM pg_sleep(0.1); -- 100ms pause giữa batch
     END LOOP;
-    
+
     RAISE NOTICE 'Backfill complete';
 END $$;
 
@@ -214,7 +213,7 @@ END $$;
 SELECT COUNT(*) AS null_count
 FROM accounting.orderitem
 WHERE created_at IS NULL;
--- Expected: 0 (sau khi dual-write đã chạy đủ thời gian + backfill xong)
+-- Expected: 0
 ```
 
 ### 3.4 `accounting.orderitem` — ADD CHECK NOT VALID (W1)
@@ -228,8 +227,8 @@ BEGIN
         WHERE conrelid = 'accounting.orderitem'::regclass
           AND conname  = 'orderitem_created_at_not_null_check'
     ) THEN
-        SET lock_timeout      = '1s';
-        SET statement_timeout = '30s';
+        SET LOCAL lock_timeout      = '1s';
+        SET LOCAL statement_timeout = '30s';
         ALTER TABLE accounting.orderitem
             ADD CONSTRAINT orderitem_created_at_not_null_check
             CHECK (created_at IS NOT NULL) NOT VALID;
@@ -291,15 +290,17 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS orderitem_created_at_idx
 
 -- VERIFY
 SELECT
-    indexname,
-    pg_size_pretty(pg_relation_size(indexrelid)) AS index_size,
-    indisvalid
-FROM pg_indexes
-JOIN pg_index ON pg_index.indexrelid = (
-    SELECT oid FROM pg_class WHERE relname = 'orderitem_created_at_idx'
-)
-WHERE indexname = 'orderitem_created_at_idx';
--- Expected: indisvalid = true
+    i.relname                                         AS index_name,
+    pg_size_pretty(pg_relation_size(idx.indexrelid))  AS index_size,
+    idx.indisvalid                                    AS is_valid
+FROM pg_index idx
+JOIN pg_class i ON i.oid = idx.indexrelid
+JOIN pg_class t ON t.oid = idx.indrelid
+JOIN pg_namespace n ON n.oid = t.relnamespace
+WHERE n.nspname = 'accounting'
+  AND t.relname = 'orderitem'
+  AND i.relname = 'orderitem_created_at_idx';
+-- Expected: is_valid = true
 ```
 
 ### 3.7 `accounting.orderitem` — SET NOT NULL + DROP CHECK (W2, M9-14)

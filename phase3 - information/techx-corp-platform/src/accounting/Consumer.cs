@@ -225,28 +225,19 @@ internal class Consumer : IDisposable
 
     /// <summary>
     /// M9-03: Verify idempotent replay bằng fresh DbContext.
-    /// Fetch order existing từ DB và compare TOÀN BỘ aggregate (order + items + shipping).
+    /// Fetch order existing từ DB rồi delegate sang IdempotencyChecker.Compare()
+    /// — cùng path với unit test, không duplicate logic.
     /// </summary>
     private bool VerifyIdempotentReplay(OrderResult incomingOrder)
     {
-        // M9-03: Dùng FRESH DbContext - KHÔNG dùng context đang chứa entity Added failed
+        // Dùng FRESH DbContext — KHÔNG dùng context đang chứa entity Added failed.
         using var freshContext = new DBContext();
 
         try
         {
-            // Fetch existing order với cả items và shipping
             var existingOrder = freshContext.Orders
                 .AsNoTracking()
                 .FirstOrDefault(o => o.Id == incomingOrder.OrderId);
-
-            if (existingOrder == null)
-            {
-                // Race condition: 23505 nhưng order không tồn tại?
-                // Có thể đã DELETE CASCADE. Coi như replay conflict → không commit.
-                _logger.LogError("Order {OrderId} caused 23505 but not found in DB. Race condition?",
-                    incomingOrder.OrderId);
-                return false;
-            }
 
             var existingItems = freshContext.CartItems
                 .AsNoTracking()
@@ -257,76 +248,29 @@ internal class Consumer : IDisposable
                 .AsNoTracking()
                 .FirstOrDefault(s => s.OrderId == incomingOrder.OrderId);
 
-            if (existingShipping == null)
+            // Delegate toàn bộ compare logic sang IdempotencyChecker —
+            // đây là cùng path được unit test kiểm tra.
+            var result = IdempotencyChecker.Compare(
+                incomingOrder,
+                existingOrder,
+                existingItems,
+                existingShipping,
+                _logger);
+
+            return result switch
             {
-                _logger.LogError("Order {OrderId} exists but shipping missing. Partial replay?",
-                    incomingOrder.OrderId);
-                return false;
-            }
-
-            // M9-03: Compare CẢ AGGREGATE - order + items + shipping
-            // Order: chỉ có order_id (đã khớp)
-            
-            // Items: so sánh count và từng item
-            if (existingItems.Count != incomingOrder.Items.Count)
-            {
-                _logger.LogError("Order {OrderId} item count mismatch: existing={Existing}, incoming={Incoming}. " +
-                    "DLQ - khác payload.",
-                    incomingOrder.OrderId, existingItems.Count, incomingOrder.Items.Count);
-                
-                // TODO M9-14: Ghi DLQ
-                return true; // COMMIT - nhưng alert
-            }
-
-            // So sánh chi tiết từng item
-            foreach (var incomingItem in incomingOrder.Items)
-            {
-                var matchingItem = existingItems.FirstOrDefault(ei =>
-                    ei.ProductId == incomingItem.Item.ProductId);
-
-                if (matchingItem == null ||
-                    matchingItem.ItemCostCurrencyCode != incomingItem.Cost.CurrencyCode ||
-                    matchingItem.ItemCostUnits != incomingItem.Cost.Units ||
-                    matchingItem.ItemCostNanos != incomingItem.Cost.Nanos ||
-                    matchingItem.Quantity != incomingItem.Item.Quantity)
-                {
-                    _logger.LogError("Order {OrderId} item mismatch for product={ProductId}. DLQ - khác payload.",
-                        incomingOrder.OrderId, incomingItem.Item.ProductId);
-                    
-                    // TODO M9-14: Ghi DLQ
-                    return true; // COMMIT - nhưng alert
-                }
-            }
-
-            // Shipping: so sánh đầy đủ
-            if (existingShipping.ShippingTrackingId != incomingOrder.ShippingTrackingId ||
-                existingShipping.ShippingCostCurrencyCode != incomingOrder.ShippingCost.CurrencyCode ||
-                existingShipping.ShippingCostUnits != incomingOrder.ShippingCost.Units ||
-                existingShipping.ShippingCostNanos != incomingOrder.ShippingCost.Nanos ||
-                existingShipping.StreetAddress != incomingOrder.ShippingAddress.StreetAddress ||
-                existingShipping.City != incomingOrder.ShippingAddress.City ||
-                existingShipping.State != incomingOrder.ShippingAddress.State ||
-                existingShipping.Country != incomingOrder.ShippingAddress.Country ||
-                existingShipping.ZipCode != incomingOrder.ShippingAddress.ZipCode)
-            {
-                _logger.LogError("Order {OrderId} shipping mismatch. DLQ - khác payload.",
-                    incomingOrder.OrderId);
-                
-                // TODO M9-14: Ghi DLQ
-                return true; // COMMIT - nhưng alert
-            }
-
-            // Payload KHỚP HOÀN TOÀN - đây là idempotent replay hợp lệ
-            _logger.LogInformation("Order {OrderId} is valid idempotent replay - commit offset.",
-                incomingOrder.OrderId);
-            return true; // COMMIT - replay hợp lệ
+                IdempotencyResult.ValidReplay  => true,   // commit
+                IdempotencyResult.ConflictDlq  => true,   // commit + đã alert trong Compare()
+                IdempotencyResult.TransientError => false, // không commit → retry
+                _ => false
+            };
         }
         catch (Exception ex)
         {
-            // Transient failure khi verify → retry toàn bộ message
+            // Transient failure khi fetch từ DB → retry toàn bộ message
             _logger.LogError(ex, "Failed to verify idempotency for order {OrderId}; will retry",
                 incomingOrder.OrderId);
-            return false; // KHÔNG commit - retry
+            return false;
         }
     }
 
