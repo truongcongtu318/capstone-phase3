@@ -284,32 +284,13 @@ async def active_metrics_polling_loop():
                 anomalous_services = set()
                 
                 for service in SERVICES:
-                    # 1. Trích xuất đặc trưng thời gian thực
-                    df_features = detector.extract_features_realtime(service)
-                    if df_features.empty or len(df_features) < 1:
-                        # Fallback Z-Score nếu thiếu dữ liệu ngữ cảnh
-                        is_anomalous = detector.check_infra_anomaly(service, [])
-                    else:
-                        feature_cols = [
-                            "rps", "cpu_usage", "memory_usage", "latency_p90", "error_rate", "client_error_rate", "kafka_lag",
-                            "error_ratio", "client_error_ratio", "latency_deviation", "rps_delta", "cpu_per_rps", "memory_growth", "kafka_lag_growth",
-                            "hour_of_day", "day_of_week", "is_business_hours", "is_high_traffic_period"
-                        ]
-                        features_list = df_features[feature_cols].iloc[-1].tolist()
-                        
-                        # Real Degradation Guardrail: Bắt buộc phải có suy hao thực tế (Error > 0.01 hoặc Latency > 1.0s hoặc CPU > 0.85) mới coi là Anomaly
-                        rps_val = features_list[0]
-                        cpu_val = features_list[1]
-                        lat_val = features_list[3]
-                        err_val = features_list[4]
-                        
-                        if rps_val > 0.1 and (err_val > 0.01 or lat_val > 1.0 or cpu_val > 0.85):
-                            is_anomalous = detector.check_infra_anomaly(service, features_list)
-                        else:
-                            is_anomalous = False
-                    
+                    # 1. Gọi trực tiếp Isolation Forest Machine Learning Predictor
+                    res = detector.check_service_anomaly(service)
+                    is_anomalous = res.get("is_anomalous", False)
+                    score = res.get("score", 0.0)
+
                     if is_anomalous:
-                        logger.warning(f"ML Isolation Forest proactively detected ANOMALY on service: {service}!")
+                        logger.warning(f"ML Isolation Forest proactively detected ANOMALY on service: {service} (score={score:.4f})!")
                         anomalous_services.add(service)
                         consecutive_healthy_count[service] = 0
                     else:
