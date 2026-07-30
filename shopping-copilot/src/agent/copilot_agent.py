@@ -695,6 +695,9 @@ class CopilotAgent:
                             "args": {"limit": 10},
                         }
                     )
+            elif task_type == "rank":
+                # Price ranking (cheapest / most expensive) -> fetch all products for exact price ordering
+                plan.append({"name": "get_all_products", "args": {}})
             elif task_type == "compare":
                 # Multi-entity compare: split by any connector word
                 pq = intent.get("product_query", "")
