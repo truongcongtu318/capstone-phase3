@@ -53,7 +53,7 @@ spec:
       - name: engine
         # First-party signed/SBOM-attested image from build-push-ecr run
         # 30391640750, source 0cd7b98d3342c3af87bace47f584b9ebc6931eea.
-        image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:6c3ad7c-30515307037-aiops-engine@sha256:8daf8318830874dd5ebf3d91dac2d78e1b3e2613fa20b5041c7a33b7c7aaed24
+        image: 197826770971.dkr.ecr.ap-southeast-1.amazonaws.com/techx-corp:3c390d0-30541506098-aiops-engine@sha256:528373ae987c66bb05ff6a0eb6c1e0d0080cb1b50c8387c2fc771c9a7feec8f1
         imagePullPolicy: Always
         ports:
         - name: http-metrics
