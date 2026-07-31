@@ -10,7 +10,7 @@ Runbook: [docs/runbooks/mandate-20-rds-pitr-drill.md](../runbooks/mandate-20-rds
 Evidence index: [docs/evidence/mandate-20/README.md](../evidence/mandate-20/README.md)
 Video script: incident_report/mandate20-video-script-rds-pitr-drill-2026-07-29.md (operator-local, not pushed as PR evidence)
 RDS preflight evidence: [docs/evidence/mandate-20/supporting-rds-pitr-preflight-20260729.md](../evidence/mandate-20/supporting-rds-pitr-preflight-20260729.md)
-RDS drill evidence: [docs/evidence/mandate-20/mandate-20-final-rds-pitr-evidence-20260729.md](../evidence/mandate-20/mandate-20-final-rds-pitr-evidence-20260729.md)
+RDS drill evidence: [docs/evidence/mandate-20/mandate-20-final-evidence-20260731.md](../evidence/mandate-20/mandate-20-final-evidence-20260731.md)
 Status: RDS PITR restore correctness passed; Drive video links recorded in final evidence; overall Mandate #20 depends on accepted non-RDS scope/limitations and delete-authority posture
 ```
 
@@ -210,6 +210,6 @@ RDS PITR restore drill: PASS
 RPO <= 5 phút: PASS cho marker drill, 0 row data loss
 RTO <= 45 phút: PASS, measured 23.83 phút
 Production traffic/SLO impact: none expected / no repoint performed
-Drive links: recorded in [docs/evidence/mandate-20/mandate-20-final-rds-pitr-evidence-20260729.md](../evidence/mandate-20/mandate-20-final-rds-pitr-evidence-20260729.md)
+Drive links: recorded in [docs/evidence/mandate-20/mandate-20-final-evidence-20260731.md](../evidence/mandate-20/mandate-20-final-evidence-20260731.md)
 Mandate #20 overall: cần mentor/PM chấp nhận scope/limitation cho non-RDS stores và delete-authority posture trước khi claim Done toàn bộ
 ```
