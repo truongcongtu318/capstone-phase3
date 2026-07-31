@@ -9,7 +9,11 @@
         "rds:DeleteDBClusterSnapshot",
         "elasticache:DeleteSnapshot",
         "backup:DeleteRecoveryPoint",
-        "backup:DeleteBackupVault"
+        "backup:DeleteBackupVault",
+        "backup:DeleteBackupPlan",
+        "backup:DeleteBackupVaultLockConfiguration",
+        "backup:PutBackupVaultLockConfiguration",
+        "backup:UpdateRecoveryPointLifecycle"
       ],
       "Resource": "*"
     },

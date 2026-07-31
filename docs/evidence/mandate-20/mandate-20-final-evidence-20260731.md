@@ -14,7 +14,8 @@ RPO evidence: T_restore is 41.248131 seconds after GOOD commit and restored mark
 Probe data loss: 0 row
 RTO measured: 23.83 minutes
 RTO target: <= 45 minutes
-Backup delete protection: PARTIAL / NOT SUFFICIENT for Directive #20 YC#5
+Backup delete protection: PARTIAL / REMEDIATION IN PROGRESS for Directive #20 YC#5
+RDS Vault Lock remediation: Terraform adds AWS Backup Compliance Vault Lock; pending CI apply, recovery point evidence, and 3-day cooling-off
 Valkey/ElastiCache restore: PARTIAL, restore target created but canary not recovered
 MSK/Kafka replay proof: BLOCKED by Kyverno approved-image governance
 Traffic impact from RDS drill: none observed / no app repoint performed
@@ -50,7 +51,7 @@ Supporting baseline/gap details remain documented in:
 | MSK Kafka `techx-tf3-kafka` | Managed cluster baseline; replay attempt blocked before pod creation | BLOCKED | Needs approved Kafka client through GitOps/CI or explicit mentor acceptance |
 | DynamoDB lock table | Treated as Terraform lock/state support, not business money-path data | EXCLUSION NEEDS ACCEPTANCE | Confirm exclusion if mentor asks |
 | GitOps/IaC state | Git/state backend strategy documented in supporting baseline | PARTIAL | Optional final capture of commit/state backend if mentor asks |
-| Backup delete authority | IAM explicit deny applied to operator/admin group and CI apply role; simulation explicitDeny for direct snapshot/object delete APIs | PARTIAL / NOT SUFFICIENT FOR YC#5 | IAM deny can still be removed by the same admin-capable path; destructive modify/delete/key paths remain open; no Vault Lock/SCP/Object Lock for state bucket |
+| Backup delete authority | IAM explicit deny applied to operator/admin group and CI apply role; Terraform remediation adds AWS Backup Compliance Vault Lock for the RDS recovery path | PARTIAL / REMEDIATION IN PROGRESS FOR YC#5 | Must merge/apply, capture vault lock/recovery-point evidence, and wait for AWS Backup compliance cooling-off; Valkey/MSK are not covered by AWS Backup in ap-southeast-1 |
 
 ## Actors And Environment
 
@@ -384,11 +385,24 @@ Terraform state bucket:
 - Object Lock: not configured
 
 AWS Backup vault:
-- No backup vault observed in ap-southeast-1 during read-only check
-- AWS Backup Vault Lock is not part of the current PR scope
+- Terraform remediation added for an RDS AWS Backup vault, backup plan, and Compliance Vault Lock
+- Expected vault name after CI apply: techx-tf3-m20-vault
+- Compliance cooling-off: 3 days, which is the AWS minimum
+- Lock is not immutable until AWS reaches the computed lock date
+- This covers supported AWS Backup recovery points for the RDS path only
 
 AWS Organizations / SCP:
 - AWSOrganizationsNotInUseException; SCP is not available from the current account state
+```
+
+AWS Backup scope note:
+
+```text
+Read-only AWS check in ap-southeast-1 shows AWS Backup supports RDS, EBS, DynamoDB,
+S3, EKS, and several other resource types, but not ElastiCache/Valkey or MSK.
+
+Therefore this remediation must not be presented as Valkey/MSK backup immutability.
+Valkey/MSK still need a separate accepted strategy or separate restore/replay proof.
 ```
 
 IAM guard applied live:
@@ -425,6 +439,10 @@ rds:DeleteDBClusterSnapshot
 elasticache:DeleteSnapshot
 backup:DeleteRecoveryPoint
 backup:DeleteBackupVault
+backup:DeleteBackupPlan
+backup:DeleteBackupVaultLockConfiguration
+backup:PutBackupVaultLockConfiguration
+backup:UpdateRecoveryPointLifecycle
 s3:DeleteObject
 s3:DeleteObjectVersion
 s3:PutObjectRetention
@@ -453,23 +471,72 @@ Known gaps found by follow-up review:
 4. `kms:ScheduleKeyDeletion` on the datastore KMS key can make encrypted recovery data unusable.
 ```
 
+Updated remediation in this PR:
+
+```text
+Terraform file: infra/live/production/backup-vault-lock.tf
+Resources added:
+- aws_backup_vault.mandate20
+- aws_backup_vault_lock_configuration.mandate20_compliance
+- aws_backup_plan.mandate20_rds
+- aws_backup_selection.mandate20_rds
+- aws_iam_role.mandate20_aws_backup
+
+Mode: Compliance Vault Lock
+changeable_for_days: 3
+min_retention_days: 7
+max_retention_days: 35
+backup recovery point retention: 14 days
+Selected protected resource: production RDS instance ARN from module.datastores.rds_instance_arn
+```
+
+Evidence required after merge/apply:
+
+```powershell
+aws backup describe-backup-vault `
+  --region ap-southeast-1 `
+  --backup-vault-name techx-tf3-m20-vault
+
+aws backup describe-backup-vault-lock-configuration `
+  --region ap-southeast-1 `
+  --backup-vault-name techx-tf3-m20-vault
+
+aws backup list-backup-plans `
+  --region ap-southeast-1
+
+aws backup list-recovery-points-by-backup-vault `
+  --region ap-southeast-1 `
+  --backup-vault-name techx-tf3-m20-vault
+```
+
+Expected interpretation:
+
+```text
+Before CI apply: remediation is code-reviewed only.
+After CI apply but before LockDate: Vault Lock is configured but still in cooling-off.
+After LockDate: Compliance Vault Lock becomes immutable for retained recovery points.
+```
+
 Verdict:
 
 ```text
-Backup delete-protection after remediation: PARTIAL / NOT SUFFICIENT for Directive #20 YC#5.
-The IAM explicit deny is useful evidence of a first guard, but it is not equivalent to Vault Lock, SCP, or Object Lock.
-It does not prove that normal admin-capable operators cannot defeat the guard.
-It does not close all backup-destruction paths.
-Therefore this evidence must not claim YC#5 pass yet.
+Backup delete-protection after this PR: PARTIAL / REMEDIATION IN PROGRESS for Directive #20 YC#5.
+IAM explicit deny is useful as a first guard but remains self-removable by an admin-capable path.
+The new Terraform Vault Lock remediation is the correct hard-control direction for RDS recovery points,
+but it is not evidence-complete until CI applies it, a recovery point exists in the vault, and the
+3-day compliance cooling-off reaches the LockDate.
+This PR still must not claim YC#5 full pass yet.
 ```
 
 Required next hardening:
 
 ```text
-1. Enable Object Lock for the Terraform state bucket to protect cluster/IaC state artifacts.
-2. Create an AWS Backup vault and configure Vault Lock for supported backup recovery points.
-3. Add or move the delete guard to a control plane that the normal operator cannot self-remove.
-4. Extend guardrails for backup retention tampering, DB deletion, replication group deletion, and KMS key deletion, or document an explicit accepted risk from mentor/PM.
+1. Merge/apply the RDS AWS Backup Compliance Vault Lock Terraform remediation.
+2. Capture vault lock configuration, LockDate, backup plan, and first RDS recovery point evidence.
+3. Wait until the 3-day compliance cooling-off expires before calling the RDS vault immutable.
+4. Enable Object Lock for the Terraform state bucket if the team wants hard evidence for GitOps/IaC state artifacts.
+5. Add or move remaining delete guardrails to a control plane that normal operators cannot self-remove.
+6. Extend or accept risk for backup retention tampering, DB deletion, replication group deletion, and KMS key deletion.
 ```
 
 ## Cleanup
@@ -525,11 +592,11 @@ Overall Mandate 20 status after mentor feedback: NOT YET FULL PASS
 RDS PITR restore correctness: PASS
 RPO target <= 5 minutes: PASS for drill marker, restored with 0 row data loss
 RTO target <= 45 minutes: PASS, measured 23.83 minutes
-Backup delete-protection: PARTIAL / NOT SUFFICIENT for Directive #20 YC#5
+Backup delete-protection: PARTIAL / REMEDIATION IN PROGRESS for Directive #20 YC#5
 Valkey restore proof: PARTIAL / NOT PROVEN because canary key was not recovered from drill Valkey
 MSK replay proof: BLOCKED by Kyverno approved-image governance before any pod/topic impact
 Production traffic impact from RDS drill: none expected / no repoint performed
 Production traffic impact from Valkey rescue: SLO drop observed, drill stopped
 Evidence links: Drive folder and per-video links recorded above
-Remaining path to full pass: mentor acceptance for Valkey/MSK limitations or rerun non-RDS proof through approved/SLO-green path; plus real delete-protection via Object Lock / Vault Lock / non-self-removable guard
+Remaining path to full pass: mentor acceptance for Valkey/MSK limitations or rerun non-RDS proof through approved/SLO-green path; plus applied Vault Lock evidence and cooling-off completion for RDS backup immutability; plus state/Object Lock or accepted limitation for GitOps/IaC state
 ```
