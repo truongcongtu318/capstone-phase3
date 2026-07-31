@@ -27,9 +27,9 @@ Hiện tại CDO02 vẫn còn cần chốt:
 
 - MSK replay proof đang bị chặn bởi Kyverno exact-digest governance, cần approved Kafka client qua GitOps/CI.
 - Valkey restore target đã tạo được nhưng canary key không restore về drill, nên chưa pass canary proof.
-- Backup delete-protection đã được remediated cho normal operator/CI apply path bằng IAM explicit deny; AWS Backup Vault Lock không nằm trong current scope.
+- Backup delete-protection mới ở mức partial: IAM explicit deny chặn direct delete API, nhưng guard tự gỡ được và còn đường phá backup qua modify/delete/KMS.
 
-Kết luận ngắn: RDS drill đã pass và tách quyền xoá backup cho normal path đã pass; Mandate 20 overall **chưa pass** cho tới khi non-RDS proof được làm xong hoặc mentor/PM chấp nhận limitation rõ ràng.
+Kết luận ngắn: RDS drill đã pass; Mandate 20 overall **chưa pass** cho tới khi non-RDS proof và hard backup delete-protection được làm xong hoặc mentor/PM chấp nhận limitation rõ ràng.
 
 ## 2. Đối chiếu directive với artifact đã merge
 
@@ -39,7 +39,7 @@ Kết luận ngắn: RDS drill đã pass và tách quyền xoá backup cho norma
 | 2. RPO/RTO rõ ràng, cadence tương xứng | RDS có target và measured result; Valkey/MSK chưa có proof hoàn chỉnh | `RDS passed / Non-RDS not yet` |
 | 3. Point-in-time restore chứng minh được | RDS PITR drill đã restore về `T_restore` và trả marker GOOD | `Passed for RDS` |
 | 4. Tested restore drill | Evidence record [mandate-20-final-evidence-20260731.md](mandate-20-final-evidence-20260731.md), RTO 23.83 phút | `Passed for RDS` |
-| 5. Backup an toàn, tách quyền xóa | Evidence đã ghi pre-check allowed, IAM explicit deny remediation, post-check explicitDeny cho normal operator/CI apply path | `Passed for reviewed normal paths` |
+| 5. Backup an toàn, tách quyền xóa | Evidence đã ghi pre-check allowed, IAM explicit deny remediation, post-check explicitDeny cho direct delete API; follow-up review chỉ ra guard tự gỡ được và còn modify/delete/KMS paths | `Partial / not sufficient` |
 
 ## 3. Data-tier baseline cần có trước buổi drill
 
@@ -74,7 +74,7 @@ Phần còn thiếu không phải inventory nền nữa, mà là proof/acceptanc
 - tầng nào `accepted limitation`
 - MSK replay có được chạy bằng approved client hay không
 - Valkey canary restore có được rerun trong SLO-green window hay mentor chấp nhận limitation hay không
-- backup delete-protection đã có hard guard/negative test bằng IAM simulation cho normal operator/CI apply path
+- backup delete-protection chưa đủ hard guard: IAM deny hiện tại tự gỡ được và chưa phủ `ModifyDBInstance`, `DeleteDBInstance`, `DeleteReplicationGroup`, `ScheduleKeyDeletion`
 
 ### Requirement 2 - RPO/RTO và cadence
 
@@ -91,7 +91,7 @@ Phần còn thiếu cho non-RDS stores:
 
 - MSK cần replay proof hoặc accepted limitation.
 - Valkey cần canary restore proof hoặc accepted limitation.
-- State backend/delete-protection đã có IAM explicit deny cho normal operator/CI apply path; Object Lock ở state bucket vẫn là limitation nếu mentor yêu cầu immutability mạnh hơn.
+- State backend/delete-protection đã có IAM explicit deny cho normal operator/CI apply path, nhưng state bucket chưa có Object Lock và IAM guard còn self-removable.
 
 ### Requirement 3 - PITR restore
 
@@ -185,13 +185,13 @@ Phải có:
 1. Dùng [mandate-20-final-evidence-20260731.md](mandate-20-final-evidence-20260731.md) làm file chính để mentor đọc trạng thái sau feedback.
 2. MSK: chuẩn bị approved Kafka client qua GitOps/CI rồi chạy canary replay, hoặc xin mentor accept blocker governance.
 3. Valkey: chỉ rerun canary restore khi SLO-green và không có failover/snapshot noise, hoặc xin mentor accept limitation.
-4. Backup delete-protection: giữ IAM explicit deny guard dưới IaC ownership hoặc ghi rõ là emergency live guard đã có post-check explicitDeny.
+4. Backup delete-protection: hạ verdict xuống partial; bật Object Lock cho state bucket và/hoặc Vault Lock cho AWS Backup recovery points nếu muốn đáp ứng YC#5 mạnh hơn.
 5. Cleanup tài nguyên drill tạm sau khi đã lưu đủ evidence và được PM/mentor xác nhận.
 
 ## 7. Việc cần Security/delete-authority chốt
 
 - bảng quyền xóa backup/snapshot theo từng resource và principal
-- IAM explicit deny đã được chọn cho normal operator/CI apply path; SCP/Vault Lock không khả dụng trong account hiện tại
+- IAM explicit deny đã được chọn cho normal operator/CI apply path nhưng chưa đủ vì self-removable; SCP không khả dụng, Vault Lock chưa có, state bucket Object Lock chưa bật
 - negative test bằng IAM simulation đã chứng minh normal operator/CI apply không xóa được backup protected
 - verdict cho DynamoDB PITR / exclusion
 - verdict cho state backend protection nếu team claim
@@ -205,12 +205,12 @@ CDO02 hiện có:
 
 1. **production baseline cho mọi tầng dữ liệu/state**
 2. **restore drill thật với RPO/RTO measured cho RDS**
-3. **rescue status rõ ràng cho MSK/Valkey và delete-protection normal path**
+3. **rescue status rõ ràng cho MSK/Valkey và delete-protection partial**
 
 Cho đến khi có non-RDS proof hoặc accepted limitation, Mandate 20 nên được xem là:
 
 ```text
 RDS restore drill passed
 Overall Mandate 20: NOT YET PASS
-Open: MSK replay, Valkey canary restore
+Open: MSK replay, Valkey canary restore, hard backup delete-protection
 ```

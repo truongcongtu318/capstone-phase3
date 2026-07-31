@@ -264,16 +264,16 @@ Mục tiêu: khóa rõ phần CDO02 claim được và phần security/delete-au
 | Principal / nhóm | Có được xóa backup không | Evidence / note |
 |---|---|---|
 | Read-only / reviewer | Không nên | policy target, không dùng để thao tác drill |
-| CDO02 operator / `AIO2-Admin` | Không được xóa backup production qua normal path | IAM explicit deny `Mandate20BackupDeleteProtectionDeny`; post-check simulation trả `explicitDeny` |
+| CDO02 operator / `AIO2-Admin` | Direct delete API bị deny, nhưng chưa đủ tách quyền | IAM explicit deny `Mandate20BackupDeleteProtectionDeny`; follow-up review chỉ ra principal còn tự gỡ policy / tạo admin path khác |
 | CI plan role | Không có quyền xóa backup | ReadOnlyAccess; simulation trả `implicitDeny` |
-| CI apply role | Không được xóa backup production qua normal path | IAM explicit deny `Mandate20BackupDeleteProtectionDeny`; post-check simulation trả `explicitDeny` |
+| CI apply role | Direct delete API bị deny | IAM explicit deny `Mandate20BackupDeleteProtectionDeny`; cần quản lý guard bằng control plane không tự gỡ được |
 | Break-glass / owner | Có điều kiện | accepted risk / MFA / approval / CloudTrail |
 | Admin-wide/root ngoài guard | Residual risk | không claim SCP/root-level immutability |
 
 Assessment:
 
 ```text
-Backup safety is satisfied for the reviewed normal operator / CI apply delete path by IAM explicit deny evidence. This remains weaker than SCP/Vault Lock/root-level immutability, but it now links to the dedicated delete-protection evidence file for the normal-path proof.
+Backup safety is only partially satisfied by IAM explicit deny evidence. Follow-up review shows the guard is self-removable by admin-capable paths and does not close all backup-destruction paths. This is weaker than SCP/Vault Lock/Object Lock and should not be claimed as YC#5 pass.
 ```
 
 ## 8. Overall Verdict
@@ -292,7 +292,7 @@ Requirement 4 - tested restore drill:
 Done for RDS. Evidence record: [mandate-20-final-evidence-20260731.md](mandate-20-final-evidence-20260731.md). Video links are recorded in the final evidence file.
 
 Requirement 5 - backup safety:
-Encryption and RDS deletion protection are present. Terraform state bucket versioning/encryption/public-block are present. IAM explicit deny now protects reviewed normal operator / CI apply paths from deleting RDS snapshots, ElastiCache snapshots, AWS Backup recovery/vault objects, and state/audit S3 objects. No SCP/Vault Lock/root-level immutability is claimed.
+Encryption and RDS deletion protection are present. Terraform state bucket versioning/encryption/public-block are present. IAM explicit deny protects direct delete APIs for reviewed normal operator / CI apply paths, but it is self-removable and does not close `ModifyDBInstance`, `DeleteDBInstance`, `DeleteReplicationGroup`, or `ScheduleKeyDeletion`. No SCP/Vault Lock/root-level immutability is claimed.
 
 Go / No-Go:
 RDS PITR drill passed. Overall Mandate 20 is not yet pass after mentor feedback; see [mandate-20-final-evidence-20260731.md](mandate-20-final-evidence-20260731.md) for the current top-level status.

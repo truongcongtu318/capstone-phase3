@@ -30,9 +30,9 @@ RDS RTO target <= 45 minutes: PASS, measured 23.83 minutes
 Current top-level status: see mandate-20-final-evidence-20260731.md
 MSK/Kafka replay proof: BLOCKED by Kyverno governance, not yet replay-proven
 Valkey restore target: PARTIAL, drill RG available, canary restore not proven
-Backup delete-permission verdict: PASS for reviewed normal operator / CI apply paths
+Backup delete-permission verdict: PARTIAL / NOT SUFFICIENT for Directive #20 YC#5
 Backup delete-protection evidence: included in mandate-20-final-evidence-20260731.md
-Mandate #20 overall: NOT YET; RDS drill and delete-protection normal path passed, but MSK replay and Valkey canary restore still need completion or explicit acceptance
+Mandate #20 overall: NOT YET; RDS drill passed, but MSK replay, Valkey canary restore, and hard backup delete-protection still need completion or explicit acceptance
 ```
 
 ## Required evidence fields
@@ -66,7 +66,7 @@ Witness mode: mentor/PM live hoặc recorded video
 | DynamoDB lock | Pending exclusion/verdict | Exclude if Terraform lock only | Exclusion reason |
 | EBS legacy | Pending M8/M18 decision | Do not use as M20 proof unless ownership is clarified | Pending/accepted limitation |
 | GitOps/IaC state | Pending state restore target if claimed | Git/state/versioning/Object Lock evidence if claimed | Commit/state/backend evidence |
-| IAM/KMS/delete permission | PASS for reviewed normal operator / CI apply delete path | IAM explicit deny applied to `AIO2-Admin` and `techx-corp-tf3-gha-terraform-apply`; no SCP/Vault Lock claimed | [mandate-20-final-evidence-20260731.md](mandate-20-final-evidence-20260731.md) |
+| IAM/KMS/delete permission | PARTIAL / NOT SUFFICIENT for YC#5 | IAM explicit deny applied to `AIO2-Admin` and `techx-corp-tf3-gha-terraform-apply`, but it is self-removable and does not close modify/delete/KMS paths; no SCP/Vault Lock/state Object Lock claimed | [mandate-20-final-evidence-20260731.md](mandate-20-final-evidence-20260731.md) |
 
 ## Current Recommendation
 
@@ -74,7 +74,7 @@ Sau feedback mentor, CDO02 nên:
 
 - Dùng [mandate-20-final-evidence-20260731.md](mandate-20-final-evidence-20260731.md) làm file chính duy nhất khi gửi mentor/client về Mandate 20.
 - Dùng các file `supporting-*` để giải thích baseline, preflight, scope và limitation.
-- Không claim Mandate 20 full Done cho tới khi MSK replay và Valkey canary restore được làm xong hoặc mentor/PM accept limitation.
+- Không claim Mandate 20 full Done cho tới khi MSK replay, Valkey canary restore, và hard backup delete-protection được làm xong hoặc mentor/PM accept limitation.
 - Cleanup tài nguyên drill tạm sau khi mentor/PM xác nhận đã lưu đủ evidence.
 
 Lý do: Mandate 20 chấm trên toàn bộ tầng dữ liệu và trạng thái cụm/hạ tầng, không chỉ riêng RDS PITR drill.

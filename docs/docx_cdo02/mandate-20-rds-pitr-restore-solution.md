@@ -11,7 +11,7 @@ Evidence index: [docs/evidence/mandate-20/README.md](../evidence/mandate-20/READ
 Video script: incident_report/mandate20-video-script-rds-pitr-drill-2026-07-29.md (operator-local, not pushed as PR evidence)
 RDS preflight evidence: [docs/evidence/mandate-20/supporting-rds-pitr-preflight-20260729.md](../evidence/mandate-20/supporting-rds-pitr-preflight-20260729.md)
 RDS drill evidence: [docs/evidence/mandate-20/mandate-20-final-evidence-20260731.md](../evidence/mandate-20/mandate-20-final-evidence-20260731.md)
-Status: RDS PITR restore correctness passed; Drive video links recorded in final evidence; overall Mandate #20 depends on accepted non-RDS scope/limitations and delete-authority posture
+Status: RDS PITR restore correctness passed; Drive video links recorded in final evidence; overall Mandate #20 depends on accepted non-RDS scope/limitations and hard backup delete-protection posture
 ```
 
 Mandate #20 không chấm theo câu "đã bật backup". Điểm cần chứng minh là:
@@ -201,7 +201,7 @@ Có thể claim Mandate #20 pass khi:
 - RTO thực tế đạt `<= 45 phút`.
 - Evidence/video/raw output được lưu.
 - Không ảnh hưởng production traffic/SLO.
-- Backup delete-authority được ghi rõ: enforced, hoặc accepted risk/admin-wide limitation.
+- Backup delete-authority được ghi rõ: currently partial, hoặc accepted risk/admin-wide limitation.
 
 Trạng thái hiện tại:
 

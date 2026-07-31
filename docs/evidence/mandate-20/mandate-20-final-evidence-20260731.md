@@ -14,7 +14,7 @@ RPO evidence: T_restore is 41.248131 seconds after GOOD commit and restored mark
 Probe data loss: 0 row
 RTO measured: 23.83 minutes
 RTO target: <= 45 minutes
-Backup delete protection: PASS for reviewed normal operator / CI apply paths
+Backup delete protection: PARTIAL / NOT SUFFICIENT for Directive #20 YC#5
 Valkey/ElastiCache restore: PARTIAL, restore target created but canary not recovered
 MSK/Kafka replay proof: BLOCKED by Kyverno approved-image governance
 Traffic impact from RDS drill: none observed / no app repoint performed
@@ -50,7 +50,7 @@ Supporting baseline/gap details remain documented in:
 | MSK Kafka `techx-tf3-kafka` | Managed cluster baseline; replay attempt blocked before pod creation | BLOCKED | Needs approved Kafka client through GitOps/CI or explicit mentor acceptance |
 | DynamoDB lock table | Treated as Terraform lock/state support, not business money-path data | EXCLUSION NEEDS ACCEPTANCE | Confirm exclusion if mentor asks |
 | GitOps/IaC state | Git/state backend strategy documented in supporting baseline | PARTIAL | Optional final capture of commit/state backend if mentor asks |
-| Backup delete authority | IAM explicit deny applied to operator/admin group and CI apply role; simulation explicitDeny | PASS FOR REVIEWED NORMAL PATHS | Does not claim root/SCP/Vault Lock immutability |
+| Backup delete authority | IAM explicit deny applied to operator/admin group and CI apply role; simulation explicitDeny for direct snapshot/object delete APIs | PARTIAL / NOT SUFFICIENT FOR YC#5 | IAM deny can still be removed by the same admin-capable path; destructive modify/delete/key paths remain open; no Vault Lock/SCP/Object Lock for state bucket |
 
 ## Actors And Environment
 
@@ -413,8 +413,8 @@ Post-remediation IAM simulation:
 
 | Principal | Delete action result | Evidence interpretation |
 |---|---|---|
-| `user/cdo-2-admin-team` via `AIO2-Admin` | `explicitDeny` | normal operator path cannot delete reviewed backup/snapshot/state-object resources |
-| `role/techx-corp-tf3-gha-terraform-apply` | `explicitDeny` | CI apply path cannot delete reviewed backup/snapshot/state-object resources |
+| `user/cdo-2-admin-team` via `AIO2-Admin` | `explicitDeny` | normal operator path cannot delete the reviewed direct backup/snapshot/state-object resources while the deny policy remains attached |
+| `role/techx-corp-tf3-gha-terraform-apply` | `explicitDeny` | CI apply path cannot delete the reviewed direct backup/snapshot/state-object resources while the deny policy remains attached |
 | `role/techx-corp-tf3-gha-terraform-plan` | `implicitDeny` | CI plan role remains read-only |
 
 Reviewed actions:
@@ -431,13 +431,45 @@ s3:PutObjectRetention
 s3:BypassGovernanceRetention
 ```
 
+Known gaps found by follow-up review:
+
+```text
+1. The IAM deny is self-removable by the same admin-capable operator path.
+   Simulated allowed actions include:
+   - iam:DeleteGroupPolicy
+   - iam:PutGroupPolicy
+   - iam:RemoveUserFromGroup
+   - iam:CreateUser
+   - iam:AttachUserPolicy
+
+2. Additional destructive paths remain open outside the current direct-delete deny:
+   - rds:ModifyDBInstance
+   - rds:DeleteDBInstance
+   - elasticache:DeleteReplicationGroup
+   - kms:ScheduleKeyDeletion
+
+3. `rds:ModifyDBInstance` can reduce/disable backup retention, which can remove automated backup/PITR history.
+
+4. `kms:ScheduleKeyDeletion` on the datastore KMS key can make encrypted recovery data unusable.
+```
+
 Verdict:
 
 ```text
-Backup delete-protection after remediation: PASS for reviewed normal operating paths.
-This does not claim root/SCP-level immutability.
-This does not claim AWS Backup Vault Lock because no AWS Backup vault exists in current scope.
-Break-glass/account-owner authority remains possible and must be treated as audited emergency authority.
+Backup delete-protection after remediation: PARTIAL / NOT SUFFICIENT for Directive #20 YC#5.
+The IAM explicit deny is useful evidence of a first guard, but it is not equivalent to Vault Lock, SCP, or Object Lock.
+It does not prove that normal admin-capable operators cannot defeat the guard.
+It does not close all backup-destruction paths.
+Therefore this evidence must not claim YC#5 pass yet.
+```
+
+Required next hardening:
+
+```text
+1. Enable Object Lock for the Terraform state bucket to protect cluster/IaC state artifacts.
+2. Create an AWS Backup vault and configure Vault Lock for supported backup recovery points.
+3. Add or move the delete guard to a control plane that the normal operator cannot self-remove.
+4. Extend guardrails for backup retention tampering, DB deletion, replication group deletion, and KMS key deletion, or document an explicit accepted risk from mentor/PM.
 ```
 
 ## Cleanup
@@ -445,11 +477,14 @@ Break-glass/account-owner authority remains possible and must be treated as audi
 Cleanup status:
 
 ```text
-Drill DB cleanup: pending or to be confirmed after evidence upload/review
+RDS drill DB: techx-tf3-postgres-drill-20260729-181943, available, created 2026-07-29T12:43:10Z
+Valkey drill RG: m20-valkey-drill-20260731-014800, available, created 2026-07-30T19:39:57Z
+Cleanup decision: keep only until mentor/client has reviewed the evidence link, then delete to avoid unnecessary cost
+Cleanup deadline: same day as evidence acceptance, or before final project close if mentor does not need another review window
 Production marker cleanup: optional; default is keep marker as audit trail unless mentor asks cleanup
 ```
 
-Safe cleanup commands after evidence is accepted:
+Safe RDS cleanup commands after evidence is accepted:
 
 ```powershell
 aws rds delete-db-instance `
@@ -460,6 +495,14 @@ aws rds delete-db-instance `
 aws rds wait db-instance-deleted `
   --region ap-southeast-1 `
   --db-instance-identifier techx-tf3-postgres-drill-20260729-181943
+```
+
+Safe Valkey drill cleanup command after evidence is accepted:
+
+```powershell
+aws elasticache delete-replication-group `
+  --region ap-southeast-1 `
+  --replication-group-id m20-valkey-drill-20260731-014800
 ```
 
 If mentor asks to clean up the production marker, delete only the exact row:
@@ -482,11 +525,11 @@ Overall Mandate 20 status after mentor feedback: NOT YET FULL PASS
 RDS PITR restore correctness: PASS
 RPO target <= 5 minutes: PASS for drill marker, restored with 0 row data loss
 RTO target <= 45 minutes: PASS, measured 23.83 minutes
-Backup delete-protection: PASS for reviewed normal operator / CI apply paths
+Backup delete-protection: PARTIAL / NOT SUFFICIENT for Directive #20 YC#5
 Valkey restore proof: PARTIAL / NOT PROVEN because canary key was not recovered from drill Valkey
 MSK replay proof: BLOCKED by Kyverno approved-image governance before any pod/topic impact
 Production traffic impact from RDS drill: none expected / no repoint performed
 Production traffic impact from Valkey rescue: SLO drop observed, drill stopped
 Evidence links: Drive folder and per-video links recorded above
-Remaining path to full pass: mentor acceptance for Valkey/MSK limitations, or rerun non-RDS proof through approved/SLO-green path
+Remaining path to full pass: mentor acceptance for Valkey/MSK limitations or rerun non-RDS proof through approved/SLO-green path; plus real delete-protection via Object Lock / Vault Lock / non-self-removable guard
 ```

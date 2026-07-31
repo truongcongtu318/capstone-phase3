@@ -3,7 +3,7 @@
 **Ngày:** 2026-07-28  
 **Người quyết định (ký):** Nguyễn Đỗ Hoàng Phúc - CDO02 (Reliability + Operations)  
 **Directive:** `MANDATE-20-dr-backup-restore.md` - Backup/Restore DR  
-**Trạng thái:** RDS PITR drill executed - RDS restore correctness passed; backup delete-protection normal path remediated; overall Mandate #20 còn phụ thuộc accepted scope/limitation cho non-RDS stores  
+**Trạng thái:** RDS PITR drill executed - RDS restore correctness passed; backup delete-protection remains partial; overall Mandate #20 còn phụ thuộc accepted scope/limitation cho non-RDS stores và hard backup-delete protection  
 **Tham chiếu:** [docs/docx_cdo02/mandate-20-rds-pitr-restore-solution.md](../docx_cdo02/mandate-20-rds-pitr-restore-solution.md)
 
 ## Bối cảnh
@@ -85,20 +85,20 @@ CDO02 claim các phần sau:
 - Cleanup DB drill; production marker cleanup nếu có thì chỉ xóa đúng marker id của lần drill, hoặc giữ lại làm audit trail.
 - Coverage matrix cho store khác: ElastiCache, MSK, DynamoDB lock, EBS legacy, GitOps/IaC state.
 
-CDO02 claim phần tách quyền xoá backup cho normal operator/CI apply path sau khi có IAM explicit deny và post-check simulation. ADR này không claim root/SCP/Vault Lock-level immutability vì AWS Organizations/SCP không khả dụng và không có AWS Backup vault trong current scope.
+CDO02 ghi nhận IAM explicit deny cho direct backup/snapshot/object delete API trên normal operator/CI apply path, nhưng không claim YC#5 pass. Follow-up review chỉ ra guard hiện tại tự gỡ được bởi admin-capable principal và chưa phủ các đường phá backup qua modify/delete/KMS.
 
 ## Security / delete-authority posture
 
 Phần Security/delete-authority đã được remediated cho normal operating paths:
 
 - Encryption/KMS posture của datastore và backup/snapshot.
-- Normal operator group `AIO2-Admin` bị IAM explicit deny với các hành động xoá backup/snapshot/state-object đã review.
-- CI apply role `techx-corp-tf3-gha-terraform-apply` bị IAM explicit deny với các hành động xoá backup/snapshot/state-object đã review.
+- Normal operator group `AIO2-Admin` bị IAM explicit deny với direct delete API đã review, nhưng vẫn có quyền IAM đủ để tự gỡ policy/đổi group/tạo admin path khác.
+- CI apply role `techx-corp-tf3-gha-terraform-apply` bị IAM explicit deny với direct delete API đã review.
 - CI plan role `techx-corp-tf3-gha-terraform-plan` vốn là read-only và simulation trả `implicitDeny`.
 - Break-glass/account-owner path vẫn tồn tại và phải được xem là quyền khẩn cấp có audit/approval.
 - Retention/security guardrail.
 
-Trong account hiện tại không có AWS Organizations/SCP, nên ADR này **không claim chống xoá backup tuyệt đối ở cấp root/organization**. Mức claim hiện tại là: normal operator và CI apply path đã bị chặn bằng IAM explicit deny.
+Trong account hiện tại không có AWS Organizations/SCP, nên ADR này **không claim chống xoá backup tuyệt đối ở cấp root/organization**. Mức claim hiện tại chỉ là: direct delete API đã bị chặn bằng IAM explicit deny; YC#5 vẫn partial cho tới khi có Object Lock/Vault Lock/non-self-removable guard hoặc accepted risk.
 
 ## Mandate #20 data-tier commitments
 
@@ -106,7 +106,7 @@ ADR này ghi cam kết vận hành theo từng tầng dữ liệu để khớp y
 
 | Tầng dữ liệu / state | Vai trò trong hệ thống | RPO target | RTO target | Backup / recovery strategy | Cadence / retention | CDO02 claim | Security / delete-permission verdict |
 |---|---|---|---|---|---|---|---|
-| RDS PostgreSQL `techx-tf3-postgres` | Store chính cho catalog/reviews/accounting/order data | `<= 5 phút` theo PITR window | `<= 45 phút` cho restore drill; measured `23.83 phút` | RDS automated backup + PITR; restore về `T_restore` sang DB drill tách biệt | Automated backup retention 7 ngày; manual snapshot phụ nếu có | **Claim chính của CDO02 đã pass RDS drill**; evidence [mandate-20-final-evidence-20260731.md](../evidence/mandate-20/mandate-20-final-evidence-20260731.md) | Normal operator/CI apply delete path bị IAM explicit deny; backup encrypted; no SCP/Vault Lock |
+| RDS PostgreSQL `techx-tf3-postgres` | Store chính cho catalog/reviews/accounting/order data | `<= 5 phút` theo PITR window | `<= 45 phút` cho restore drill; measured `23.83 phút` | RDS automated backup + PITR; restore về `T_restore` sang DB drill tách biệt | Automated backup retention 7 ngày; manual snapshot phụ nếu có | **Claim chính của CDO02 đã pass RDS drill**; evidence [mandate-20-final-evidence-20260731.md](../evidence/mandate-20/mandate-20-final-evidence-20260731.md) | IAM deny chặn direct snapshot delete nhưng chưa chặn self-removal / retention tamper / DB delete chain / KMS key deletion |
 | ElastiCache Valkey `techx-tf3-valkey` | Cart/session cache trên luồng browse -> cart -> checkout | Target theo snapshot window; nếu không claim restore cart, ghi accepted cart-state strategy | Target theo restore snapshot hoặc accepted recovery strategy | ElastiCache snapshot/restore hoặc accepted limitation: cart state là soft-state, không dùng làm PITR proof chính | Snapshot retention quan sát: 3 ngày | Restore target tạo được nhưng canary chưa proven; incident SLO/failover được ghi trong rescue status | Normal operator/CI apply `elasticache:DeleteSnapshot` bị IAM explicit deny |
 | MSK Kafka `techx-tf3-kafka` | Order event stream cho checkout -> accounting/fraud | Target: `0 acknowledged order lost` trong retention window nếu producer/consumer replay đúng | Target theo consumer replay/reconciliation, cần evidence sau drill/record riêng | MSK retention/replay; không gọi là PITR backup | Topic retention cần được capture trong evidence; prior docs ghi 168h | CDO02 ghi replay/reconciliation strategy, không dùng làm PITR proof chính | Cần ghi KMS/IAM/delete topic/config destructive control nếu claim |
 | DynamoDB `techx-tf3-terraform-lock` | Terraform lock table, không phải dữ liệu khách hàng | Excluded nếu chỉ là lock tái tạo được | Rebuild/recreate lock table nếu mất | Exclusion with reason, không dùng làm data restore proof | Không yêu cầu retention khách hàng nếu exclude | CDO02 claim exclude nếu team xác nhận chỉ là lock | Nếu team muốn protect, cần xác nhận PITR/IAM |
@@ -122,11 +122,11 @@ Mandate #20 yêu cầu ghi rõ **ai được xóa backup**. ADR này ghi policy 
 | Read-only / reviewer / mentor viewer | Không được xóa | Policy target | IAM policy/console role evidence nếu claim enforcement |
 | CDO02 operator chạy drill | Không được xóa backup production; chỉ được tạo/xóa DB drill tạm sau approval | CDO02 operating rule | Runbook/evidence cleanup chỉ áp dụng DB drill identifier |
 | CI Terraform plan role | Không được xóa backup; chỉ plan/read | Policy target | CI/IAM evidence nếu claim enforcement |
-| CI Terraform apply role | Không được xóa backup production ngoài break-glass/approved emergency path | Enforced for reviewed delete actions | IAM explicit deny policy `Mandate20BackupDeleteProtectionDeny` |
+| CI Terraform apply role | Direct delete API bị deny; YC#5 chưa pass đầy đủ | Partial | IAM explicit deny policy `Mandate20BackupDeleteProtectionDeny`; cần hard guard không tự gỡ được |
 | Break-glass / account owner | Có thể xóa trong tình huống khẩn cấp có ticket/MFA/owner approval | Accepted operational reality nếu account còn admin rộng | CloudTrail/audit process + named owner từ PM/account owner |
 | Unknown/admin-wide principals | Không claim đã chặn tuyệt đối nếu chưa có SCP/permission boundary | **Residual risk** | Break-glass/account-owner governance |
 
-Kết luận: CDO02 có thể claim delete-protection pass cho normal operator/CI apply path. Mandate #20 overall chưa nên claim Done nếu Valkey/MSK non-RDS proof hoặc accepted limitation chưa được PM/mentor chấp nhận.
+Kết luận: CDO02 không nên claim delete-protection pass cho YC#5. Mandate #20 overall chưa nên claim Done nếu Valkey/MSK non-RDS proof và hard backup-delete protection hoặc accepted limitation chưa được PM/mentor chấp nhận.
 
 ## Coverage matrix
 
@@ -152,7 +152,7 @@ Kết luận: CDO02 có thể claim delete-protection pass cho normal operator/C
 
 - Chỉ RDS là proof chính; store khác cần coverage matrix hoặc evidence riêng.
 - Tạo DB drill tạm phát sinh chi phí nhỏ trong cửa sổ nghiệm thu.
-- Security/delete-permission đã có evidence enforcement cho normal operator/CI apply path, nhưng không claim tuyệt đối ở cấp root/SCP/Vault Lock.
+- Security/delete-permission mới partial: IAM explicit deny có evidence, nhưng self-removable và chưa phủ các đường modify/delete/KMS.
 
 ## Evidence record sau drill
 
@@ -183,9 +183,9 @@ Tại thời điểm cập nhật evidence:
 - Restore drill evidence: **Có - RDS restore correctness PASS, RTO 23.83 phút**
 - RPO evidence: **Có - T_restore nằm sau GOOD 41.248131 giây, restored marker GOOD, 0 row data loss**
 - Data-tier commitment matrix: **Đã ghi target/verdict; non-RDS store giữ ở coverage/limitation**
-- Security/delete-permission verdict: **Có - IAM explicit deny pass cho normal operator/CI apply path**
+- Security/delete-permission verdict: **Partial - IAM explicit deny chặn direct delete API nhưng chưa đủ YC#5**
 
-Vì vậy CDO02 có thể claim: **RDS PITR restore drill passed** và **backup delete-protection normal path passed**. Mandate #20 overall chỉ nên claim Done khi scope/limitation cho Valkey/MSK/DynamoDB/EBS/GitOps được mentor/PM chấp nhận hoặc có evidence bổ sung.
+Vì vậy CDO02 có thể claim: **RDS PITR restore drill passed**. Mandate #20 overall chỉ nên claim Done khi scope/limitation cho Valkey/MSK/DynamoDB/EBS/GitOps và hard backup-delete protection được mentor/PM chấp nhận hoặc có evidence bổ sung.
 
 ## Chữ ký
 
