@@ -116,7 +116,7 @@ Hướng dẫn vận hành đầy đủ và cách dùng tunnel cho `kubectl` n�
 
 - Việc gỡ route ops khỏi Envoy không thay đổi route storefront.
 - `cloudflared` chạy 2 replica và có PodDisruptionBudget `minAvailable: 1`.
-- Storefront hiện trả `200` sau thay đổi; các bài kiểm tra Mandate #2/#3 sau thời điểm least-exposure cũng xác nhận storefront vẫn giữ các ngưỡng SLO trong các cửa sổ test tương ứng. Xem [Mandate #2 load-test report](mandate-02-load-test-report.md) và [Mandate #3 drain-node report](mandate-03-drain-node-report.md).
+- Storefront hiện trả `200` sau thay đổi; các bài kiểm tra Mandate #2/#3 sau thời điểm least-exposure cũng xác nhận storefront vẫn giữ các ngưỡng SLO trong các cửa sổ test tương ứng. Xem [Mandate #2 load-test report](../../mandates/mandate-02/mandate-02-load-test-report.md) và [Mandate #3 drain-node report](../../mandates/mandate-03/mandate-03-drain-node-report.md).
 
 ### Auditability
 

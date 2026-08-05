@@ -1,68 +1,22 @@
-# Mandate #19 — HỒ SƠ NỘP
+# Mandate #19 — Báo cáo tóm tắt (bản dễ đọc)
 
-**Biết trần của mình — và nâng trần bằng hiệu suất**
+**Ngày đo:** 30/07/2026 · **Người thực hiện:** CDO01 — TF3
+**Bản đầy đủ:** [`../../mandates/mandate-19/mandate-19-throughput-ceiling-report.md`](../../mandates/mandate-19/mandate-19-throughput-ceiling-report.md) ·
+**ADR ký tên:** [`adr/0011-...`](adr/0011-mandate-19-throughput-ceiling-load-shedding.md) ·
+**Evidence thô:** [`evidence/mandate-19/real-2026-07-30/`](evidence/mandate-19/real-2026-07-30/)
 
-**Ngày đo:** 30/07/2026 · **Người thực hiện:** CDO01 — TF3 · **Trạng thái: 3/4 yêu cầu đạt**
-
-> 📌 **Đây là file đầu mối của cả hồ sơ.** Bắt đầu đọc từ đây. Mỗi con số bên dưới đều có ảnh
-> hoặc file thô đi kèm, bấm vào là xem được.
+> Bản này dành cho người đọc lần đầu. Mỗi con số đều có ảnh hoặc file thô đi kèm, bấm vào xem được.
 
 ---
 
 ## Directive hỏi gì, chúng tôi trả lời được gì
 
-| # | Câu hỏi của Directive | Trả lời | |
-|---|---|---|---|
-| 1 | Trần thật của hệ là bao nhiêu? | **1000 user đồng thời · 202,4 RPS** | ✅ |
-| 2 | Nâng trần được không mà **không thêm node**? | Phục vụ **+29% request** trên **cùng 9 node** — nhưng cổng SLO 4/4 chưa qua. [Giải thích đầy đủ](#vì-sao-cổng-44-vẫn-chưa-qua--giải-thích-đầy-đủ) · [kế hoạch đóng](mandate-19-ke-hoach-yc2.md) | 🟡 |
-| 3 | Service nào bão hoà sớm nhất? | **`email`** — nghẽn **hàng đợi**, không phải CPU | ✅ |
-| 4 | Vượt trần thì gục hay xuống mềm? | **Xuống mềm** — hy sinh 104.264 request browse, giữ luồng tiền **99,95%** | ✅ |
-
----
-
-## 📁 Mục lục hồ sơ — mở file nào khi cần gì
-
-### Tài liệu
-
-| File | Nội dung | Khi nào đọc |
+| Câu hỏi của Directive | Trả lời | Trạng thái |
 |---|---|---|
-| **`mandate-19-nghiem-thu.md`** ← *bạn đang ở đây* | Báo cáo có ảnh + video nhúng | **Đọc đầu tiên** |
-| [`mandate-19-throughput-ceiling-report.md`](mandate-19-throughput-ceiling-report.md) | Báo cáo đầy đủ, mọi bảng số chi tiết | Khi cần kiểm tra sâu một con số |
-| [`adr/0011-mandate-19-throughput-ceiling-load-shedding.md`](adr/0011-mandate-19-throughput-ceiling-load-shedding.md) | **ADR ký tên** — quyết định và đánh đổi | Khi hỏi *"vì sao chọn cách này"* |
-| [`mandate-19-ke-hoach-yc2.md`](mandate-19-ke-hoach-yc2.md) | Kế hoạch đóng nốt YC#2 — 5 việc, lịch, xác suất | Khi hỏi *"còn thiếu gì, bao lâu"* |
-| [`postmortem/0017-...md`](postmortem/0017-product-catalog-replicas-zero-hpa-cannot-recover.md) | Sự cố 42 phút gặp trong lúc làm | Khi hỏi về sự cố hôm 30/07 |
-
-### Bằng chứng — 📂 [`evidence/mandate-19/real-2026-07-30/`](evidence/mandate-19/real-2026-07-30/)
-
-| Thư mục / File | Bên trong có gì |
-|---|---|
-| 📂 [`baseline/`](evidence/mandate-19/real-2026-07-30/baseline/) | **8 stage đo trần gốc** (u200→u2400). Mỗi stage: ảnh Grafana, CSV Locust, `sli.json`, `infra.txt` (số node + hash tập node), `window.txt` (cửa sổ đo chính xác) |
-| 📂 [`tuned/`](evidence/mandate-19/real-2026-07-30/tuned/) · [`tuned2/`](evidence/mandate-19/real-2026-07-30/tuned2/) · [`tuned3/`](evidence/mandate-19/real-2026-07-30/tuned3/) | 3 vòng tối ưu tiếp theo, cùng cấu trúc |
-| 📄 [`baseline-client-truth.json`](evidence/mandate-19/real-2026-07-30/baseline-client-truth.json) *(và `tuned*-client-truth.json`)* | **Con số chốt** — throughput và tỉ lệ thành công tính từ CSV Locust |
-| 📂 [`shed-demo/`](evidence/mandate-19/real-2026-07-30/shed-demo/) | **Demo YC#4**: [video MP4](evidence/mandate-19/real-2026-07-30/shed-demo/timelapse.mp4) · [GIF](evidence/mandate-19/real-2026-07-30/shed-demo/timelapse.gif) · [`probe.txt`](evidence/mandate-19/real-2026-07-30/shed-demo/probe.txt) · [`counters.txt`](evidence/mandate-19/real-2026-07-30/shed-demo/counters.txt) · [README](evidence/mandate-19/real-2026-07-30/shed-demo/README.md) |
-| 📂 [`tuned3-ceiling-video/`](evidence/mandate-19/real-2026-07-30/tuned3-ceiling-video/) | Video vùng trần sau khi tối ưu |
-| 📂 [`roundrobin-proof/`](evidence/mandate-19/real-2026-07-30/roundrobin-proof/) | [`before-after.txt`](evidence/mandate-19/real-2026-07-30/roundrobin-proof/before-after.txt) — CPU từng pod trước/sau khi sửa ghim kết nối |
-| 📄 [`ceiling-root-cause.txt`](evidence/mandate-19/real-2026-07-30/ceiling-root-cause.txt) | Snapshot lúc chạm trần: lý do scheduler từ chối + CPU từng node |
-
-### Công cụ đo — 📂 [`scripts/mandate-19/`](../scripts/mandate-19/README.md)
-
-| File | Việc |
-|---|---|
-| `run_stage_external.sh` | Chạy 1 stage, generator **ngoài cluster** qua CloudFront, ép cửa sổ đo ≥300s |
-| `client_truth.py` | Tính throughput từ CSV Locust — **không** qua span pipeline |
-| `shed_demo.sh` | Demo YC#4 bằng **một lệnh**, tự quay video |
-| `timelapse.sh` · `capture_stage.sh` | Chụp Grafana đúng cửa sổ đo, ghép MP4/GIF |
-
-### Thay đổi mã nguồn
-
-| PR | Nội dung |
-|---|---|
-| #649 | Nới `maxReplicas` hot path · sửa SLI checkout bị mù |
-| #656 | Right-size CPU theo số đo thật · HPA cho `email` |
-| #658 | **Hiệu chỉnh lại ngân sách shed** sau khi phát hiện tự phá cơ chế |
-| #660 · #664 | **Service headless + `round_robin`** — sửa ghim kết nối gRPC |
-| #662 | Báo cáo đầy đủ + ADR 0011 |
-| #671 | Hồ sơ nộp này |
+| Trần thật của hệ là bao nhiêu? | **1000 user đồng thời · 202,4 RPS** | ✅ |
+| Nâng trần được không mà **không thêm node**? | Phục vụ **+29% request** trên **cùng 9 node** — nhưng cổng SLO 4/4 chưa qua | 🟡 |
+| Service nào bão hoà sớm nhất? | **`email`** — nghẽn **hàng đợi**, không phải CPU | ✅ |
+| Vượt trần thì gục hay xuống mềm? | **Xuống mềm** — hy sinh 104.264 request browse, giữ luồng tiền **99,95%** | ✅ |
 
 ---
 
@@ -285,53 +239,6 @@ Sau khi sửa đúng nguyên nhân (phân bố kết nối):
 bốn cổng. Chúng tôi **không tuyên PASS**. Nhưng lý do đằng sau con số đó cần được hiểu đúng,
 vì nó không phải "hệ yếu đi".
 
-#### Bối cảnh trước tiên: đây là một hệ đang thay đổi, không phải một đích đứng yên được đo một lần
-
-Nguyên văn Directive #19 (Ban SRE, TechX Corp): *"Chứng minh trần mới cao hơn mà **số node không
-đổi**"*. Yêu cầu này ngầm giả định hai trạng thái **tĩnh** để so sánh — một hệ "trước" đứng yên đủ
-lâu để đo ra một con số, và một hệ "sau" cũng đứng yên đủ lâu để đo ra một con số khác. Giả định
-đó đúng cho hai đầu mút của ngày 30/07 — baseline đo buổi sáng trên cấu hình production chưa đụng
-gì, và `tuned3` đo cuối buổi chiều — nhưng **không đúng cho quãng ở giữa**, vì quãng giữa đó không
-phải một lần sửa, mà là **năm chu kỳ sửa-đo nối tiếp nhau trong cùng một ngày**, mỗi chu kỳ dùng
-kết quả đo của chu kỳ trước làm điểm xuất phát cho chu kỳ sau:
-
-| Giờ | Chu kỳ | Đổi gì |
-|---|---|---|
-| 09:13 | Dựng harness đo | Generator ra ngoài cluster, khoá + hash tập node — lần đầu có số đáng tin |
-| 11:00 | Nâng trần replica hot path | `maxReplicas` frontend 8→16, checkout 8→14... |
-| 13:35 | Nới nút thắt `email` | HPA + CPU riêng cho email, right-size request theo usage thật |
-| 14:02 | Hiệu chỉnh lại budget shed | Vá một regression tự gây ra ở chu kỳ trước (§ "Một lỗi chúng tôi tự gây ra") |
-| 14:27 → 15:52 | Cân tải phía client (`round_robin`) + Service headless | Đổi hẳn **cơ chế** traffic tới backend, không chỉ đổi lượng |
-| 17:10 | Chốt số, viết báo cáo | |
-
-Bốn chu kỳ đầu là tối ưu **tăng dần** — nới replica, giải nút thắt hàng đợi, sửa quy chế shed —
-mỗi cái đúng, mỗi cái đo lại xác nhận ngay, và quan trọng nhất: **không đổi cách hệ vận hành**,
-chỉ đổi lượng tài nguyên hệ đang vận hành sẵn. Tham số HPA (target 65%), deadline gRPC (1200ms)
-được hiệu chỉnh ổn dần qua bốn chu kỳ này, và đúng cho **chế độ traffic lúc đó**: mỗi pod frontend
-ghim cứng vào một pod backend (§3.2).
-
-Chu kỳ thứ năm khác hẳn về bản chất — nó không tăng thêm tài nguyên, mà **thay cơ chế phân phối**:
-từ ghim kết nối sang xoay vòng đều (`round_robin`). Ngay khi cơ chế đổi, toàn bộ tham số đã hiệu
-chỉnh ở bốn chu kỳ trước — vốn được tinh chỉnh cho chế độ "ghim" — trở thành tham số của **một hệ
-không còn tồn tại nữa**. Đây không phải lỗi tinh chỉnh sai; là hệ quả logic tất yếu của việc đổi
-cơ chế nền: bất kỳ tham số nào phụ thuộc vào cách traffic phân bố (HPA target dựa trên CPU trung
-bình, deadline dựa trên p95 quan sát được, ngân sách shed dựa trên số replica) đều cần đo lại
-**sau khi** cơ chế mới đã chạy ổn định, không phải **trước đó**.
-
-Vấn đề không nằm ở việc thiếu thời gian đo — cửa sổ 300 giây/stage vẫn đủ chuẩn và đủ dài để tin
-được. Vấn đề là thiếu **một chu kỳ thứ sáu**: đo lại và hiệu chỉnh riêng HPA/deadline/retry cho
-đúng chế độ vận hành mới mà chu kỳ thứ năm vừa tạo ra, trước khi chạy lại đủ 8 stage để tuyên một
-trần mới đáng tin. Từ lúc `round_robin` thật sự sống trên cluster (15:52) tới lúc phải chốt báo
-cáo (17:10) chỉ còn khoảng 80 phút — không đủ cho một vòng hiệu chỉnh đầy đủ rồi đo lại cả ladder.
-
-**Vì vậy chúng tôi không coi "chưa qua 4/4" là một khiếm khuyết cố định trong bản vá**, mà là hệ
-quả tự nhiên của việc tối ưu nhiều vòng trong một cửa sổ thời gian có hạn: sửa đúng nguyên nhân ở
-vòng cuối cùng — và đo được hiệu quả thật của nó (+29% RPS, checkout 7,12%→99,18%) — nhưng vòng đó
-tạo ra một chế độ vận hành mới cần một chu kỳ hiệu chỉnh riêng mà lịch đo trong ngày chưa kịp làm.
-Bốn lý do kỹ thuật cụ thể dưới đây (thiếu `retryPolicy`, mất lớp cách ly cũ, thước đo nhị phân,
-trần hạ tầng) đều là biểu hiện khác nhau của cùng một nguyên nhân gốc này — không phải bốn vấn đề
-rời rạc.
-
 #### Lý do 1 — Hệ đã đổi hành vi, nhưng các tham số điều chỉnh thì chưa
 
 Bản vá thay đổi **cách traffic đi trong hệ**, không phải thay đổi dung lượng. Trước đây mỗi pod
@@ -386,7 +293,7 @@ lần như vậy là lỗi 500 tới thẳng người dùng.
 
 Nói gọn: bản vá đổi *"một pod chịu toàn bộ rủi ro"* thành *"mọi pod chia nhau rủi ro"* — đúng ý đồ
 về dung lượng, nhưng **thiếu lớp đệm bắt buộc đi kèm**. Đây là thứ sửa được bằng một vòng nữa, xem
-👉 **[kế hoạch đóng YC#2](mandate-19-ke-hoach-yc2.md)**.
+👉 **[kế hoạch đóng YC#2](../../mandates/mandate-19/mandate-19-ke-hoach-yc2.md)**.
 
 #### Lý do 2 — Cơ chế cũ vô tình được "che" bởi chính khuyết điểm của nó
 
@@ -436,7 +343,7 @@ tuning — nó là một quyết định kiến trúc thuộc về Mandate #13 c
 | Bản vá có sai không? | Không. Nó chạm đúng nguyên nhân, và phân bố tải đã sửa được thật: **353× → 3,7×** |
 | Có làm hệ tệ đi không? | Không, ở tải cao: **+29% RPS**, checkout `7,12% → 99,18%` |
 | Vậy sao chưa PASS? | Tham số HPA/hạn chờ vẫn là bộ hiệu chỉnh cho chế độ cũ; cần **một vòng đo lại** trong chế độ mới |
-| Cần bao lâu để chốt? | **~2,5–3 giờ** — chi tiết từng việc ở 👉 **[kế hoạch đóng YC#2](mandate-19-ke-hoach-yc2.md)** |
+| Cần bao lâu để chốt? | **~2,5–3 giờ** — chi tiết từng việc ở 👉 **[kế hoạch đóng YC#2](../../mandates/mandate-19/mandate-19-ke-hoach-yc2.md)** |
 | Chắc chắn qua không? | **Không dám chắc.** ~55% nếu chỉ thêm `retryPolicy` + giảm churn; **~70%** nếu nới được `product-reviews`; **~85%** nếu CDO01 đồng ý mở 4 node `t3.large`. Qua được u1800 thì **<25%** nếu không mở node |
 
 ## 6. Trần cuối cùng **không còn nằm ở phần mềm**

@@ -47,7 +47,7 @@ Dừng. Để mentor hỏi.
 > Directive #19 đòi *"không thêm node"* — bài đo mà số node thay đổi thì không dùng làm gốc so sánh
 > được, bất kể con số bao nhiêu. Em không nói bài cũ sai; nó trả lời **câu hỏi khác**.
 
-📄 `docs/mandate-19-nghiem-thu.md` §1
+📄 `docs/../../mandates/mandate-19/mandate-19-nghiem-thu.md` §1
 
 ---
 
@@ -90,7 +90,7 @@ Trả lời theo **đúng thứ tự này**, đừng đảo:
 > **~85%** nếu CDO01 đồng ý mở 4 node `t3.large` cho hot path. Qua được 1800 user thì **dưới 25%**
 > nếu không mở node — lúc đó `frontend` đã **16/16 kịch trần ở 142% CPU**.
 >
-> Kế hoạch chi tiết em viết sẵn ở `docs/mandate-19-ke-hoach-yc2.md`, có cả việc phải làm TRƯỚC là
+> Kế hoạch chi tiết em viết sẵn ở `docs/../../mandates/mandate-19/mandate-19-ke-hoach-yc2.md`, có cả việc phải làm TRƯỚC là
 > chẩn đoán 503 của `product-reviews` — vì nếu nó đến từ cạn connection pool thì thêm replica còn
 > **làm tệ hơn**.
 
@@ -98,7 +98,7 @@ Trả lời theo **đúng thứ tự này**, đừng đảo:
 vẫn tính 0 điểm) nhưng phải kèm ngay: *"Em nêu cho đủ hai mặt, không dùng để đòi PASS. Cổng là cổng,
 em báo là chưa qua."*
 
-📄 `docs/mandate-19-nghiem-thu.md` §5
+📄 `docs/../../mandates/mandate-19/mandate-19-nghiem-thu.md` §5
 
 ---
 
@@ -130,7 +130,7 @@ em báo là chưa qua."*
 >
 > Chỉ tạo headless mà quên `round_robin` thì DNS trả 11 IP xong client vẫn ghim vào IP đầu — y hệt cũ.
 
-📄 `docs/mandate-19-nghiem-thu.md` §3 · `gitops/infrastructure/backend-headless-services.yaml` ·
+📄 `docs/../../mandates/mandate-19/mandate-19-nghiem-thu.md` §3 · `gitops/infrastructure/backend-headless-services.yaml` ·
 `src/frontend/gateways/rpc/grpcChannel.ts`
 
 ---
@@ -338,7 +338,7 @@ Nói thẳng, đừng vòng vo:
 
 | Cần chứng minh | Mở file |
 |---|---|
-| Trần 1000u / 202,4 RPS | `docs/mandate-19-nghiem-thu.md` §2 |
+| Trần 1000u / 202,4 RPS | `docs/../../mandates/mandate-19/mandate-19-nghiem-thu.md` §2 |
 | Không thêm node | `.../shed-demo/frames/02-dang-overload.png` (`Node count Mean 9 / Max 9`) |
 | Nút thắt `email` | báo cáo §3.1 |
 | Connection pinning `353m·136m·11m·1m×8` | `.../roundrobin-proof/before-after.txt` |

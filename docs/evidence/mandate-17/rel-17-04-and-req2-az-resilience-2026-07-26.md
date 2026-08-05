@@ -100,7 +100,7 @@ Tất cả `currentHealthy=2`, `disruptionsAllowed=1` → luôn giữ tối thi�
 
 ### 2.3. Tầng dữ liệu đã đa-AZ (mandate 8)
 
-Luồng ra tiền còn phụ thuộc datastore — đã managed multi-AZ từ mandate 8: **RDS PostgreSQL Multi-AZ**, **MSK 3 broker / 3 AZ / RF=3**, **ElastiCache 2 node**. Mất 1 AZ, tầng dữ liệu tự failover, không phải SPOF. Xem `docs/mandate-08-nghiem-thu.md`.
+Luồng ra tiền còn phụ thuộc datastore — đã managed multi-AZ từ mandate 8: **RDS PostgreSQL Multi-AZ**, **MSK 3 broker / 3 AZ / RF=3**, **ElastiCache 2 node**. Mất 1 AZ, tầng dữ liệu tự failover, không phải SPOF. Xem `docs/../../mandates/mandate-08/mandate-08-nghiem-thu.md`.
 
 ### 2.4. Điều thành thật cần nói khi demo
 

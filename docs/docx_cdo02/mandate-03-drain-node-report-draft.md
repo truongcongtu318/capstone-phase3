@@ -96,4 +96,4 @@ kubectl uncordon "$NODE"
 
 ---
 
-> **Lưu ý cho Team:** Khi bắt đầu quay, copy file nháp này thành bản chính (ví dụ `docs/mandate-03-drain-node-report.md`) và điền các kết quả, bằng chứng cụ thể vào ngoặc vuông `[...]`.
+> **Lưu ý cho Team:** Khi bắt đầu quay, copy file nháp này thành bản chính (ví dụ `docs/../mandates/mandate-03/mandate-03-drain-node-report.md`) và điền các kết quả, bằng chứng cụ thể vào ngoặc vuông `[...]`.

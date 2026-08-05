@@ -8,7 +8,7 @@ Directive gốc: `MANDATE-16-latency-under-load.md`
 
 Acceptance pack cho mentor:
 
-- ADR ký tên: [`docs/adr/0011-mandate-16-checkout-latency-optimization.md`](adr/0011-mandate-16-checkout-latency-optimization.md)
+- ADR ký tên: [`docs/adr/0011-../../mandates/mandate-16/mandate-16-checkout-latency-optimization.md`](adr/0011-../../mandates/mandate-16/mandate-16-checkout-latency-optimization.md)
 - Evidence chi tiết + README demo mentor: [`docs/docx_cdo01/mandate-16-parallelize-checkout-prep-order-items.md`](docx_cdo01/mandate-16-parallelize-checkout-prep-order-items.md)
 
 ## Phạm vi thay đổi

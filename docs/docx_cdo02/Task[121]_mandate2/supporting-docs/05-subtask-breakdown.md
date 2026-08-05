@@ -69,7 +69,7 @@ Ownership:
 - Xác nhận HPA-managed pod baseline bằng 16.
 - Đánh giá capacity hiện tại có thể hấp thụ tải mà không tăng node hay không.
 
-**Deliverable:** `mandate-02-load-test-capacity-analysis.md`.  
+**Deliverable:** `../../../mandates/mandate-02/mandate-02-load-test-capacity-analysis.md`.  
 **Hoàn thành khi:** mỗi Critical/High risk có evidence, expected state và mitigation đề xuất.
 
 ---
@@ -100,7 +100,7 @@ Ownership:
   - Gỡ `do-not-disrupt` khỏi 7 component.
 
 **(Bàn giao Team Deploy):** sửa source-of-truth, PR/commit, deploy, GitOps sync và trả live evidence.  
-**Deliverable:** `mandate-02-load-test-remediation-plan.md` và validation record.  
+**Deliverable:** `../../../mandates/mandate-02/mandate-02-load-test-remediation-plan.md` và validation record.  
 **Hoàn thành khi:** solution critical ở trạng thái `VALIDATED`, không chỉ `DEPLOYED`.
 
 ---
@@ -185,7 +185,7 @@ cost_per_order = test_window_cost / successful_orders
 - Xác nhận node after không cao hơn before.
 - Hoàn thiện cost/hour, test-window cost, cost/request, cost/order và Cost verdict.
 
-**Deliverable:** `mandate-02-load-test-report.md` và evidence index.  
+**Deliverable:** `../../../mandates/mandate-02/mandate-02-load-test-report.md` và evidence index.  
 **Hoàn thành khi:** không còn `TBD` bắt buộc, cleanup có evidence và báo cáo được CDO-01/Team Deploy xác nhận phần bàn giao.
 
 ## 3. Dependency flow

@@ -235,4 +235,4 @@ kubectl -n techx-tf3 rollout undo deployment/frontend-proxy
 - [envoy.tmpl.yaml](../phase3%20-%20information/techx-corp-platform/src/frontend-proxy/envoy.tmpl.yaml)
 - [hpa-hotpath.yaml](../gitops/infrastructure/hpa-hotpath.yaml)
 - [validate-envoy.yml](../.github/workflows/validate-envoy.yml)
-- [Mandate-02 load test report](mandate-02-load-test-report.md)
+- [Mandate-02 load test report](../../mandates/mandate-02/mandate-02-load-test-report.md)

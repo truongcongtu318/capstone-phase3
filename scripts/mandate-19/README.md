@@ -1,7 +1,7 @@
 # Mandate #19 — bộ đo trần thông lượng (tái lập được)
 
 Bộ script này thay cho cách đo bằng ảnh chụp màn hình. Mục đích: mọi con số trong
-`docs/mandate-19-throughput-ceiling-report.md` phải tái lập được bằng lệnh, và cửa
+`docs/../../docs/mandates/mandate-19/mandate-19-throughput-ceiling-report.md` phải tái lập được bằng lệnh, và cửa
 sổ đo phải là **exact window** chứ không phải panel rolling 1h/24h.
 
 ## Vì sao không dùng số từ ảnh chụp

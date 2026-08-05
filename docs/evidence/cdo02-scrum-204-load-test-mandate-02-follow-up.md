@@ -12,11 +12,11 @@ Follow-up phan reliability sau Mandate 02, doi chieu backlog va xac nhan cac tha
 - PR reliability follow-up: `#120`
   Link: <https://github.com/tuu-ngo/Phase3-TF3-Infra-Sentinel/pull/120>
 - Bao cao Mandate 02:
-  [docs/mandate-02-load-test-report.md](C:/Users/Admin/Desktop/xbrain-phase-3/Phase3-TF3-Infra-Sentinel/docs/mandate-02-load-test-report.md)
+  [docs/../mandates/mandate-02/mandate-02-load-test-report.md](C:/Users/Admin/Desktop/xbrain-phase-3/Phase3-TF3-Infra-Sentinel/docs/../mandates/mandate-02/mandate-02-load-test-report.md)
 - Phan tich capacity:
-  [docs/mandate-02-load-test-capacity-analysis.md](C:/Users/Admin/Desktop/xbrain-phase-3/Phase3-TF3-Infra-Sentinel/docs/mandate-02-load-test-capacity-analysis.md)
+  [docs/../mandates/mandate-02/mandate-02-load-test-capacity-analysis.md](C:/Users/Admin/Desktop/xbrain-phase-3/Phase3-TF3-Infra-Sentinel/docs/../mandates/mandate-02/mandate-02-load-test-capacity-analysis.md)
 - Ke hoach remediation:
-  [docs/mandate-02-load-test-remediation-plan.md](C:/Users/Admin/Desktop/xbrain-phase-3/Phase3-TF3-Infra-Sentinel/docs/mandate-02-load-test-remediation-plan.md)
+  [docs/../mandates/mandate-02/mandate-02-load-test-remediation-plan.md](C:/Users/Admin/Desktop/xbrain-phase-3/Phase3-TF3-Infra-Sentinel/docs/../mandates/mandate-02/mandate-02-load-test-remediation-plan.md)
 
 ## Outcome
 

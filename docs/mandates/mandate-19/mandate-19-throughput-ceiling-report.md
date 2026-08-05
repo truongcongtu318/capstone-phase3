@@ -9,7 +9,7 @@
 **Video vùng trần (arm tuned3):** [`tuned3-ceiling-video/timelapse.gif`](evidence/mandate-19/real-2026-07-30/tuned3-ceiling-video/timelapse.gif)
 **Postmortem kèm:** [0017 — product-catalog về 0 replica](postmortem/0017-product-catalog-replicas-zero-hpa-cannot-recover.md)
 **Harness tái lập:** [`scripts/mandate-19/`](../scripts/mandate-19/)
-**📖 Bản tóm tắt dễ đọc (ảnh + video nhúng):** [`mandate-19-nghiem-thu.md`](mandate-19-nghiem-thu.md)
+**📖 Bản tóm tắt dễ đọc (ảnh + video nhúng):** [`../../mandates/mandate-19/mandate-19-nghiem-thu.md`](../../mandates/mandate-19/mandate-19-nghiem-thu.md)
 
 > **Bản này thay thế hoàn toàn báo cáo cũ.** Số liệu cũ (trần "174,75 RPS @ 328 user")
 > đã bị loại — lý do ở §2. Mọi con số dưới đây có artifact thô đi kèm và tái lập được
@@ -283,7 +283,7 @@ pod bị thay chỉ ảnh hưởng client đang ghim vào nó; với `round_robi
 phần. `dns_min_time_between_resolutions_ms: 5000` nghĩa là sau khi một pod biến mất, client còn
 gửi vào địa chỉ chết tới 5 giây — khớp đúng độ dài cụm lỗi 8 giây ở u400. Không có `retryPolicy`,
 mỗi lần như vậy là lỗi 500 tới thẳng người dùng. Chi tiết và kế hoạch vá:
-[`mandate-19-ke-hoach-yc2.md`](mandate-19-ke-hoach-yc2.md).
+[`../../mandates/mandate-19/mandate-19-ke-hoach-yc2.md`](../../mandates/mandate-19/mandate-19-ke-hoach-yc2.md).
 
 ### 6.5. Trần thật sự bị chặn bởi cái gì — đã xác định
 

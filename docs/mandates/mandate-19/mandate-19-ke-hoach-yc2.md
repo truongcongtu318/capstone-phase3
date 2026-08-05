@@ -304,7 +304,7 @@ Nhắc lại vì mọi thay đổi ở đây đều nằm trong hot path:
 
 ---
 
-**Liên quan:** [báo cáo tóm tắt](mandate-19-nghiem-thu.md) ·
-[báo cáo đầy đủ](mandate-19-throughput-ceiling-report.md) ·
+**Liên quan:** [báo cáo tóm tắt](../../mandates/mandate-19/mandate-19-nghiem-thu.md) ·
+[báo cáo đầy đủ](../../mandates/mandate-19/mandate-19-throughput-ceiling-report.md) ·
 [ADR 0011](adr/0011-mandate-19-throughput-ceiling-load-shedding.md) ·
-[kịch bản trả lời mentor](mandate-19-kich-ban-tra-loi-mentor.md)
+[kịch bản trả lời mentor](../../mandates/mandate-19/mandate-19-kich-ban-tra-loi-mentor.md)

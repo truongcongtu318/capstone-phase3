@@ -19,7 +19,7 @@ object archive, `BypassGovernanceRetention`, `DisableRule`/`DeleteRule`/`RemoveT
 `DeleteAlarms`/`DisableAlarmActions` — cộng với chặn CI tự gỡ hoặc tự sửa boundary của nó.
 
 Chi tiết thiết kế và giới hạn: [`ci-audit-boundary.tf`](ci-audit-boundary.tf) và
-[`docs/mandate-12-execution-plan.md`](../../../docs/mandate-12-execution-plan.md) §9.
+[`docs/../../../docs/mandates/mandate-12/mandate-12-execution-plan.md`](../../../docs/../../../docs/mandates/mandate-12/mandate-12-execution-plan.md) §9.
 
 ### Quy trình attach
 

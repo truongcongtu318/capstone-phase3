@@ -1,6 +1,6 @@
 # Hướng dẫn chụp ảnh cho biên bản nghiệm thu Mandate #8
 
-Đi kèm [biên bản nghiệm thu](mandate-08-nghiem-thu.md). Chụp xong dán vào đúng chỗ `[ẢNH-xx]`.
+Đi kèm [biên bản nghiệm thu](../../mandates/mandate-08/mandate-08-nghiem-thu.md). Chụp xong dán vào đúng chỗ `[ẢNH-xx]`.
 
 **Chuẩn bị:**
 ```bash

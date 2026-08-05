@@ -74,7 +74,7 @@ curl -s -X POST http://localhost:18016/ofrep/v1/evaluate/flags -H "Content-Type:
 ## Bước 0.5 — Ramp thử nhỏ TRƯỚC khi chạy 200 chính thức
 Sau đợt fix hạ tầng (pod quota, memory Prometheus/OpenSearch/Kafka, memory payment/shipping/quote,
 topologySpreadConstraints checkout, Karpenter `consolidateAfter` — xem
-`docs/mandate-02-load-test-remediation-plan.md`), chạy thử 1 đợt nhỏ để xác nhận mọi thứ ổn định
+`docs/../mandates/mandate-02/mandate-02-load-test-remediation-plan.md`), chạy thử 1 đợt nhỏ để xác nhận mọi thứ ổn định
 trước khi tính vào kết quả chính thức:
 ```bash
 kubectl -n techx-tf3 set env deploy/load-generator LOCUST_USERS=50 LOCUST_SPAWN_RATE=5
@@ -123,7 +123,7 @@ kubectl get nodeclaim              # Spot NodeClaim được consolidate/xóa kh
 - **Gỡ `podAnnotations.karpenter.sh/do-not-disrupt`** khỏi `cart`/`checkout`/`payment`/`shipping`/`quote`/
   `postgresql`/`valkey-cart` (7 component — 2 cái sau do PR #112 Mandate #3 thêm khi merge) trong
   `values-prod.yaml` ngay sau khi xác nhận co xuống xong — đây mới là cái đang thật sự chặn
-  Karpenter tối ưu chi phí node (PDB không thay thế được, xem `mandate-02-load-test-remediation-plan.md`
+  Karpenter tối ưu chi phí node (PDB không thay thế được, xem `../mandates/mandate-02/mandate-02-load-test-remediation-plan.md`
   mục 0). Không quên bước này.
 
 ## Bước 4 — Nộp evidence (theo README mandate)

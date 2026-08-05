@@ -184,13 +184,13 @@ Status   available                     AtRest   True
 Name  techx-tf3-kafka    State  ACTIVE    Brokers  3    Version  3.9.x.kraft
 ```
 
-![RDS techx-tf3-postgres](<Screenshot 2026-07-22 134925.png>)
+![RDS techx-tf3-postgres](<../../assets/Screenshot 2026-07-22 134925.png>)
 > **Hình 1.** AWS Console → RDS → Databases → `techx-tf3-postgres` — `Status: Available` · `Multi-AZ: Yes` · `Engine: PostgreSQL 17.6` · `Publicly accessible: No`
 
-![ElastiCache techx-tf3-valkey](<Screenshot 2026-07-22 134959.png>)
+![ElastiCache techx-tf3-valkey](<../../assets/Screenshot 2026-07-22 134959.png>)
 > **Hình 2.** AWS Console → ElastiCache → Redis/Valkey caches → `techx-tf3-valkey` — `Status: Available` · `Multi-AZ: Enabled` · `Encryption in transit: Yes` · `Encryption at rest: Yes` · 2 node
 
-![MSK techx-tf3-kafka](<Screenshot 2026-07-22 135122.png>)
+![MSK techx-tf3-kafka](<../../assets/Screenshot 2026-07-22 135122.png>)
 > **Hình 3.** AWS Console → MSK → Clusters → `techx-tf3-kafka` — `Status: Active` · `Total brokers: 3` · `Apache Kafka version: 3.9.x` · phân bố 3 AZ
 
 #### 1.2 App đang trỏ vào managed
@@ -233,7 +233,7 @@ kubectl -n $NS get pvc | grep -iE "postgresql|valkey|kafka" || echo "OK: khong c
 ```
 
 **Kết quả đo** *(sau khi hoàn tất §8)*
-![Kiem tra khong con pod store cu](image.png)
+![Kiem tra khong con pod store cu](../../assets/image.png)
 
 
 > ✅ **TRẠNG THÁI: ĐÃ HOÀN TẤT §8 (22/07/2026).** Ba component `postgresql` / `valkey-cart` / `kafka` đã
@@ -244,7 +244,7 @@ kubectl -n $NS get pvc | grep -iE "postgresql|valkey|kafka" || echo "OK: khong c
 > **PVC được giữ lại có chủ đích** (`postgresql-data` 2Gi · `kafka-data` 3Gi · `valkey-cart` 1Gi): cả 3 PV
 > có `persistentVolumeReclaimPolicy: Delete`, nên xoá PVC là **huỷ EBS vĩnh viễn**. Directive yêu cầu
 > *"không còn **pod** DB/cache/queue tự host"* — **đã đạt**. Volume sẽ dọn **sau khi nghiệm thu**.
-![Danh sach pod sau §8](image-3.png)
+![Danh sach pod sau §8](../../assets/image-3.png)
 > **Hình 4.** Danh sách pod trong namespace `techx-tf3` sau §8 — không còn `postgresql`, `valkey-cart`, `kafka`; mọi pod còn lại `Running`/`Ready`.
 > *(`opensearch` là kho lưu log telemetry, không thuộc phạm vi Mandate #8.)*
 
@@ -262,16 +262,16 @@ kubectl -n $NS get pvc | grep -iE "postgresql|valkey|kafka" || echo "OK: khong c
 | Postgres → RDS | **0** (kế toán trễ vài phút — không phải SLI khách) | Hình 6 |
 | Kafka → MSK | **~14 phút** (sự cố 0010) + **~30 phút** (sự cố 0012) | Hình 7 · mục D |
 
-![SLO checkout - cutover Valkey](<Screenshot 2026-07-22 133452.png>)
+![SLO checkout - cutover Valkey](<../../assets/Screenshot 2026-07-22 133452.png>)
 > **Hình 5.** Grafana → dashboard SLO → panel checkout success rate, khoảng cửa sổ cutover Valkey — 19/07/2026 (PR #251) — đường success rate giữ ≥99%, không có hố sụt
 
-![SLO checkout - cutover Postgres](<Screenshot 2026-07-22 133918.png>)
+![SLO checkout - cutover Postgres](<../../assets/Screenshot 2026-07-22 133918.png>)
 > **Hình 6.** Grafana, khoảng cửa sổ cutover Postgres — 19/07/2026 (PR #252) — success rate giữ ≥99% suốt lúc đóng băng `accounting` + đổi connection string
 
-![SLO checkout - cutover Kafka](<Screenshot 2026-07-22 133807.png>)
+![SLO checkout - cutover Kafka](<../../assets/Screenshot 2026-07-22 133807.png>)
 > **Hình 7.** Grafana, khoảng 20/07 quanh 14:30–15:45 UTC (cửa sổ cutover Kafka + 2 sự cố) — 2 hố sụt tương ứng sự cố 0010 và 0012, và hồi phục hoàn toàn sau đó · đây là bằng chứng trung thực, đội chủ động đưa ra chứ không giấu
 
-![Luu luong checkout](<Screenshot 2026-07-22 134321.png>)
+![Luu luong checkout](<../../assets/Screenshot 2026-07-22 134321.png>)
 > **Hình 8.** Lưu lượng checkout, cùng khung giờ Hình 7 — `sum(rate(traces_span_metrics_calls_total{service_name="checkout"}[5m]))`. Bình thường ~16,9 req/s, tụt còn ~0,3–2,4 req/s đúng 2 cửa sổ sự cố.
 
 #### ⚠️ Phát hiện: công thức SLO chính thức có ĐIỂM MÙ
@@ -318,25 +318,25 @@ Vì vậy **sự cố 0010 KHÔNG hiện ra trên đồ thị SLO** (Hình 7), n
 # 1. Không còn credential plaintext trong file cấu hình
 grep -rn "otelp\|otelu" "phase3 - information/techx-corp-chart/values.yaml" \
   "phase3 - information/deploy/values-prod.yaml"   # → phải RỖNG
-![Khong con credential plaintext](image-4.png)
+![Khong con credential plaintext](../../assets/image-4.png)
 
 # 2. Ba secret tồn tại trong cluster (chỉ in TÊN KEY, không in giá trị)
 kubectl -n $NS get secret techx-tf3-postgres-conn techx-tf3-valkey-auth techx-tf3-kafka-scram \
   -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
-![Secret trong cluster](image-5.png)
+![Secret trong cluster](../../assets/image-5.png)
 
 # 3. Chứng minh private = KHÔNG NỐI ĐƯỢC từ ngoài VPC (TẮT tunnel trước khi chạy)
 RDS_HOST=$(aws rds describe-db-instances --region $AWS_REGION \
   --db-instance-identifier techx-tf3-postgres --query 'DBInstances[0].Endpoint.Address' --output text)
 timeout 10 bash -c "</dev/tcp/$RDS_HOST/5432" 2>&1 || echo "OK: khong noi duoc tu ngoai VPC"
 ```
-![RDS khong public](image-6.png)
+![RDS khong public](../../assets/image-6.png)
 
 
-![Secrets Manager](<Screenshot 2026-07-22 135204.png>)
+![Secrets Manager](<../../assets/Screenshot 2026-07-22 135204.png>)
 > **Hình 9.** AWS Console → Secrets Manager → Secrets — các secret của mandate (`techx-tf3/postgres`, `techx-tf3/elasticache-auth`, `techx-tf3/msk-scram` hoặc tên tương đương) · ⚠️ TUYỆT ĐỐI không mở tab "Secret value" khi chụp — chỉ chụp danh sách tên
 
-![RDS Connectivity & security](<Screenshot 2026-07-22 134741.png>)
+![RDS Connectivity & security](<../../assets/Screenshot 2026-07-22 134741.png>)
 > **Hình 10.** AWS Console → RDS → `techx-tf3-postgres` → tab Connectivity & security — `Publicly accessible: No` · `Encryption: Enabled` (+ KMS key) · VPC/subnet group private
 
 ---
@@ -365,7 +365,7 @@ reviews.productreviews        50   <- khop seed goc
 > `products`=10 và `productreviews`=50 **khớp seed gốc**; `order`/`orderitem`/`shipping` **tăng liên tục**
 > → app đọc/ghi RDS bình thường.
 
-![Dat hang thanh cong tren storefront](<Screenshot 2026-07-22 135959.png>)
+![Dat hang thanh cong tren storefront](<../../assets/Screenshot 2026-07-22 135959.png>)
 > **Hình 11.** Storefront đặt hàng thành công (https://d2tn71186d7ilz.cloudfront.net) — chứng minh luồng end-to-end browse → giỏ (ElastiCache) → đặt hàng (checkout → MSK) chạy thật
 
 
@@ -462,7 +462,7 @@ kubectl -n $NS exec deploy/postgresql -- psql -U otelu -d otel -tAc \
 
 Phép kiểm hội tụ chạy **tại thời điểm cutover** (không lặp lại được: giỏ hàng có TTL 60 phút và kho cũ nay
 đã xoá): **827/827 giỏ khớp, `miss = 0`** → mọi giỏ còn sống đều đã có mặt ở ElastiCache trước khi lật đọc.
-Dẫn chứng quy trình: [execution plan](mandate-08-execution-plan.md) ·
+Dẫn chứng quy trình: [execution plan](../../mandates/mandate-08/mandate-08-execution-plan.md) ·
 [ADR 0009](adr/0009-mandate-08-managed-migration-cdo02.md).
 
 > *Vì sao không có log thô như C.1/C.3:* phép này chạy trong cửa sổ cutover ngày 18/07, trước khi đội lập
@@ -765,12 +765,12 @@ cố **0012**. Đội đánh giá đổi trụ Auditability lấy 4% ngân sách
 | Tài liệu | Nội dung |
 |---|---|
 | `docs/adr/0009-mandate-08-managed-migration-cdo02.md` | Quyết định kiến trúc + lý do (ký tên) |
-| `docs/mandate-08-overview.md` | Bức tranh đầy đủ: nguyên nhân, mục tiêu, trade-off từng store |
-| `docs/mandate-08-execution-plan.md` | Lịch thực thi + kết quả re-verify |
+| `docs/../../mandates/mandate-08/mandate-08-overview.md` | Bức tranh đầy đủ: nguyên nhân, mục tiêu, trade-off từng store |
+| `docs/../../mandates/mandate-08/mandate-08-execution-plan.md` | Lịch thực thi + kết quả re-verify |
 | `docs/runbooks/mandate-08-managed-cutover.md` | Quy trình thao tác từng bước (§0–§8) |
 | `docs/postmortem/0010-...md` | Sự cố cutover producer Kafka |
 | `docs/postmortem/0012-...md` | Sự cố NetworkPolicy Mandate #5 (+ artifact backup) |
-| `docs/mandate-08-bao-cao-tong-ket.md` | Bản giải thích cho người không chuyên DevOps |
+| `docs/../../mandates/mandate-08/mandate-08-bao-cao-tong-ket.md` | Bản giải thích cho người không chuyên DevOps |
 
 ---
 

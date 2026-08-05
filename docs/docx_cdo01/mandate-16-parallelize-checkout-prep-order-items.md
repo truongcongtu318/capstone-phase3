@@ -254,7 +254,7 @@ Kết luận resource: tối ưu đạt được bằng thay đổi critical pat
 
 ADR ký tên:
 
-- [`docs/adr/0011-mandate-16-checkout-latency-optimization.md`](../adr/0011-mandate-16-checkout-latency-optimization.md)
+- [`docs/adr/0011-../mandates/mandate-16/mandate-16-checkout-latency-optimization.md`](../adr/0011-../mandates/mandate-16/mandate-16-checkout-latency-optimization.md)
 
 ADR đã bao phủ:
 

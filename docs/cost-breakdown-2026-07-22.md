@@ -203,7 +203,7 @@ Budget hiện có tên **`Phase2-Cost-300`, chu kỳ MONTHLY, hạn mức $300**
 
 ## 5. ⚠️ Sai lệch cần sửa trong hồ sơ nghiệm thu Mandate #8
 
-[`docs/mandate-08-nghiem-thu.md`](mandate-08-nghiem-thu.md) (dòng 24, 87, 93, 94, 335, 336) đang ghi:
+[`docs/mandates/mandate-08/mandate-08-nghiem-thu.md`](mandates/mandate-08/mandate-08-nghiem-thu.md) (dòng 24, 87, 93, 94, 335, 336) đang ghi:
 
 > MSK 3.9 KRaft, **kafka.t3.small × 3 broker** — **~$130/tháng** · 3 broker ($127) vs 2 broker ($85)
 > · Tổng **+$202/mo ≈ $46,7/tuần → tổng ≈ $147/tuần, dưới trần $300/tuần**
@@ -223,7 +223,7 @@ Budget hiện có tên **`Phase2-Cost-300`, chu kỳ MONTHLY, hạn mức $300**
 từ chối t3.small và Terraform đã đổi sang `kafka.m7g.large`. ADR 0009 **đã đính chính từ 18/07**
 (§Cost) — chỉ có file nghiệm thu là chưa được cập nhật theo.
 
-> **✅ Đã sửa 22/07** — cả `mandate-08-nghiem-thu.md` (mục 0, §A.2, Tiêu chí 5, §G.3 mới) lẫn
+> **✅ Đã sửa 22/07** — cả `mandates/mandate-08/mandate-08-nghiem-thu.md` (mục 0, §A.2, Tiêu chí 5, §G.3 mới) lẫn
 > `docs/adr/0009-...md` (§Cost, đính chính lần 2) nay đều mang con số thật.
 
 ### 5.1 Đã kiểm chứng: $558/tháng là giá sàn tuyệt đối, không phải lựa chọn

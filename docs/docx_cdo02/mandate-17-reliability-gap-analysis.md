@@ -539,4 +539,4 @@ chốt với CDO01:
 - `docs/postmortem/0012-mandate5-networkpolicy-batch-outage.md`
 - `docs/runbooks/mandate-08-managed-cutover.md` §7, §8
 - `docs/adr/0009-mandate-08-managed-migration-cdo02.md`
-- `docs/mandate-03-drain-node-report.md`
+- `docs/../mandates/mandate-03/mandate-03-drain-node-report.md`

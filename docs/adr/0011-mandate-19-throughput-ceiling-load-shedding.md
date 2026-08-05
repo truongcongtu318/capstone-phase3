@@ -5,7 +5,7 @@
 **Ngày ra quyết định:** 23/07/2026 · **Đo lại và viết lại:** 30/07/2026
 **Chủ sở hữu / người ký:** CDO01 — TF3
 **Trụ liên quan:** Performance Efficiency · Cost Optimization · Reliability
-**Báo cáo:** [Báo cáo trần thông lượng Mandate #19](../mandate-19-throughput-ceiling-report.md)
+**Báo cáo:** [Báo cáo trần thông lượng Mandate #19](../mandates/mandate-19/mandate-19-throughput-ceiling-report.md)
 **Evidence:** [`docs/evidence/mandate-19/real-2026-07-30/`](../evidence/mandate-19/real-2026-07-30/)
 **Harness tái lập:** [`scripts/mandate-19/`](../../scripts/mandate-19/)
 
@@ -300,7 +300,7 @@ mang label `techx.io/workload` nên **không bao giờ** nhận được pod hot
 
 ## Tham chiếu
 
-- [Báo cáo trần thông lượng Mandate #19](../mandate-19-throughput-ceiling-report.md)
+- [Báo cáo trần thông lượng Mandate #19](../mandates/mandate-19/mandate-19-throughput-ceiling-report.md)
 - [`docs/evidence/mandate-19/real-2026-07-30/`](../evidence/mandate-19/real-2026-07-30/) — evidence canonical
 - [`scripts/mandate-19/README.md`](../../scripts/mandate-19/README.md) — cách tái lập
 - [Runbook staged rollout](../runbooks/mandate-19-staged-rollout.md)

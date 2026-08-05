@@ -172,4 +172,4 @@ bash scripts/ci/trace-provenance.sh --namespace techx-tf3 --pod $POD_NAME
 - CI drift gate cho catalog: `scripts/ci/check-external-image-allowlist-drift.py`
 - Script truy ngược: `scripts/ci/trace-provenance.sh`
 - Bằng chứng PM-127 (CDO02): `docs/evidence/mandate-10/pm127/acceptance-matrix.md`
-- Tổng kết PM-127 cho cả team: `docs/mandate-10-pm127-tong-ket.md`
+- Tổng kết PM-127 cho cả team: `docs/../mandates/mandate-10/mandate-10-pm127-tong-ket.md`

@@ -18,7 +18,7 @@ Mandate 03 hiện **đã đạt cho luồng ra tiền ở app-tier**: demo drain
 Vì vậy, phần còn lại **không phải sửa để pass lại app-tier**, mà là hardening để lần bảo trì sau quan sát mượt hơn, giảm rủi ro ở mặt phẳng vận hành, và chuẩn bị cho stateful maintenance.
 
 Nguồn đối chiếu chính:
-- `docs/mandate-03-drain-node-report.md`
+- `docs/../mandates/mandate-03/mandate-03-drain-node-report.md`
 - `docs/runbooks/mandate-03-drain-node-demo.md`
 - `docs/adr/0007-mandate-03-maintenance-no-downtime-cdo02.md`
 - `CLAUDE.md`

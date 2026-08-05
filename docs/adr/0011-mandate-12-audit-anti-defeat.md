@@ -336,10 +336,10 @@ thu hẹp phạm vi **cảnh báo**, không phải thu hẹp phạm vi **ghi nh�
 ## Evidence
 
 Implementation evidence được ghi tại:
-- Execution plan: [`docs/mandate-12-execution-plan.md`](../mandate-12-execution-plan.md)
+- Execution plan: [`docs/../mandates/mandate-12/mandate-12-execution-plan.md`](../mandates/mandate-12/mandate-12-execution-plan.md)
 - Runbook: [`docs/runbooks/mandate-08-best-path.md`](../runbooks/mandate-08-best-path.md) *(runbook M12 riêng sẽ bổ sung tại `docs/runbooks/mandate-12-audit-anti-defeat-runbook.md` trước cutover)*
 
-ADR này là `HANDOFF READY / NOT APPROVED FOR APPLY` cho đến khi tất cả blocker trong `docs/mandate-12-execution-plan.md §8` được giải quyết.
+ADR này là `HANDOFF READY / NOT APPROVED FOR APPLY` cho đến khi tất cả blocker trong `docs/../mandates/mandate-12/mandate-12-execution-plan.md §8` được giải quyết.
 
 ---
 

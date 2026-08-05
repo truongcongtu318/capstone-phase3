@@ -63,7 +63,7 @@ engine báo động là đúng, và bài test này vô nghĩa:
 - Không pod nào restart, không pod nào Pending
 
 Mandate #2 đã chạy 200 user/17 phút đạt checkout 99.98% / p95 46–48ms
-(`docs/mandate-02-load-test-report.md`), nên 100 user nằm trong vùng đã chứng minh là an
+(`docs/../../docs/mandates/mandate-02/mandate-02-load-test-report.md`), nên 100 user nằm trong vùng đã chứng minh là an
 toàn. Nếu lần này lại gãy → đó là hồi quy hạ tầng cần điều tra riêng, đừng chấm engine.
 
 ## Đo gì

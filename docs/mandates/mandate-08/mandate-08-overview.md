@@ -5,7 +5,7 @@
 **Vai trò tài liệu này:** bức tranh đầy đủ — nguyên nhân, mục tiêu, giải pháp từng store, trade-off,
 thứ tự ưu tiên, rủi ro. Đọc file này trước; chi tiết kỹ thuật đi sâu ở:
 [ADR 0009](adr/0009-mandate-08-managed-migration-cdo02.md) (quyết định + chứng minh) ·
-[Execution plan](mandate-08-execution-plan.md) (lịch 4 ngày + kết quả re-verify hệ thống) ·
+[Execution plan](../../mandates/mandate-08/mandate-08-execution-plan.md) (lịch 4 ngày + kết quả re-verify hệ thống) ·
 [Runbook cutover](runbooks/mandate-08-managed-cutover.md) (lệnh từng bước).
 
 ---
@@ -192,7 +192,7 @@ khỏi `values.yaml` · ⚠️ update `values.schema.json` cùng lúc (schema `a
 quên là ArgoCD ComparisonError chết pipeline, đã xảy ra một lần).
 
 **WS4 — Cutover** (3 phiên, theo runbook, load-gen nền + Grafana SLO mở suốt): trình tự và verify
-từng bước xem [execution plan §2](mandate-08-execution-plan.md).
+từng bước xem [execution plan §2](../../mandates/mandate-08/mandate-08-execution-plan.md).
 
 **WS5 — Bằng chứng + nghiệm thu + dọn dẹp:** gói evidence (§2 bảng tiêu chí) → mentor xác nhận →
 **chỉ sau đó** gỡ pod/PVC cũ → cập nhật CLAUDE.md, backlog (đóng REL-08), báo cáo mandate.
@@ -206,7 +206,7 @@ từng bước xem [execution plan §2](mandate-08-execution-plan.md).
 | Writer thứ hai vào Postgres xuất hiện sau ngày audit | Thấp / Phá chứng minh parity | Re-audit bắt buộc ngay trước freeze (plan bước 3.1) |
 | Rút ngắn cửa sổ dual-write 60' vì sốt ruột | Con người / Mất giỏ thật | Ghi rõ BẮT BUỘC ở mọi tài liệu; hẹn giờ 70 phút |
 | CI pipeline mới trục trặc khi build 4 image | Trung bình / Trễ lịch | Build sớm ngày 1; đã có 1 run thật thành công (16/07) làm bằng chứng pipeline sống |
-| Mandate #5 (PR #145) **đã merge + Kyverno 4 policy ĐÃ Enforce** (18/07) → pod helper runbook bị admission từ chối; image rebuild phải digest-pin; cart giờ `readOnlyRootFilesystem` | Đã xảy ra / Kẹt cutover nếu không thích ứng | **Vận hành dưới enforce ngay từ đầu** — pod helper dùng template compliant (đã test PASS), rebuild qua CI digest-pin, verify cart start clean; chi tiết + đối sách ở [execution plan §3bis](mandate-08-execution-plan.md). Không xin tắt policy. Còn cần: CDO01 xác nhận không rollout đụng 3 pod datastore trong tuần cutover |
+| Mandate #5 (PR #145) **đã merge + Kyverno 4 policy ĐÃ Enforce** (18/07) → pod helper runbook bị admission từ chối; image rebuild phải digest-pin; cart giờ `readOnlyRootFilesystem` | Đã xảy ra / Kẹt cutover nếu không thích ứng | **Vận hành dưới enforce ngay từ đầu** — pod helper dùng template compliant (đã test PASS), rebuild qua CI digest-pin, verify cart start clean; chi tiết + đối sách ở [execution plan §3bis](../../mandates/mandate-08/mandate-08-execution-plan.md). Không xin tắt policy. Còn cần: CDO01 xác nhận không rollout đụng 3 pod datastore trong tuần cutover |
 | BTC bơm sự cố flagd giữa cutover | Bất kỳ lúc nào / Nhiễu chẩn đoán | Dừng cutover, xử sự cố trước (fallback/containment), tuyệt đối không đụng flagd; cutover dời — deadline còn buffer |
 | Sự cố AWS (như CloudFront 16/07) | Thấp / Mất thời gian | Không nằm trong kiểm soát; buffer tối 19/07 |
 
@@ -247,5 +247,5 @@ việc dựng AWS Budgets + Cost Anomaly Detection nằm trong checklist ADR.
 
 ---
 *Người lập & thực thi: **Huu Tai Ngo** — CDO02. Số liệu hiện trạng đo trực tiếp trên cluster/AWS
-16/07/2026 (chi tiết phép đo: [execution plan §1](mandate-08-execution-plan.md)). Phối hợp: CDO01
+16/07/2026 (chi tiết phép đo: [execution plan §1](../../mandates/mandate-08/mandate-08-execution-plan.md)). Phối hợp: CDO01
 (SG/TLS/secret review + trình tự merge Mandate #5), AIO02 (detector trỏ endpoint mới).*

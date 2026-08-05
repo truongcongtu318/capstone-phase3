@@ -5,7 +5,7 @@
 - Jira: PM-92, PM-101, PM-104, PM-110, PM-111, PM-112, PM-113, PM-114 (đọc full DoD + output đã nộp, 18/07)
 - Cluster sống: `techx-corp-tf3` (account 197826770971), verify trực tiếp bằng `kubectl`/`cosign`/`gh`, snapshot lúc viết doc này
 
-**Phát hiện quan trọng nhất trước khi đọc chi tiết bên dưới:** Jira + `docs/mandate-05-runtime-hardening-completion-plan.md` (viết 17/07, trước PR #207/208/209) đang báo tiến độ **9/13 DoD = 69.2%**, coverage baseline chỉ **~17.9%**. Nhưng cluster sống hôm nay đã tốt hơn HẲN — coverage thật đo lại là **95.1%** (xem mục 1). Có 1 loạt PR merge tối 17/07 (`#207`, `#208`, `#209`, và các fix lẻ `fe2adde`, `12c4eea`...) đã âm thầm đóng gần hết gap, nhưng **không ai cập nhật lại Jira/docs cho khớp** — đây tự nó là 1 việc cần làm hôm nay (mục 4, việc #6).
+**Phát hiện quan trọng nhất trước khi đọc chi tiết bên dưới:** Jira + `docs/../mandates/mandate-05/mandate-05-runtime-hardening-completion-plan.md` (viết 17/07, trước PR #207/208/209) đang báo tiến độ **9/13 DoD = 69.2%**, coverage baseline chỉ **~17.9%**. Nhưng cluster sống hôm nay đã tốt hơn HẲN — coverage thật đo lại là **95.1%** (xem mục 1). Có 1 loạt PR merge tối 17/07 (`#207`, `#208`, `#209`, và các fix lẻ `fe2adde`, `12c4eea`...) đã âm thầm đóng gần hết gap, nhưng **không ai cập nhật lại Jira/docs cho khớp** — đây tự nó là 1 việc cần làm hôm nay (mục 4, việc #6).
 
 ---
 

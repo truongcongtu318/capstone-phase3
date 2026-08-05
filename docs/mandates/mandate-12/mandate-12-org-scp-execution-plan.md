@@ -4,7 +4,7 @@
 > **Account A** (management, bật Organizations): **`593777010472`** — *chỉ* chứa Organization + SCP
 > **Account B** (member, workload + toàn bộ audit plane): **`197826770971`** — *không đổi gì về kiến trúc*
 > **Region:** `ap-southeast-1` + `us-east-1`
-> **Quan hệ với bản trước:** [`mandate-12-execution-plan.md`](mandate-12-execution-plan.md) mô tả M12 v1 **đã merge + đã apply** (PR #403). v2 **không thay thế** v1 — v2 chỉ thêm **một lớp SCP từ ngoài** khoá cứng những gì v1 đã dựng.
+> **Quan hệ với bản trước:** [`../../mandates/mandate-12/mandate-12-execution-plan.md`](../../mandates/mandate-12/mandate-12-execution-plan.md) mô tả M12 v1 **đã merge + đã apply** (PR #403). v2 **không thay thế** v1 — v2 chỉ thêm **một lớp SCP từ ngoài** khoá cứng những gì v1 đã dựng.
 
 > [!CAUTION]
 > **Không gửi invite, không accept, không attach SCP** trước khi §2 được ký.
@@ -1408,7 +1408,7 @@ aws cloudtrail validate-logs \
 
 ## 16. Tài liệu liên quan
 
-- [`mandate-12-execution-plan.md`](mandate-12-execution-plan.md) — M12 v1, đã merge + apply (PR #403). v2 chồng lên, không thay thế
+- [`../../mandates/mandate-12/mandate-12-execution-plan.md`](../../mandates/mandate-12/mandate-12-execution-plan.md) — M12 v1, đã merge + apply (PR #403). v2 chồng lên, không thay thế
 - [`docx_cdo02/mandate11-audit-detection-review.md`](docx_cdo02/mandate11-audit-detection-review.md) — thiết kế detection M11, nguồn của group 1–6
 - [`docx_cdo02/mandate11-completion-evidence-guide.md`](docx_cdo02/mandate11-completion-evidence-guide.md)
 - [`cost-breakdown-2026-07-22.md`](cost-breakdown-2026-07-22.md) — kế hoạch cắt về $269,7/tuần, liên quan trực tiếp §2

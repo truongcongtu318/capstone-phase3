@@ -8,7 +8,7 @@
 
 **Trạng thái:** Đã chấp nhận cho triển khai và thu thập evidence
 
-**Liên quan:** Mandate 16, `docs/mandate-16-checkout-latency-optimization.md`
+**Liên quan:** Mandate 16, `docs/../mandates/mandate-16/mandate-16-checkout-latency-optimization.md`
 
 ## Bối cảnh
 
@@ -57,7 +57,7 @@ Giữ hướng triển khai Mandate 16 như một gói tối ưu code-path gồm
 - Service: `checkout`
 - Code path: `checkout.PlaceOrder`
 - File implement chính: `phase3 - information/techx-corp-platform/src/checkout/main.go`
-- File evidence: `docs/mandate-16-checkout-latency-optimization.md`
+- File evidence: `docs/../mandates/mandate-16/mandate-16-checkout-latency-optimization.md`
 
 ## Vì sao đây là ranh giới đúng
 
@@ -110,7 +110,7 @@ ADR này cần được bảo vệ bằng:
 
 Implementation note và evidence pack nằm tại:
 
-- `docs/mandate-16-checkout-latency-optimization.md`
+- `docs/../mandates/mandate-16/mandate-16-checkout-latency-optimization.md`
 
 ## Kết luận cuối
 

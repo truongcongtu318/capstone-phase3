@@ -4,7 +4,7 @@
 > **Người lập & ký:** **Lê Văn Hải — CDO-02**
 > **Ngày:** 25/07/2026
 > **Account workload:** `197826770971` (`ap-southeast-1`)
-> **Tài liệu thiết kế kèm theo:** [`mandate-12-org-scp-execution-plan.md`](mandate-12-org-scp-execution-plan.md)
+> **Tài liệu thiết kế kèm theo:** [`../../mandates/mandate-12/mandate-12-org-scp-execution-plan.md`](../../mandates/mandate-12/mandate-12-org-scp-execution-plan.md)
 
 ---
 
@@ -40,7 +40,7 @@ Bài tập kết thúc **31/07/2026** nên không thể "chờ join đúng ngày
 
 ### 3.1 Thiết kế hoàn chỉnh (tài liệu hoá, sẵn sàng dùng lại)
 
-Toàn bộ nằm ở [`mandate-12-org-scp-execution-plan.md`](mandate-12-org-scp-execution-plan.md) (16 mục, có kiểm chứng số liệu):
+Toàn bộ nằm ở [`../../mandates/mandate-12/mandate-12-org-scp-execution-plan.md`](../../mandates/mandate-12/mandate-12-org-scp-execution-plan.md) (16 mục, có kiểm chứng số liệu):
 
 | Hạng mục | Trạng thái |
 |---|---|
@@ -129,7 +129,7 @@ Toàn bộ nằm ở [`mandate-12-org-scp-execution-plan.md`](mandate-12-org-scp
 Nếu chương trình gia hạn hoặc BTC nới lịch qua tháng 8:
 
 - **Điều kiện vàng để làm lại rẻ:** join organization **đúng ngày 01 của tháng** → khoảng hở credit = 0 (§2). Khi đó toàn bộ thiết kế áp được với chi phí steady-state gần $0.
-- Dùng lại nguyên: [`mandate-12-org-scp-execution-plan.md`](mandate-12-org-scp-execution-plan.md) (2 SCP đã validate, role R, ma trận kiểm chứng, trình tự Phase 0–5).
+- Dùng lại nguyên: [`../../mandates/mandate-12/mandate-12-org-scp-execution-plan.md`](../../mandates/mandate-12/mandate-12-org-scp-execution-plan.md) (2 SCP đã validate, role R, ma trận kiểm chứng, trình tự Phase 0–5).
 - `CDOAuditTeam` + inline assume-R đã sẵn — chỉ cần tạo role R (Phase 3.5) là khớp.
 
 ---

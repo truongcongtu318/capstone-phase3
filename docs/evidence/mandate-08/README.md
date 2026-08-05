@@ -1,6 +1,6 @@
 # Evidence — Mandate #8 (migrate 3 datastore lên managed)
 
-Bằng chứng thô, thu thập **21/07/2026**, dùng cho [biên bản nghiệm thu](../../mandate-08-nghiem-thu.md).
+Bằng chứng thô, thu thập **21/07/2026**, dùng cho [biên bản nghiệm thu](../../mandates/mandate-08/mandate-08-nghiem-thu.md).
 
 | File | Nội dung | Dùng cho |
 |---|---|---|
@@ -68,5 +68,5 @@ trong cửa sổ đóng băng đều được replay đủ từ Kafka, **không 
 
 ## Cách tự tái tạo bằng chứng
 
-Toàn bộ lệnh nằm trong [biên bản nghiệm thu](../../mandate-08-nghiem-thu.md) mục **C** (parity) và
+Toàn bộ lệnh nằm trong [biên bản nghiệm thu](../../mandates/mandate-08/mandate-08-nghiem-thu.md) mục **C** (parity) và
 mục **E.3** (snapshot/PITR). Cần `export AWS_PROFILE=techx-new` và tunnel SSM tới cluster.

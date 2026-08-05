@@ -79,7 +79,7 @@ request đều tới Envoy.
 
 `SLO.md` **không có ngưỡng latency nào cho checkout**. Các báo cáo #19 trước gate theo
 `checkout p99 ≤ 300ms` và tuyên FAIL từ 350 user; đó là budget *server-side,
-steady-state* do Mandate #16 tự đặt (`docs/mandate-16-checkout-latency-report.md:24`),
+steady-state* do Mandate #16 tự đặt (`docs/../../../mandates/mandate-16/mandates-16-checkout-latency-report.md:24`),
 bị đem áp cho p99 *client-side* khi đang cố ý đẩy quá trần. `checkout_p95/p99` vẫn
 được ghi lại ở đây để tham chiếu #16, nhưng không tham gia quyết định PASS/FAIL.
 

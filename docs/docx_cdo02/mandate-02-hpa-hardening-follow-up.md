@@ -2,7 +2,7 @@
 
 **Ngày lập:** 2026-07-16  
 **Phạm vi:** Đánh giá hậu Mandate 02 cho `payment`, `shipping`, `quote`  
-**Liên quan:** `docs/mandate-02-load-test-report.md`, `docs/mandate-02-load-test-remediation-plan.md`, `docs/docx_cdo02/Task[121]_mandate2/`
+**Liên quan:** `docs/../mandates/mandate-02/mandate-02-load-test-report.md`, `docs/../mandates/mandate-02/mandate-02-load-test-remediation-plan.md`, `docs/docx_cdo02/Task[121]_mandate2/`
 
 ## 1. Tóm tắt
 

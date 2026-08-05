@@ -45,7 +45,7 @@ The operator record states that the later run kept the node count at **7 for
 the full stage sequence** (10, 300, 350, 400, 410, 500, 600, 700, 800 and 900
 users). HPA replicas increased on those existing nodes; no node was added
 during the run. The stage-level observations and screenshots are recorded in
-[`docs/mandate-19-throughput-ceiling-report.md`](../../../mandate-19-throughput-ceiling-report.md#54-nhật-ký-stage-after).
+[`docs/../../../mandates/mandate-19/mandate-19-throughput-ceiling-report.md`](../../../mandates/mandate-19/mandate-19-throughput-ceiling-report.md#54-nhật-ký-stage-after).
 The checkpoint image
 [`node-350-user.jpg`](../../../tests/kyverno/mandate-19/test_slo_after/node-350-user.jpg)
 shows `Node count — Mean: 7, Max: 7` for the visible Last-1-hour window. It

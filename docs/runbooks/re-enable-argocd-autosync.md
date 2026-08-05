@@ -157,4 +157,4 @@ otel-collector Running · MSK LAG=0.
 Chỉ khi **tất cả tiêu chí xanh ở mục 5** mới mở PR §8 (tắt 3 component `postgresql`/`valkey-cart`/`kafka`).
 Xoá store cũ **trước khi** initContainer được gỡ khỏi cluster = **cart + checkout chết ngay**.
 
-Xem [biên bản nghiệm thu Mandate #8](../mandate-08-nghiem-thu.md) mục H (thứ tự 6 bước).
+Xem [biên bản nghiệm thu Mandate #8](../mandates/mandate-08/mandate-08-nghiem-thu.md) mục H (thứ tự 6 bước).

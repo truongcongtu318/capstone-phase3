@@ -92,11 +92,11 @@ sum(increase(traces_span_metrics_calls_total{
 Đã co xuống về gần baseline ngay trong ~10 phút sau khi dừng loadgen — không cần đợi lâu.
 
 - [ ] **Đã đổi `consolidateAfter` về lại `2m`** (hiện đang `3m`) sau khi xác nhận co xuống — chưa làm, cần làm sau khi merge/hoàn tất hẳn Mandate 2 (bắt buộc — để lâu tốn thêm chi phí, đi ngược mục tiêu cost của chính mandate này).
-- [ ] **Đã gỡ `podAnnotations.karpenter.sh/do-not-disrupt`** khỏi cả 7 component (`cart`, `checkout`, `payment`, `shipping`, `quote`, `postgresql`, `valkey-cart`) trong `values-prod.yaml` — xem `docs/mandate-02-load-test-remediation-plan.md` mục 0 để đối chiếu danh sách đầy đủ. **Chưa làm.**
+- [ ] **Đã gỡ `podAnnotations.karpenter.sh/do-not-disrupt`** khỏi cả 7 component (`cart`, `checkout`, `payment`, `shipping`, `quote`, `postgresql`, `valkey-cart`) trong `values-prod.yaml` — xem `docs/../../mandates/mandate-02/mandate-02-load-test-remediation-plan.md` mục 0 để đối chiếu danh sách đầy đủ. **Chưa làm.**
 
 ## 5. Điểm nghẽn tự phát hiện và đã xử (yêu cầu #3 của mandate — "tự tìm và xử điểm nghẽn")
 
-Liệt kê các điểm nghẽn phát hiện được **trong quá trình chuẩn bị/chạy test này**, đã xử lý ra sao — tham chiếu `docs/mandate-02-load-test-remediation-plan.md` để không lặp lại nội dung, chỉ tóm tắt:
+Liệt kê các điểm nghẽn phát hiện được **trong quá trình chuẩn bị/chạy test này**, đã xử lý ra sao — tham chiếu `docs/../../mandates/mandate-02/mandate-02-load-test-remediation-plan.md` để không lặp lại nội dung, chỉ tóm tắt:
 
 1. Checkout canary rollout Degraded do Karpenter consolidation quá nhạy (`consolidateAfter: 2m`) evict pod đúng lúc phân tích SLO → tăng lên `1h` rồi hạ về `3m` sau khi có `do-not-disrupt` bảo vệ riêng 7 component checkout-critical.
 2. Pod quota namespace gần chạm trần (42/90 → cộng dồn HPA max có thể chạm) → tăng lên 100.
@@ -133,7 +133,7 @@ kubectl -n techx-tf3 get hpa    # đợi ~5-10 phút, xem replicas co về min
 **Cách B — Xem lại bằng chứng đã lưu (nếu mentor không chạy được real-time):**
 - **Video demo:** [Mandate #2 — flash sale load test 200 user](https://www.youtube.com/watch?v=bgm2kezvKo4) — quay lại quá trình chạy test + theo dõi Grafana/HPA trực tiếp, dùng khi mentor không xem được real-time.
 - Ảnh chụp Grafana/HPA/Locust đính kèm ở mục 2 (7 ảnh, `docs/postmortem/Mandate02-image/`).
-- File này (`docs/mandate-02-load-test-report.md`) + `docs/mandate-02-load-test-remediation-plan.md` làm bằng chứng quá trình chuẩn bị.
+- File này (`docs/../../mandates/mandate-02/mandate-02-load-test-report.md`) + `docs/../../mandates/mandate-02/mandate-02-load-test-remediation-plan.md` làm bằng chứng quá trình chuẩn bị.
 - Query Prometheus ở mục 3 có thể chạy lại nguyên văn (đổi `@<epoch>` sang cửa sổ khác) để mentor tự xác nhận số đơn, không cần tin theo số đã tính sẵn.
 
 ## 7. Kết luận

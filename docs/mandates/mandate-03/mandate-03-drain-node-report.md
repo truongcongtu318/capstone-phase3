@@ -130,9 +130,9 @@ kubectl uncordon "$NODE"
 - **Grafana SLO graph sau khi hồi phục**: Prometheus giữ dữ liệu nên biểu đồ lịch sử cho thấy **đường
   success-rate KHÔNG rớt** và p95 không vọt trong đúng cửa sổ drain !
   
-  ![grafana](image-2.png)
+  ![grafana](../../assets/image-2.png)
 
-  ![drained node result](image-1.png)
+  ![drained node result](../../assets/image-1.png)
   
 - **Dry-run trước đó** (đã ghi trong CLAUDE.md): drain thử 1 node app → **100% success, p95 205ms**.
 

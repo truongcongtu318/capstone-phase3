@@ -4,9 +4,9 @@
 
 | File | Giai đoạn | Nội dung |
 |---|---|---|
-| `mandate-02-load-test-capacity-analysis.md` | Trước remediation | Phân tích hiện trạng, capacity, rủi ro Reliability và Cost |
-| `mandate-02-load-test-remediation-plan.md` | Trước load test | Solution proposal, handoff, validation và GO/NO-GO |
-| `mandate-02-load-test-report.md` | Trong/sau load test | Kết quả evidence, đối chiếu và kết luận Reliability/Cost |
+| `../../mandates/mandate-02/mandate-02-load-test-capacity-analysis.md` | Trước remediation | Phân tích hiện trạng, capacity, rủi ro Reliability và Cost |
+| `../../mandates/mandate-02/mandate-02-load-test-remediation-plan.md` | Trước load test | Solution proposal, handoff, validation và GO/NO-GO |
+| `../../mandates/mandate-02/mandate-02-load-test-report.md` | Trong/sau load test | Kết quả evidence, đối chiếu và kết luận Reliability/Cost |
 
 Bộ tài liệu là báo cáo độc lập của CDO-02 cho Mandate 02. Capacity analysis mô tả cơ sở kỹ thuật, remediation plan ghi nhận solution và validation, load-test report tổng hợp kết quả Reliability và Cost Optimization.
 

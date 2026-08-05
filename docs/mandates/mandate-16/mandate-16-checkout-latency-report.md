@@ -4,7 +4,7 @@
 **Người thực hiện:** CDO01
 **Trụ:** Performance Efficiency · chạm Cost Optimization · Reliability
 **Trạng thái:** ✅ PASS — nộp mentor review
-**ADR:** [`docs/adr/0011-mandate-16-checkout-latency-optimization.md`](adr/0011-mandate-16-checkout-latency-optimization.md)
+**ADR:** [`docs/adr/0011-../../mandates/mandate-16/mandate-16-checkout-latency-optimization.md`](adr/0011-../../mandates/mandate-16/mandate-16-checkout-latency-optimization.md)
 **Evidence chi tiết:** [`docs/docx_cdo01/mandate-16-parallelize-checkout-prep-order-items.md`](docx_cdo01/mandate-16-parallelize-checkout-prep-order-items.md)
 **Video demo so sánh before and after :**(https://drive.google.com/file/d/1-Pf63j_5VlJTLS4GRs8zKj-L5qeZ4Swc/view?usp=sharing)
 
@@ -338,8 +338,8 @@ Talk track:
 
 | Tài liệu | Nội dung |
 |---|---|
-| [`docs/adr/0011-mandate-16-checkout-latency-optimization.md`](adr/0011-mandate-16-checkout-latency-optimization.md) | ADR ký tên: bottleneck, quyết định, đánh đổi, evidence summary |
-| [`docs/mandate-16-checkout-latency-optimization.md`](mandate-16-checkout-latency-optimization.md) | Technical write-up: chi tiết 3 điểm tối ưu, code diff, Jaeger trace verify |
+| [`docs/adr/0011-../../mandates/mandate-16/mandate-16-checkout-latency-optimization.md`](adr/0011-../../mandates/mandate-16/mandate-16-checkout-latency-optimization.md) | ADR ký tên: bottleneck, quyết định, đánh đổi, evidence summary |
+| [`docs/../../mandates/mandate-16/mandate-16-checkout-latency-optimization.md`](../../mandates/mandate-16/mandate-16-checkout-latency-optimization.md) | Technical write-up: chi tiết 3 điểm tối ưu, code diff, Jaeger trace verify |
 | [`docs/docx_cdo01/mandate-16-parallelize-checkout-prep-order-items.md`](docx_cdo01/mandate-16-parallelize-checkout-prep-order-items.md) | Implementation plan + DoD checklist đầy đủ |
 
 ---
