@@ -124,7 +124,7 @@ Explorer: MSK tiêu **$18.36/ngày** đúng bằng `3 × $0.2550 × 24`. Cảnh 
 **đang vượt 42%**. Nhưng phân rã cho thấy Mandate #8 không phải nguyên nhân duy nhất: $96.7/tuần thuộc
 tầng AI (riêng **$80.6/tuần là 2 OCU OpenSearch Serverless mồ côi**, KB kẹt `DELETE_UNSUCCESSFUL`) và
 $23.2/tuần thuộc stack `thermal-power-plant-*` ở Tokyo **không thuộc Phase 3**. Kế hoạch đưa về
-**$269.7/tuần mà không đảo ngược quyết định nào của ADR này** — xem `docs/cost-breakdown-2026-07-22.md`
+**$269.7/tuần mà không đảo ngược quyết định nào của ADR này** — xem `docs/../reports/cost-breakdown-2026-07-22.md`
 và mục G.3 của báo cáo nghiệm thu.
 
 #### Đã kiểm chứng: $558/mo là giá sàn tuyệt đối của MSK KRaft

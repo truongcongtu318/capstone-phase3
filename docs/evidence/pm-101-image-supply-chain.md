@@ -129,7 +129,7 @@ with an unreviewed HIGH/CRITICAL finding must stop.
    `signed-release-evidence-<run-id>`.
 6. Confirm every required service has a Trivy JSON report, a digest entry, and
    a successful raw `cosign verify` report.
-7. Record the exact signed digest and Actions run in `docs/release-notes-v1.md`.
+7. Record the exact signed digest and Actions run in `docs/../reports/release-notes-v1.md`.
 8. Promote only those signed digests through a separate GitOps PR.
 9. Verify the live pod image digests match the evidence table.
 10. Run `Periodic Trivy review for external images` once manually and retain

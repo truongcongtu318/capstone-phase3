@@ -1411,5 +1411,5 @@ aws cloudtrail validate-logs \
 - [`../../mandates/mandate-12/mandate-12-execution-plan.md`](../../mandates/mandate-12/mandate-12-execution-plan.md) — M12 v1, đã merge + apply (PR #403). v2 chồng lên, không thay thế
 - [`docx_cdo02/mandate11-audit-detection-review.md`](docx_cdo02/mandate11-audit-detection-review.md) — thiết kế detection M11, nguồn của group 1–6
 - [`docx_cdo02/mandate11-completion-evidence-guide.md`](docx_cdo02/mandate11-completion-evidence-guide.md)
-- [`cost-breakdown-2026-07-22.md`](cost-breakdown-2026-07-22.md) — kế hoạch cắt về $269,7/tuần, liên quan trực tiếp §2
+- [`../../reports/cost-breakdown-2026-07-22.md`](../../reports/cost-breakdown-2026-07-22.md) — kế hoạch cắt về $269,7/tuần, liên quan trực tiếp §2
 - AWS: [SCPs](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html) · [Applying AWS credits](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/useconsolidatedbilling-credits.html) · [Consolidated billing effective date](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/useconsolidatedbilling-effective.html) · [Troubleshoot SCP explicit deny](https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot_access-denied.html)

@@ -45,7 +45,7 @@ the `trivy-app-images-<run-id>` artifact and retained for 90 days. That artifact
 is the current scan evidence to attach to the release/change record; a failed
 gate uploads reports produced before the failure as well. The first successful
 run after this PR must be recorded against the exact digest in
-`docs/release-notes-v1.md` before that digest is promoted in GitOps.
+`docs/../reports/release-notes-v1.md` before that digest is promoted in GitOps.
 
 After each successful signature, the workflow immediately verifies the ECR
 digest against the certificate identity derived from `GITHUB_WORKFLOW_REF`.
@@ -83,7 +83,7 @@ an upstream image lacks a TF3 signature.
 | Flagd | `ghcr.io/open-feature/flagd@sha256:e6cca8...` | Upstream image; no TF3 signing authority | Weekly Trivy + quarterly review |
 
 The full digests and release inventory are authoritative in
-[`release-notes-v1.md`](../release-notes-v1.md). Any new external runtime image
+[`../reports/release-notes-v1.md`](../reports/release-notes-v1.md). Any new external runtime image
 must be added to both that inventory and the periodic workflow in the same PR.
 
 ## Boundary with admission control

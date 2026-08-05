@@ -1120,9 +1120,9 @@ Release A chỉ DONE khi:
 ## 18. Tài liệu liên quan
 
 - [`aio02-product-reviews-code-contribution.md`](aio02-product-reviews-code-contribution.md)
-- [`../product-reviews-guardrails-upgrade-plan.md`](../product-reviews-guardrails-upgrade-plan.md)
+- [`../reports/product-reviews-guardrails-upgrade-plan.md`](../reports/product-reviews-guardrails-upgrade-plan.md)
 - [`../postmortem/0016-product-reviews-deadline-exceeded-under-synthetic-load.md`](../postmortem/0016-product-reviews-deadline-exceeded-under-synthetic-load.md)
-- [`../pm-0016-bao-cao-cong-viec-28-07.md`](../pm-0016-bao-cao-cong-viec-28-07.md)
+- [`../mandates/mandate-16/pm-0016-bao-cao-cong-viec-28-07.md`](../mandates/mandate-16/pm-0016-bao-cao-cong-viec-28-07.md)
 - [`../../gitops/apps/techx-corp.yaml`](../../gitops/apps/techx-corp.yaml)
 - [`../../gitops/jobs/product-reviews-schema-migration.yaml`](../../gitops/jobs/product-reviews-schema-migration.yaml)
 - [`../../.github/workflows/build-push-ecr.yml`](../../.github/workflows/build-push-ecr.yml)

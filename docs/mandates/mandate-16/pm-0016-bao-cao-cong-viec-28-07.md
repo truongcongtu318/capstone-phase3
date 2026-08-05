@@ -9,7 +9,7 @@
 **Tài liệu liên quan:**
 - Postmortem đầy đủ: [`docs/postmortem/0016-product-reviews-deadline-exceeded-under-synthetic-load.md`](postmortem/0016-product-reviews-deadline-exceeded-under-synthetic-load.md)
 - Báo cáo ngắn cho AIO02: [`docs/pm-0016-bao-cao-tong-hop.md`](pm-0016-bao-cao-tong-hop.md)
-- Plan nâng cấp AIO02: [`docs/product-reviews-guardrails-upgrade-plan.md`](product-reviews-guardrails-upgrade-plan.md)
+- Plan nâng cấp AIO02: [`docs/../../reports/product-reviews-guardrails-upgrade-plan.md`](../../reports/product-reviews-guardrails-upgrade-plan.md)
 
 ---
 

@@ -35,7 +35,7 @@ Directive #16 yêu cầu chứng minh luồng lõi **browse → cart → checkou
 
 **Ngày đo:** 21/07/2026 · **Load profile:** 100 concurrent users, ~19.7 RPS, 0% failure.
 
-![Locust baseline — checkout p99 940ms trước tối ưu](docx_cdo01/locust-baseline.png)
+![Locust baseline — checkout p99 940ms trước tối ưu](docx_cdo01/../../assets/locust-baseline.png)
 
 | Endpoint | p95 baseline | p99 baseline | Ghi chú |
 |---|---:|---:|---|
@@ -78,9 +78,9 @@ Các item trong giỏ **độc lập hoàn toàn** nhưng bị gọi **tuần t�
 
 **Kết luận bottleneck:** đây là lỗi tổ chức critical path trong code, không phải thiếu CPU/replica/cache/pool ở mức tải hiện hành.
 
-![Jaeger trace list — trước tối ưu, duration cao](docx_cdo01/jaeger-trace-list.png)
+![Jaeger trace list — trước tối ưu, duration cao](docx_cdo01/../../assets/jaeger-trace-list.png)
 
-![Jaeger waterfall — GetProduct/Convert xếp đuôi tuần tự từng item](docx_cdo01/jaeger-waterfall.png)
+![Jaeger waterfall — GetProduct/Convert xếp đuôi tuần tự từng item](docx_cdo01/../../assets/jaeger-waterfall.png)
 
 | Chỉ số Jaeger before | Giá trị |
 |---|---:|
@@ -180,7 +180,7 @@ Các span `ProductCatalogService/GetProduct` và `CurrencyService/Convert` của
 
 **DoD check — Jaeger:** ✅ span GetProduct/Convert của các item khác nhau overlap (chạy song song).
 
-![Jaeger optimized waterfall — GetProduct/Convert các item overlap song song](docx_cdo01/jaeger-optimized-waterfall.png)
+![Jaeger optimized waterfall — GetProduct/Convert các item overlap song song](docx_cdo01/../../assets/jaeger-optimized-waterfall.png)
 
 | Chỉ số Jaeger | Before | After | Delta |
 |---|---:|---:|---:|
@@ -220,7 +220,7 @@ Tăng mức concurrent RPC lên product-catalog (do song song hoá) **không gâ
 
 **Load hiện tại:** 100 users, 20.9 RPS, host `http://frontend-proxy:8080`.
 
-![Locust sau tối ưu — checkout p99 giảm mạnh](docx_cdo01/locust-optimized.png)
+![Locust sau tối ưu — checkout p99 giảm mạnh](docx_cdo01/../../assets/locust-optimized.png)
 
 | Endpoint | p95 | p99 HTTP | Kết luận |
 |---|---:|---:|---|

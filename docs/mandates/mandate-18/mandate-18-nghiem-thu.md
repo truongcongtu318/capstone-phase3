@@ -51,7 +51,7 @@ Directive #18 đòi cắt **chi phí ẩn ngoài node compute**: data-transfer/N
 
 ## 1. TOP COST-DRIVER NGOÀI COMPUTE (Yêu cầu #5)
 
-Phân rã chi phí ngoài EC2-node (nguồn: `docs/cost-breakdown-2026-07-22.md`, `RECORD_TYPE=Usage`):
+Phân rã chi phí ngoài EC2-node (nguồn: `docs/../../reports/cost-breakdown-2026-07-22.md`, `RECORD_TYPE=Usage`):
 
 | Dòng ngoài compute | $/tháng | Xử lý |
 |---|---:|---|
@@ -221,7 +221,7 @@ Directive #18 ràng buộc: **giữ SLO** và **giữ khả năng quan sát/đi�
 ## 7. THAM CHIẾU
 
 - ADR: `docs/adr/0013-mandate-18-trace-sampling-cdo02.md` (quyết định trace)
-- Cost: `docs/cost-breakdown-2026-07-22.md`
+- Cost: `docs/../../reports/cost-breakdown-2026-07-22.md`
 - PR: A1 #446/#447 · A2 #456 · A4 #457 · ADR #463
 - Verify live (mentor đọc console/kubectl): các lệnh trong §2–§5.
 

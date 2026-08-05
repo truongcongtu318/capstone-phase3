@@ -55,7 +55,7 @@ Ràng buộc bắt buộc:
 
 Nhận xét baseline: checkout p99 gần 1 giây khi gặp giỏ nhiều sản phẩm, cao hơn đáng kể so với browse/cart. Đây là lý do Mandate 16 tập trung vào checkout critical path.
 
-![Locust Baseline - p99 940ms](./locust-baseline.png)
+![Locust Baseline - p99 940ms](./../assets/locust-baseline.png)
 
 ### Resource baseline
 
@@ -84,8 +84,8 @@ GetCart
 
 Các item trong giỏ hàng độc lập với nhau nhưng lại bị xử lý tuần tự. Vì vậy thời gian checkout bị cộng dồn theo số lượng item. Với order nhiều sản phẩm, `PlaceOrder` không bị giới hạn bởi một downstream chậm nhất, mà bị kéo bởi tổng nhiều RPC nối tiếp.
 
-![Jaeger Trace List](./jaeger-trace-list.png)
-![Jaeger Waterfall - Sequential Loop](./jaeger-waterfall.png)
+![Jaeger Trace List](./../assets/jaeger-trace-list.png)
+![Jaeger Waterfall - Sequential Loop](./../assets/jaeger-waterfall.png)
 
 Kết luận bottleneck: đây là lỗi tổ chức critical path trong code checkout, không phải thiếu CPU, memory, replica, cache hay connection pool ở mức tải hiện hành.
 
@@ -123,7 +123,7 @@ GetCart
 
 Jaeger after xác nhận các span `ProductCatalogService/GetProduct` và `CurrencyService/Convert` của nhiều item xuất hiện cùng cấp, overlap theo thời gian thay vì xếp đuôi từng sản phẩm.
 
-![Jaeger Optimized Waterfall](./jaeger-optimized-waterfall.png)
+![Jaeger Optimized Waterfall](./../assets/jaeger-optimized-waterfall.png)
 
 ### So sánh cùng order 10 sản phẩm
 
@@ -207,7 +207,7 @@ Prometheus/Grafana bổ sung:
 
 Kết luận: p99 giảm mạnh và đạt target dưới 300ms. CPU không tăng; evidence mới còn ghi nhận CPU checkout thấp hơn baseline.
 
-![Locust Result - p99 280ms](./locust-optimized.png)
+![Locust Result - p99 280ms](./../assets/locust-optimized.png)
 
 ### 9.2. Tải dao động
 
@@ -219,7 +219,7 @@ Quan sát:
 - Response time p99 đi ngang khoảng **170ms - 250ms**, không jitter lớn.
 - Không ghi nhận dấu hiệu cạn connection pool hoặc memory pressure trong evidence của task.
 
-![Locust Jitter Chart](./locust-step-load.png)
+![Locust Jitter Chart](./../assets/locust-step-load.png)
 
 ---
 

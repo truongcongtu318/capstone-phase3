@@ -70,4 +70,4 @@ Mở lại Phương án A **như một sáng kiến Reliability riêng** (không
 ## Tham chiếu
 
 - Directive #18 A1 (VPC endpoint 15→3 ENI), A2 (otel-logs retention), A4 (drop apiserver buckets) — các PR tương ứng.
-- `docs/cost-breakdown-2026-07-22.md` — phân rã chi phí, nền số liệu telemetry.
+- `docs/../reports/cost-breakdown-2026-07-22.md` — phân rã chi phí, nền số liệu telemetry.

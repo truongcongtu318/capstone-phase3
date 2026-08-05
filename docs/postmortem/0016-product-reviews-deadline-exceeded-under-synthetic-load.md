@@ -734,7 +734,7 @@ việc đó).
 ## 14. Nâng cấp `product-reviews` theo bản AIO02 + đo lại (28/07/2026, sau §13)
 
 Sau §13, `product-reviews` được nâng cấp lên bản AIO02 (PR #554/#557/#558/#559 — chi tiết port và những
-chỗ cố ý không lấy nguyên bản upstream ở [`docs/product-reviews-guardrails-upgrade-plan.md`](../product-reviews-guardrails-upgrade-plan.md)).
+chỗ cố ý không lấy nguyên bản upstream ở [`docs/../reports/product-reviews-guardrails-upgrade-plan.md`](../reports/product-reviews-guardrails-upgrade-plan.md)).
 Bản này thêm **cache LLM bằng Redis**, **circuit breaker**, tool validator, off-topic routing, llm-trace.
 Fix PM-0016 (semaphore) và REL-02 (health phụ thuộc DB) được **re-apply thủ công** vì upstream không có.
 
